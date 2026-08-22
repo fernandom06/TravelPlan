@@ -97,3 +97,4 @@ No CI/CD or deployment configuration exists yet.
 - `backend/pyproject.toml` uses the `uv_build` build backend with `src/backend/` layout; place importable modules under `src/backend/`
 - Secrets must never be committed; there is no `.env` handling yet, so create one locally if needed and keep it ignored
 - Flutter platform folders (`android/`, `ios/`, `linux/`, `macos/`, `web/`, `windows/`) are generated — avoid manual edits unless changing platform-specific configuration
+- Known debt: review `userAgentPackageName` and the OSM tile usage policy (the `flutter_map` warning is visible in tests) before the map grows; promote a module to `core/` only once it has a second real consumer

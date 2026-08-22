@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Travel planning API."
 readme = "README.md"
 authors = [
     { name = "Fernando Muñoz Paredes", email = "fernandom06@hotmail.com" }
