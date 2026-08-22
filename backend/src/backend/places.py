@@ -20,7 +20,7 @@ def _row_to_response(row: sqlite3.Row) -> PlaceResponse:
     )
 
 
-@router.get("/", response_model=list[PlaceResponse])
+@router.get("", response_model=list[PlaceResponse])
 def list_places(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[PlaceResponse]:
@@ -56,7 +56,7 @@ def get_place(
     return _row_to_response(row)
 
 
-@router.post("/", response_model=PlaceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PlaceResponse, status_code=status.HTTP_201_CREATED)
 def create_place(
     payload: PlaceCreate,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],

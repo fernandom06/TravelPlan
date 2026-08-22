@@ -9,7 +9,7 @@ from .schemas import CategoryResponse
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
-@router.get("/", response_model=list[CategoryResponse])
+@router.get("", response_model=list[CategoryResponse])
 def list_categories(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[CategoryResponse]:
