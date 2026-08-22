@@ -102,14 +102,14 @@ class _PlaceFormState extends State<PlaceForm> {
                 ),
               )
             else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              OverflowBar(
+                alignment: MainAxisAlignment.end,
+                spacing: 8,
                 children: [
                   TextButton(
                     onPressed: widget.onCancel,
                     child: const Text('Cancelar'),
                   ),
-                  const SizedBox(width: 8),
                   FilledButton(
                     onPressed: _canSave ? _handleSave : null,
                     child: const Text('Guardar'),
