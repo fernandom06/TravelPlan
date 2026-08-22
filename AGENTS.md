@@ -28,9 +28,9 @@ This is an early-stage project. There is no root-level package manager or build 
 
 ### Backend
 
-- Start dev server (hot reload): `uv run fastapi dev main.py` (from `backend/`)
-- Alternative entry point: `uv run python main.py` if a `if __name__ == "__main__"` runner exists
-- App instance lives in `backend/main.py` (`app = FastAPI()`)
+- Start dev server (hot reload): `uv run fastapi dev src/backend/main.py` (from `backend/`)
+- Alternative entry point: `uv run python src/backend/main.py` if a `if __name__ == "__main__"` runner exists
+- App instance lives in `backend/src/backend/main.py` (`app = FastAPI()`)
 - Interactive API docs available at `/docs` once the server runs
 - Source code goes in `backend/src/backend/` (uv build backend layout)
 
@@ -81,7 +81,7 @@ Always add or update tests for code you change.
 No CI/CD or deployment configuration exists yet.
 
 - Frontend release builds: `fvm flutter build apk`, `fvm flutter build ios`, `fvm flutter build web`, etc.
-- Backend has a `backend` console script defined in `pyproject.toml` (currently a stub); production serving would typically use `fastapi run main.py` or `uvicorn`
+- Production serving would typically use `fastapi run src/backend/main.py` or `uvicorn`
 
 ## Pull Request Guidelines
 
