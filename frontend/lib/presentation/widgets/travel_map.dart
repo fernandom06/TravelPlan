@@ -12,7 +12,6 @@ class TravelMap extends StatefulWidget {
 }
 
 class _TravelMapState extends State<TravelMap> {
-  final MapController _mapController = MapController();
   LatLng? _selectedPoint;
 
   void _handleTap(TapPosition tapPosition, LatLng point) {
@@ -22,7 +21,6 @@ class _TravelMapState extends State<TravelMap> {
   @override
   Widget build(BuildContext context) {
     return FlutterMap(
-      mapController: _mapController,
       options: MapOptions(
         initialCenter: kDefaultCenter,
         initialZoom: kDefaultZoom,
