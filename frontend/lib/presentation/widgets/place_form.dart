@@ -76,7 +76,7 @@ class _PlaceFormState extends State<PlaceForm> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<Category>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               items: widget.categories
                   .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
                   .toList(),
