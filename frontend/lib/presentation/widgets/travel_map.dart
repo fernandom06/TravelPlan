@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../core/constants/map_constants.dart';
+import 'map_constants.dart';
 
 class TravelMap extends StatefulWidget {
   const TravelMap({super.key});
