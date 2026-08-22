@@ -4,7 +4,7 @@ import 'core/connectivity/connectivity_controller.dart';
 import 'presentation/screens/home_screen.dart';
 
 void main() {
-  runApp(TravelPlanApp(online: ConnectivityController.defaultConnectivity()));
+  runApp(TravelPlanApp(online: ConnectivityController.live()));
 }
 
 class TravelPlanApp extends StatelessWidget {
