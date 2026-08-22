@@ -16,8 +16,9 @@ class _FakeConnectivityPlatform extends ConnectivityPlatform {
       _controller.stream;
 
   @override
-  Future<List<ConnectivityResult>> checkConnectivity() async =>
-      [ConnectivityResult.wifi];
+  Future<List<ConnectivityResult>> checkConnectivity() async => [
+    ConnectivityResult.wifi,
+  ];
 }
 
 void main() {

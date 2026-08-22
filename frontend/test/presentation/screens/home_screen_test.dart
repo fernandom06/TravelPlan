@@ -5,8 +5,9 @@ import 'package:frontend/presentation/screens/home_screen.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
 void main() {
-  testWidgets('shows AppBar title and map, no banner when online',
-      (tester) async {
+  testWidgets('shows AppBar title and map, no banner when online', (
+    tester,
+  ) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
 
