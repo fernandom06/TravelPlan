@@ -84,7 +84,7 @@ class _TravelMapState extends State<TravelMap> {
   ) async {
     if (!widget.isOnline) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sin conexion')),
+        const SnackBar(content: Text('Sin conexión')),
       );
       setState(_closeForm);
       return;
