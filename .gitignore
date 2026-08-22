@@ -3,3 +3,4 @@
 skills*
 **/.vscode/settings.json
 .tmp/
+*.db

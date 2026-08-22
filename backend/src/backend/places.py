@@ -1,0 +1,89 @@
+import sqlite3
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from .database import get_db
+from .schemas import CategoryResponse, PlaceCreate, PlaceResponse
+
+router = APIRouter(prefix="/places", tags=["places"])
+
+
+def _row_to_response(row: sqlite3.Row) -> PlaceResponse:
+    return PlaceResponse(
+        id=row["id"],
+        name=row["name"],
+        description=row["description"],
+        latitude=row["latitude"],
+        longitude=row["longitude"],
+        category=CategoryResponse(id=row["category_id"], name=row["category_name"]),
+    )
+
+
+@router.get("/", response_model=list[PlaceResponse])
+def list_places(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> list[PlaceResponse]:
+    rows = conn.execute(
+        """
+        SELECT p.id, p.name, p.description, p.latitude, p.longitude,
+               p.category_id, c.name AS category_name
+        FROM places p
+        JOIN categories c ON c.id = p.category_id
+        ORDER BY p.id
+        """
+    ).fetchall()
+    return [_row_to_response(row) for row in rows]
+
+
+@router.get("/{place_id}", response_model=PlaceResponse)
+def get_place(
+    place_id: int,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> PlaceResponse:
+    row = conn.execute(
+        """
+        SELECT p.id, p.name, p.description, p.latitude, p.longitude,
+               p.category_id, c.name AS category_name
+        FROM places p
+        JOIN categories c ON c.id = p.category_id
+        WHERE p.id = ?
+        """,
+        (place_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+    return _row_to_response(row)
+
+
+@router.post("/", response_model=PlaceResponse, status_code=status.HTTP_201_CREATED)
+def create_place(
+    payload: PlaceCreate,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> PlaceResponse:
+    category = conn.execute(
+        "SELECT id, name FROM categories WHERE id = ?", (payload.category_id,)
+    ).fetchone()
+    if category is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+
+    cursor = conn.execute(
+        """
+        INSERT INTO places (name, description, latitude, longitude, category_id)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (payload.name, payload.description, payload.latitude, payload.longitude, payload.category_id),
+    )
+    conn.commit()
+
+    row = conn.execute(
+        """
+        SELECT p.id, p.name, p.description, p.latitude, p.longitude,
+               p.category_id, c.name AS category_name
+        FROM places p
+        JOIN categories c ON c.id = p.category_id
+        WHERE p.id = ?
+        """,
+        (cursor.lastrowid,),
+    ).fetchone()
+    return _row_to_response(row)
