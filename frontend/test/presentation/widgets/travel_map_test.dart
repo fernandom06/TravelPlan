@@ -475,21 +475,22 @@ void main() {
     expect(find.byType(PlaceForm), findsNothing);
   });
 
-  testWidgets('PlaceDetails overlay is positioned near the marker, not origin', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_map(places: [_place]));
+  testWidgets(
+    'PlaceDetails overlay is positioned near the marker, not origin',
+    (tester) async {
+      await tester.pumpWidget(_map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
-    await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.pump(const Duration(milliseconds: 350));
 
-    final positioned = tester.widget<Positioned>(
-      find.ancestor(
-        of: find.byType(PlaceDetails),
-        matching: find.byType(Positioned),
-      ),
-    );
-    expect(positioned.left, isNot(0));
-    expect(positioned.top, isNot(0));
-  });
+      final positioned = tester.widget<Positioned>(
+        find.ancestor(
+          of: find.byType(PlaceDetails),
+          matching: find.byType(Positioned),
+        ),
+      );
+      expect(positioned.left, isNot(0));
+      expect(positioned.top, isNot(0));
+    },
+  );
 }

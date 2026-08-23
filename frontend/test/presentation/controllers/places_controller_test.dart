@@ -360,10 +360,7 @@ void main() {
     final before = controller.value.places;
 
     await expectLater(
-      controller.updatePlace(
-        1,
-        const PlaceUpdate(name: 'X', categoryId: 1),
-      ),
+      controller.updatePlace(1, const PlaceUpdate(name: 'X', categoryId: 1)),
       throwsA(isA<Exception>()),
     );
 
@@ -394,10 +391,7 @@ void main() {
     await controller.loadAll();
     final before = controller.value.places;
 
-    await expectLater(
-      controller.deletePlace(1),
-      throwsA(isA<Exception>()),
-    );
+    await expectLater(controller.deletePlace(1), throwsA(isA<Exception>()));
 
     expect(controller.value.places, before);
   });

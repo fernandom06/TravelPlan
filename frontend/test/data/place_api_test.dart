@@ -285,43 +285,46 @@ void main() {
       );
     });
 
-    test('updatePlace sends PATCH with body and returns parsed place', () async {
-      final client = MockClient((request) async {
-        expect(request.method, 'PATCH');
-        expect(request.url.path, '/places/3');
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body, {
-          'name': 'Mirador nuevo',
-          'category_id': 2,
-          'description': 'Otra vista',
-        });
-        return http.Response(
-          jsonEncode({
-            'id': 3,
+    test(
+      'updatePlace sends PATCH with body and returns parsed place',
+      () async {
+        final client = MockClient((request) async {
+          expect(request.method, 'PATCH');
+          expect(request.url.path, '/places/3');
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body, {
             'name': 'Mirador nuevo',
+            'category_id': 2,
             'description': 'Otra vista',
-            'latitude': 42.5,
-            'longitude': -3.1,
-            'category': {'id': 2, 'name': 'Monumento'},
-          }),
-          200,
+          });
+          return http.Response(
+            jsonEncode({
+              'id': 3,
+              'name': 'Mirador nuevo',
+              'description': 'Otra vista',
+              'latitude': 42.5,
+              'longitude': -3.1,
+              'category': {'id': 2, 'name': 'Monumento'},
+            }),
+            200,
+          );
+        });
+        final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+        final place = await api.updatePlace(
+          3,
+          const PlaceUpdate(
+            name: 'Mirador nuevo',
+            categoryId: 2,
+            description: 'Otra vista',
+          ),
         );
-      });
-      final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
-      final place = await api.updatePlace(
-        3,
-        const PlaceUpdate(
-          name: 'Mirador nuevo',
-          categoryId: 2,
-          description: 'Otra vista',
-        ),
-      );
-
-      expect(place.id, 3);
-      expect(place.name, 'Mirador nuevo');
-      expect(place.category.id, 2);
-    });
+        expect(place.id, 3);
+        expect(place.name, 'Mirador nuevo');
+        expect(place.category.id, 2);
+      },
+    );
 
     test('updatePlace throws PlaceApiException on 404', () async {
       final client = MockClient(
@@ -330,10 +333,7 @@ void main() {
       final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
       await expectLater(
-        api.updatePlace(
-          3,
-          const PlaceUpdate(name: 'X', categoryId: 1),
-        ),
+        api.updatePlace(3, const PlaceUpdate(name: 'X', categoryId: 1)),
         throwsA(isA<PlaceApiException>()),
       );
     });
@@ -343,10 +343,7 @@ void main() {
       final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
       await expectLater(
-        api.updatePlace(
-          3,
-          const PlaceUpdate(name: 'X', categoryId: 1),
-        ),
+        api.updatePlace(3, const PlaceUpdate(name: 'X', categoryId: 1)),
         throwsA(isA<PlaceApiException>()),
       );
     });
@@ -368,20 +365,14 @@ void main() {
       );
       final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
-      await expectLater(
-        api.deletePlace(3),
-        throwsA(isA<PlaceApiException>()),
-      );
+      await expectLater(api.deletePlace(3), throwsA(isA<PlaceApiException>()));
     });
 
     test('deletePlace throws PlaceApiException on 500', () async {
       final client = MockClient((request) async => http.Response('error', 500));
       final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
-      await expectLater(
-        api.deletePlace(3),
-        throwsA(isA<PlaceApiException>()),
-      );
+      await expectLater(api.deletePlace(3), throwsA(isA<PlaceApiException>()));
     });
   });
 }
