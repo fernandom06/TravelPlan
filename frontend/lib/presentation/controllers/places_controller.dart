@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show ValueNotifier;
 
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
+import '../../data/models/place_draft.dart';
 import '../../data/place_api.dart';
 
 class PlacesState {
@@ -48,20 +49,8 @@ class PlacesController extends ValueNotifier<PlacesState> {
     }
   }
 
-  Future<Place> createPlace({
-    required String name,
-    required int categoryId,
-    String? description,
-    required double latitude,
-    required double longitude,
-  }) async {
-    final place = await _api.createPlace(
-      name: name,
-      categoryId: categoryId,
-      description: description,
-      latitude: latitude,
-      longitude: longitude,
-    );
+  Future<Place> createPlace(PlaceDraft draft) async {
+    final place = await _api.createPlace(draft);
     value = PlacesState(
       places: [...value.places, place],
       categories: value.categories,

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
+import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/data/place_api.dart';
 import 'package:frontend/presentation/controllers/places_controller.dart';
 
@@ -31,13 +32,7 @@ class _FakePlaceApi extends PlaceApi {
   }
 
   @override
-  Future<Place> createPlace({
-    required String name,
-    required int categoryId,
-    String? description,
-    required double latitude,
-    required double longitude,
-  }) async {
+  Future<Place> createPlace(PlaceDraft draft) async {
     if (error != null) throw error!;
     return createdPlace!;
   }
@@ -92,10 +87,12 @@ void main() {
     await controller.loadAll();
 
     final created = await controller.createPlace(
-      name: 'Mirador',
-      categoryId: 1,
-      latitude: 42.5,
-      longitude: -3.1,
+      const PlaceDraft(
+        name: 'Mirador',
+        categoryId: 1,
+        latitude: 42.5,
+        longitude: -3.1,
+      ),
     );
 
     expect(created, _place);
@@ -108,10 +105,12 @@ void main() {
 
     await expectLater(
       controller.createPlace(
-        name: 'Mirador',
-        categoryId: 1,
-        latitude: 42.5,
-        longitude: -3.1,
+        const PlaceDraft(
+          name: 'Mirador',
+          categoryId: 1,
+          latitude: 42.5,
+          longitude: -3.1,
+        ),
       ),
       throwsA(isA<Exception>()),
     );
