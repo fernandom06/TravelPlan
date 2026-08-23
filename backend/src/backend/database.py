@@ -53,6 +53,15 @@ def seed_categories(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def init_database() -> None:
+    conn = get_connection()
+    try:
+        init_db(conn)
+        seed_categories(conn)
+    finally:
+        conn.close()
+
+
 def get_db() -> Iterator[sqlite3.Connection]:
     conn = get_connection()
     try:
