@@ -32,49 +32,55 @@ class TravelMap extends StatefulWidget {
   State<TravelMap> createState() => _TravelMapState();
 }
 
-enum _FormMode { creation, readOnly }
+sealed class _MapFormState {
+  const _MapFormState();
+}
+
+class _Idle extends _MapFormState {
+  const _Idle();
+}
+
+class _Creating extends _MapFormState {
+  const _Creating({required this.point, required this.screenPos});
+
+  final LatLng point;
+  final Offset screenPos;
+}
+
+class _Viewing extends _MapFormState {
+  const _Viewing({required this.place});
+
+  final Place place;
+}
 
 class _TravelMapState extends State<TravelMap> {
   final _mapController = MapController();
 
-  LatLng? _selectedPoint;
-  Offset? _formScreenPosition;
-  _FormMode? _formMode;
-  Place? _viewingPlace;
-
-  bool get _formOpen => _formMode != null;
+  _MapFormState _state = const _Idle();
 
   void _closeForm() {
-    _selectedPoint = null;
-    _formScreenPosition = null;
-    _formMode = null;
-    _viewingPlace = null;
+    setState(() => _state = const _Idle());
   }
 
   void _handleTap(TapPosition tapPosition, LatLng point) {
-    if (_formOpen) {
-      setState(_closeForm);
-      return;
+    switch (_state) {
+      case _Idle():
+        final offset = _mapController.camera.latLngToScreenOffset(point);
+        setState(() => _state = _Creating(point: point, screenPos: offset));
+      case _Creating():
+      case _Viewing():
+        _closeForm();
     }
-    final offset = _mapController.camera.latLngToScreenOffset(point);
-    setState(() {
-      _selectedPoint = point;
-      _formScreenPosition = offset;
-      _formMode = _FormMode.creation;
-      _viewingPlace = null;
-    });
   }
 
   void _handleMarkerTap(Place place) {
-    if (_formOpen) {
-      setState(_closeForm);
-      return;
+    switch (_state) {
+      case _Idle():
+        setState(() => _state = _Viewing(place: place));
+      case _Creating():
+      case _Viewing():
+        _closeForm();
     }
-    setState(() {
-      _formMode = _FormMode.readOnly;
-      _viewingPlace = place;
-      _selectedPoint = null;
-    });
   }
 
   Future<void> _handleSave(
@@ -86,10 +92,12 @@ class _TravelMapState extends State<TravelMap> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sin conexión')),
       );
-      setState(_closeForm);
+      _closeForm();
       return;
     }
-    final point = _selectedPoint!;
+    final s = _state;
+    if (s is! _Creating) return;
+    final point = s.point;
     try {
       await widget.onCreatePlace(
         name: name,
@@ -99,7 +107,7 @@ class _TravelMapState extends State<TravelMap> {
         longitude: point.longitude,
       );
       if (!mounted) return;
-      setState(_closeForm);
+      _closeForm();
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,9 +134,9 @@ class _TravelMapState extends State<TravelMap> {
             ),
           ),
         ),
-      if (_selectedPoint != null && _formMode == _FormMode.creation)
+      if (_state case _Creating(:final point))
         Marker(
-          point: _selectedPoint!,
+          point: point,
           width: 40,
           height: 40,
           alignment: Alignment.topCenter,
@@ -151,8 +159,8 @@ class _TravelMapState extends State<TravelMap> {
             maxZoom: kMaxZoom,
             onTap: _handleTap,
             onPositionChanged: (camera, hasGesture) {
-              if (_formOpen && hasGesture) {
-                setState(_closeForm);
+              if (_state is! _Idle && hasGesture) {
+                _closeForm();
               }
             },
           ),
@@ -164,13 +172,14 @@ class _TravelMapState extends State<TravelMap> {
             MarkerLayer(markers: markers),
           ],
         ),
-        if (_formOpen) _buildFormOverlay(),
+        if (_state is! _Idle) _buildFormOverlay(),
       ],
     );
   }
 
   Widget _buildFormOverlay() {
-    final position = _formScreenPosition ?? Offset.zero;
+    final s = _state;
+    final position = s is _Creating ? s.screenPos : Offset.zero;
     return Positioned(
       left: position.dx - 130,
       top: position.dy - 40,
@@ -180,9 +189,9 @@ class _TravelMapState extends State<TravelMap> {
           width: 260,
           child: PlaceForm(
             categories: widget.categories,
-            place: _formMode == _FormMode.readOnly ? _viewingPlace : null,
+            place: s is _Viewing ? s.place : null,
             onSave: _handleSave,
-            onCancel: () => setState(_closeForm),
+            onCancel: _closeForm,
           ),
         ),
       ),
