@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
+import '../../data/models/place_draft.dart';
 import 'map_constants.dart';
 import 'place_form.dart';
 
@@ -18,14 +19,7 @@ class TravelMap extends StatefulWidget {
 
   final List<Place> places;
   final List<Category> categories;
-  final Future<void> Function({
-    required String name,
-    required int categoryId,
-    String? description,
-    required double latitude,
-    required double longitude,
-  })
-  onCreatePlace;
+  final Future<void> Function(PlaceDraft draft) onCreatePlace;
   final bool isOnline;
 
   @override
@@ -100,11 +94,13 @@ class _TravelMapState extends State<TravelMap> {
     final point = s.point;
     try {
       await widget.onCreatePlace(
-        name: name,
-        categoryId: categoryId,
-        description: description,
-        latitude: point.latitude,
-        longitude: point.longitude,
+        PlaceDraft(
+          name: name,
+          categoryId: categoryId,
+          description: description,
+          latitude: point.latitude,
+          longitude: point.longitude,
+        ),
       );
       if (!mounted) return;
       _closeForm();

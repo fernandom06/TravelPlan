@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
+import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
@@ -19,13 +20,7 @@ const _place = Place(
   category: _naturaleza,
 );
 
-Future<void> _noopCreate({
-  required String name,
-  required int categoryId,
-  String? description,
-  required double latitude,
-  required double longitude,
-}) async {}
+Future<void> _noopCreate(PlaceDraft draft) async {}
 
 Widget _map({List<Place> places = const [], bool isOnline = true}) {
   return MaterialApp(
