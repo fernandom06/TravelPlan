@@ -46,9 +46,7 @@ def test_list_places_after_create(test_client):
 
 def test_get_place_by_id(test_client):
     category = _create_category(test_client)
-    created = test_client.post(
-        "/places", json=_valid_place(category["id"])
-    ).json()
+    created = test_client.post("/places", json=_valid_place(category["id"])).json()
 
     response = test_client.get(f"/places/{created['id']}")
 

@@ -64,9 +64,7 @@ def test_created_category_assignable_to_place(test_client):
 def test_rename_category_returns_200_and_persists(test_client):
     created = test_client.post("/categories", json={"name": "Playa"}).json()
 
-    response = test_client.patch(
-        f"/categories/{created['id']}", json={"name": "Costa"}
-    )
+    response = test_client.patch(f"/categories/{created['id']}", json={"name": "Costa"})
 
     assert response.status_code == 200
     assert response.json() == {"id": created["id"], "name": "Costa"}
@@ -93,9 +91,7 @@ def test_rename_category_duplicate_returns_409(test_client):
 def test_rename_category_empty_name_returns_422(test_client):
     created = test_client.post("/categories", json={"name": "Playa"}).json()
 
-    response = test_client.patch(
-        f"/categories/{created['id']}", json={"name": ""}
-    )
+    response = test_client.patch(f"/categories/{created['id']}", json={"name": ""})
 
     assert response.status_code == 422
 
@@ -103,9 +99,7 @@ def test_rename_category_empty_name_returns_422(test_client):
 def test_rename_category_only_spaces_returns_422(test_client):
     created = test_client.post("/categories", json={"name": "Playa"}).json()
 
-    response = test_client.patch(
-        f"/categories/{created['id']}", json={"name": "   "}
-    )
+    response = test_client.patch(f"/categories/{created['id']}", json={"name": "   "})
 
     assert response.status_code == 422
 
