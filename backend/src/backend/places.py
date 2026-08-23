@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from .database import get_db
-from .schemas import CategoryResponse, PlaceCreate, PlaceResponse
+from .schemas import CategoryResponse, PlaceCreate, PlaceResponse, PlaceUpdate
 
 router = APIRouter(prefix="/places", tags=["places"])
 
@@ -88,3 +88,35 @@ def create_place(
         longitude=payload.longitude,
         category=CategoryResponse(id=category["id"], name=category["name"]),
     )
+
+
+@router.patch("/{place_id}", response_model=PlaceResponse)
+def update_place(
+    place_id: int,
+    payload: PlaceUpdate,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> PlaceResponse:
+    existing = _fetch_place(conn, place_id)
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Place not found"
+        )
+
+    category = conn.execute(
+        "SELECT id, name FROM categories WHERE id = ?", (payload.category_id,)
+    ).fetchone()
+    if category is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+        )
+
+    conn.execute(
+        """
+        UPDATE places SET name = ?, description = ?, category_id = ?
+        WHERE id = ?
+        """,
+        (payload.name, payload.description, payload.category_id, place_id),
+    )
+    conn.commit()
+
+    return _row_to_response(_fetch_place(conn, place_id))
