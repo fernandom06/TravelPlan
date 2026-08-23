@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
 import '../../data/models/place_draft.dart';
+import '../../data/models/place_update.dart';
 import 'map_constants.dart';
 import 'place_form.dart';
 
@@ -14,6 +15,8 @@ class TravelMap extends StatefulWidget {
     this.places = const [],
     this.categories = const [],
     required this.onCreatePlace,
+    required this.onUpdatePlace,
+    required this.onDeletePlace,
     this.onCreateCategory,
     this.onRenameCategory,
     this.onDeleteCategory,
@@ -23,6 +26,8 @@ class TravelMap extends StatefulWidget {
   final List<Place> places;
   final List<Category> categories;
   final Future<void> Function(PlaceDraft draft) onCreatePlace;
+  final Future<void> Function(int id, PlaceUpdate update) onUpdatePlace;
+  final Future<void> Function(int id) onDeletePlace;
   final Future<Category> Function(String name)? onCreateCategory;
   final Future<Category> Function(int id, String name)? onRenameCategory;
   final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
@@ -48,9 +53,17 @@ class _Creating extends _MapFormState {
 }
 
 class _Viewing extends _MapFormState {
-  const _Viewing({required this.place});
+  const _Viewing({required this.place, required this.screenPos});
 
   final Place place;
+  final Offset screenPos;
+}
+
+class _Editing extends _MapFormState {
+  const _Editing({required this.place, required this.screenPos});
+
+  final Place place;
+  final Offset screenPos;
 }
 
 class _TravelMapState extends State<TravelMap> {
@@ -69,6 +82,7 @@ class _TravelMapState extends State<TravelMap> {
         setState(() => _state = _Creating(point: point, screenPos: offset));
       case _Creating():
       case _Viewing():
+      case _Editing():
         _closeForm();
     }
   }
@@ -76,10 +90,77 @@ class _TravelMapState extends State<TravelMap> {
   void _handleMarkerTap(Place place) {
     switch (_state) {
       case _Idle():
-        setState(() => _state = _Viewing(place: place));
+        final screenPos = _mapController.camera.latLngToScreenOffset(
+          place.latLng,
+        );
+        setState(() => _state = _Viewing(place: place, screenPos: screenPos));
       case _Creating():
       case _Viewing():
+      case _Editing():
         _closeForm();
+    }
+  }
+
+  void _handleEdit(Place place, Offset screenPos) {
+    setState(() => _state = _Editing(place: place, screenPos: screenPos));
+  }
+
+  Future<void> _handleUpdate(
+    String name,
+    int categoryId,
+    String? description,
+  ) async {
+    if (!widget.isOnline) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Sin conexión')));
+      return;
+    }
+    final s = _state;
+    if (s is! _Editing) return;
+    try {
+      await widget.onUpdatePlace(
+        s.place.id,
+        PlaceUpdate(
+          name: name,
+          categoryId: categoryId,
+          description: description,
+        ),
+      );
+      if (!mounted) return;
+      _closeForm();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al guardar: $error')));
+    }
+  }
+
+  Future<void> _handleDelete() async {
+    if (!widget.isOnline) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Sin conexión')));
+      return;
+    }
+    final s = _state;
+    if (s is! _Editing) return;
+    try {
+      await widget.onDeletePlace(s.place.id);
+      if (!mounted) return;
+      _closeForm();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al eliminar: $error')));
+    }
+  }
+
+  void _handleCancelEdit() {
+    if (_state case _Editing(:final place, :final screenPos)) {
+      setState(() => _state = _Viewing(place: place, screenPos: screenPos));
     }
   }
 
@@ -205,13 +286,31 @@ class _TravelMapState extends State<TravelMap> {
             onDeleteCategory: widget.onDeleteCategory,
           ),
         );
-      case _Viewing(:final place):
+      case _Viewing(:final place, :final screenPos):
         return _positionedOverlay(
-          Offset.zero,
+          screenPos,
           PlaceDetails(
             categories: widget.categories,
             place: place,
+            onEdit: () => _handleEdit(place, screenPos),
             onClose: _closeForm,
+          ),
+        );
+      case _Editing(:final place, :final screenPos):
+        return _positionedOverlay(
+          screenPos,
+          PlaceForm(
+            categories: widget.categories,
+            places: widget.places,
+            initialName: place.name,
+            initialDescription: place.description,
+            initialCategory: place.category,
+            onSave: _handleUpdate,
+            onCancel: _handleCancelEdit,
+            onDelete: _handleDelete,
+            onCreateCategory: widget.onCreateCategory,
+            onRenameCategory: widget.onRenameCategory,
+            onDeleteCategory: widget.onDeleteCategory,
           ),
         );
       case _Idle():
