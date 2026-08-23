@@ -6,6 +6,7 @@ import 'models/category.dart';
 import 'models/category_draft.dart';
 import 'models/place.dart';
 import 'models/place_draft.dart';
+import 'models/place_update.dart';
 
 class PlaceApiException implements Exception {
   const PlaceApiException(this.message);
@@ -90,6 +91,14 @@ class PlaceApi {
       throw PlaceApiException('Failed to create place: ${response.statusCode}');
     }
     return Place.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<Place> updatePlace(int id, PlaceUpdate update) async {
+    throw UnimplementedError();
+  }
+
+  Future<void> deletePlace(int id) async {
+    throw UnimplementedError();
   }
 
   Future<Category> createCategory(CategoryDraft draft) async {
