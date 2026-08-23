@@ -3,7 +3,7 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.database import get_db, init_db, seed_categories
+from backend.database import get_db, init_db
 from backend.main import app
 
 
@@ -15,7 +15,6 @@ def test_client(tmp_path, monkeypatch):
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     init_db(conn)
-    seed_categories(conn)
 
     def override_get_db():
         yield conn

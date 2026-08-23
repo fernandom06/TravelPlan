@@ -2,11 +2,7 @@ def test_list_categories(test_client):
     response = test_client.get("/categories")
 
     assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 4
-    for category in data:
-        assert isinstance(category["id"], int)
-        assert isinstance(category["name"], str)
+    assert response.json() == []
 
 
 def test_create_category_returns_201_and_persists(test_client):
@@ -22,6 +18,8 @@ def test_create_category_returns_201_and_persists(test_client):
 
 
 def test_create_category_duplicate_returns_409(test_client):
+    test_client.post("/categories", json={"name": "Naturaleza"})
+
     response = test_client.post("/categories", json={"name": "Naturaleza"})
 
     assert response.status_code == 409
