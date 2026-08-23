@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show ValueNotifier;
 
 import '../../data/models/category.dart';
+import '../../data/models/category_draft.dart';
 import '../../data/models/place.dart';
 import '../../data/models/place_draft.dart';
 import '../../data/place_api.dart';
@@ -57,5 +58,15 @@ class PlacesController extends ValueNotifier<PlacesState> {
       isLoading: value.isLoading,
     );
     return place;
+  }
+
+  Future<Category> createCategory(CategoryDraft draft) async {
+    final category = await _api.createCategory(draft);
+    value = PlacesState(
+      places: value.places,
+      categories: [...value.categories, category],
+      isLoading: value.isLoading,
+    );
+    return category;
   }
 }

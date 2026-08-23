@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/models/category_draft.dart';
 import '../controllers/places_controller.dart';
 import '../widgets/travel_map.dart';
 
@@ -24,9 +25,9 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.placesController.loadAll().catchError((Object error) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar: $error')));
       });
     });
   }
@@ -48,6 +49,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   categories: state.categories,
                   isOnline: isOnline,
                   onCreatePlace: widget.placesController.createPlace,
+                  onCreateCategory: (name) => widget.placesController
+                      .createCategory(CategoryDraft(name: name)),
                 ),
               ),
             ),

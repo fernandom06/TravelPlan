@@ -3,11 +3,21 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'models/category.dart';
+import 'models/category_draft.dart';
 import 'models/place.dart';
 import 'models/place_draft.dart';
 
 class PlaceApiException implements Exception {
   const PlaceApiException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class DuplicateCategoryException implements Exception {
+  const DuplicateCategoryException(this.message);
 
   final String message;
 
@@ -27,7 +37,9 @@ class PlaceApi {
   Future<List<Category>> fetchCategories() async {
     final response = await _client.get(_uri('/categories'));
     if (response.statusCode != 200) {
-      throw PlaceApiException('Failed to load categories: ${response.statusCode}');
+      throw PlaceApiException(
+        'Failed to load categories: ${response.statusCode}',
+      );
     }
     final data = jsonDecode(response.body) as List<dynamic>;
     return data
@@ -60,5 +72,22 @@ class PlaceApi {
       throw PlaceApiException('Failed to create place: ${response.statusCode}');
     }
     return Place.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<Category> createCategory(CategoryDraft draft) async {
+    final response = await _client.post(
+      _uri('/categories'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(draft.toJson()),
+    );
+    if (response.statusCode == 409) {
+      throw const DuplicateCategoryException('Category already exists');
+    }
+    if (response.statusCode != 201) {
+      throw PlaceApiException(
+        'Failed to create category: ${response.statusCode}',
+      );
+    }
+    return Category.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 }

@@ -22,13 +22,18 @@ const _place = Place(
 
 Future<void> _noopCreate(PlaceDraft draft) async {}
 
-Widget _map({List<Place> places = const [], bool isOnline = true}) {
+Widget _map({
+  List<Place> places = const [],
+  bool isOnline = true,
+  Future<Category> Function(String name)? onCreateCategory,
+}) {
   return MaterialApp(
     home: Scaffold(
       body: TravelMap(
         places: places,
         categories: _categories,
         onCreatePlace: _noopCreate,
+        onCreateCategory: onCreateCategory,
         isOnline: isOnline,
       ),
     ),
@@ -74,23 +79,24 @@ void main() {
     expect(find.byType(PlaceForm), findsOneWidget);
   });
 
-  testWidgets('second tap while the form is open closes it without a new marker', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_map());
+  testWidgets(
+    'second tap while the form is open closes it without a new marker',
+    (tester) async {
+      await tester.pumpWidget(_map());
 
-    await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
-    await tester.pump(const Duration(milliseconds: 350));
-    expect(find.byType(PlaceForm), findsOneWidget);
+      await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byType(PlaceForm), findsOneWidget);
 
-    await tester.tapAt(
-      tester.getCenter(find.byType(FlutterMap)) + const Offset(40, 40),
-    );
-    await tester.pump(const Duration(milliseconds: 350));
+      await tester.tapAt(
+        tester.getCenter(find.byType(FlutterMap)) + const Offset(40, 40),
+      );
+      await tester.pump(const Duration(milliseconds: 350));
 
-    expect(find.byType(PlaceForm), findsNothing);
-    expect(_markers(tester), isEmpty);
-  });
+      expect(find.byType(PlaceForm), findsNothing);
+      expect(_markers(tester), isEmpty);
+    },
+  );
 
   testWidgets('tapping a blue marker opens a read-only form', (tester) async {
     await tester.pumpWidget(_map(places: [_place]));
@@ -103,7 +109,9 @@ void main() {
     expect(find.text('Guardar'), findsNothing);
   });
 
-  testWidgets('tapping outside the form closes and discards it', (tester) async {
+  testWidgets('tapping outside the form closes and discards it', (
+    tester,
+  ) async {
     await tester.pumpWidget(_map());
 
     await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
@@ -117,5 +125,39 @@ void main() {
 
     expect(find.byType(PlaceForm), findsNothing);
     expect(_markers(tester), isEmpty);
+  });
+
+  testWidgets('creates a category from the form opened on the map', (
+    tester,
+  ) async {
+    String? createdName;
+    await tester.pumpWidget(
+      _map(
+        onCreateCategory: (name) async {
+          createdName = name;
+          return const Category(id: 5, name: 'Playa');
+        },
+      ),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(find.byType(FlutterMap)) + const Offset(0, 220),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byType(PlaceForm), findsOneWidget);
+
+    await tester.tap(find.text('Nueva categoría'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Nombre de la categoría'),
+      'Playa',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Crear'));
+    await tester.pumpAndSettle();
+
+    expect(createdName, 'Playa');
+    await tester.tap(find.byType(DropdownButtonFormField<Category>));
+    await tester.pumpAndSettle();
+    expect(find.text('Playa'), findsOneWidget);
   });
 }

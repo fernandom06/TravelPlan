@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
+import 'package:frontend/data/models/category_draft.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/data/place_api.dart';
@@ -11,13 +12,17 @@ class _FakePlaceApi extends PlaceApi {
     this.categories = const [],
     this.places = const [],
     this.createdPlace,
+    this.createdCategory,
     this.error,
+    this.createCategoryError,
   }) : super(baseUrl: 'http://fake');
 
   final List<Category> categories;
   final List<Place> places;
   final Place? createdPlace;
+  final Category? createdCategory;
   final Object? error;
+  final Object? createCategoryError;
 
   @override
   Future<List<Category>> fetchCategories() async {
@@ -36,9 +41,16 @@ class _FakePlaceApi extends PlaceApi {
     if (error != null) throw error!;
     return createdPlace!;
   }
+
+  @override
+  Future<Category> createCategory(CategoryDraft draft) async {
+    if (createCategoryError != null) throw createCategoryError!;
+    return createdCategory!;
+  }
 }
 
 const _category = Category(id: 1, name: 'Naturaleza');
+const _playa = Category(id: 2, name: 'Playa');
 const _place = Place(
   id: 1,
   name: 'Mirador',
@@ -68,7 +80,9 @@ void main() {
   });
 
   test('loadAll propagates errors and resets isLoading', () async {
-    final controller = PlacesController(_FakePlaceApi(error: Exception('boom')));
+    final controller = PlacesController(
+      _FakePlaceApi(error: Exception('boom')),
+    );
     addTearDown(controller.dispose);
 
     await expectLater(controller.loadAll(), throwsA(isA<Exception>()));
@@ -78,10 +92,7 @@ void main() {
 
   test('createPlace adds the created place to state', () async {
     final controller = PlacesController(
-      _FakePlaceApi(
-        categories: [_category],
-        createdPlace: _place,
-      ),
+      _FakePlaceApi(categories: [_category], createdPlace: _place),
     );
     addTearDown(controller.dispose);
     await controller.loadAll();
@@ -100,7 +111,9 @@ void main() {
   });
 
   test('createPlace propagates errors', () async {
-    final controller = PlacesController(_FakePlaceApi(error: Exception('boom')));
+    final controller = PlacesController(
+      _FakePlaceApi(error: Exception('boom')),
+    );
     addTearDown(controller.dispose);
 
     await expectLater(
@@ -114,5 +127,39 @@ void main() {
       ),
       throwsA(isA<Exception>()),
     );
+  });
+
+  test('createCategory appends the created category to state', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(categories: [_category], createdCategory: _playa),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+
+    final created = await controller.createCategory(
+      const CategoryDraft(name: 'Playa'),
+    );
+
+    expect(created, _playa);
+    expect(controller.value.categories, [_category, _playa]);
+  });
+
+  test('createCategory propagates errors without changing state', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category],
+        createCategoryError: Exception('boom'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+    final before = controller.value.categories;
+
+    await expectLater(
+      controller.createCategory(const CategoryDraft(name: 'Playa')),
+      throwsA(isA<Exception>()),
+    );
+
+    expect(controller.value.categories, before);
   });
 }

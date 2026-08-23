@@ -14,12 +14,14 @@ class TravelMap extends StatefulWidget {
     this.places = const [],
     this.categories = const [],
     required this.onCreatePlace,
+    this.onCreateCategory,
     this.isOnline = true,
   });
 
   final List<Place> places;
   final List<Category> categories;
   final Future<void> Function(PlaceDraft draft) onCreatePlace;
+  final Future<Category> Function(String name)? onCreateCategory;
   final bool isOnline;
 
   @override
@@ -83,9 +85,9 @@ class _TravelMapState extends State<TravelMap> {
     String? description,
   ) async {
     if (!widget.isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sin conexión')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Sin conexión')));
       _closeForm();
       return;
     }
@@ -106,9 +108,9 @@ class _TravelMapState extends State<TravelMap> {
       _closeForm();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al guardar: $error')));
     }
   }
 
@@ -193,6 +195,7 @@ class _TravelMapState extends State<TravelMap> {
             categories: widget.categories,
             onSave: _handleSave,
             onCancel: _closeForm,
+            onCreateCategory: widget.onCreateCategory,
           ),
         );
       case _Viewing(:final place):
