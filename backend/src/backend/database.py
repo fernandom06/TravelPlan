@@ -40,6 +40,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    conn.commit()
 
 
 def seed_categories(conn: sqlite3.Connection) -> None:
