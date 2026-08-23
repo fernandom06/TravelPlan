@@ -26,6 +26,8 @@ Widget _map({
   List<Place> places = const [],
   bool isOnline = true,
   Future<Category> Function(String name)? onCreateCategory,
+  Future<Category> Function(int id, String name)? onRenameCategory,
+  Future<void> Function(int id, int? reassignTo)? onDeleteCategory,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -34,6 +36,8 @@ Widget _map({
         categories: _categories,
         onCreatePlace: _noopCreate,
         onCreateCategory: onCreateCategory,
+        onRenameCategory: onRenameCategory,
+        onDeleteCategory: onDeleteCategory,
         isOnline: isOnline,
       ),
     ),
@@ -159,5 +163,50 @@ void main() {
     await tester.tap(find.byType(DropdownButtonFormField<Category>));
     await tester.pumpAndSettle();
     expect(find.text('Playa'), findsOneWidget);
+  });
+
+  testWidgets('wires rename and delete callbacks to the form on the map', (
+    tester,
+  ) async {
+    String? renamedId;
+    String? renamedName;
+    await tester.pumpWidget(
+      _map(
+        onRenameCategory: (id, name) async {
+          renamedId = '$id';
+          renamedName = name;
+          return const Category(id: 1, name: 'Costa');
+        },
+        onDeleteCategory: (_, _) async {},
+      ),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(find.byType(FlutterMap)) + const Offset(0, 220),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byType(PlaceForm), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'Mirador');
+    await tester.pump();
+    await tester.tap(find.byType(DropdownButtonFormField<Category>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Naturaleza').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.edit), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.edit));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Nuevo nombre'),
+      'Costa',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
+    await tester.pumpAndSettle();
+
+    expect(renamedId, '1');
+    expect(renamedName, 'Costa');
   });
 }

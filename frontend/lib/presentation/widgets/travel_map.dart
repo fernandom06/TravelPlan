@@ -15,6 +15,8 @@ class TravelMap extends StatefulWidget {
     this.categories = const [],
     required this.onCreatePlace,
     this.onCreateCategory,
+    this.onRenameCategory,
+    this.onDeleteCategory,
     this.isOnline = true,
   });
 
@@ -22,6 +24,8 @@ class TravelMap extends StatefulWidget {
   final List<Category> categories;
   final Future<void> Function(PlaceDraft draft) onCreatePlace;
   final Future<Category> Function(String name)? onCreateCategory;
+  final Future<Category> Function(int id, String name)? onRenameCategory;
+  final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final bool isOnline;
 
   @override
@@ -193,9 +197,12 @@ class _TravelMapState extends State<TravelMap> {
           screenPos,
           PlaceForm(
             categories: widget.categories,
+            places: widget.places,
             onSave: _handleSave,
             onCancel: _closeForm,
             onCreateCategory: widget.onCreateCategory,
+            onRenameCategory: widget.onRenameCategory,
+            onDeleteCategory: widget.onDeleteCategory,
           ),
         );
       case _Viewing(:final place):

@@ -69,4 +69,57 @@ class PlacesController extends ValueNotifier<PlacesState> {
     );
     return category;
   }
+
+  Future<Category> renameCategory(int id, CategoryDraft draft) async {
+    final renamed = await _api.renameCategory(id, draft);
+    value = PlacesState(
+      places: [
+        for (final p in value.places)
+          p.category.id == id
+              ? Place(
+                  id: p.id,
+                  name: p.name,
+                  description: p.description,
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                  category: renamed,
+                )
+              : p,
+      ],
+      categories: [for (final c in value.categories) c.id == id ? renamed : c],
+      isLoading: value.isLoading,
+    );
+    return renamed;
+  }
+
+  Future<void> deleteCategory(int id, {int? reassignTo}) async {
+    await _api.deleteCategory(id, reassignTo: reassignTo);
+    final categories = value.categories.where((c) => c.id != id).toList();
+    Category? target;
+    if (reassignTo != null) {
+      for (final c in categories) {
+        if (c.id == reassignTo) {
+          target = c;
+          break;
+        }
+      }
+    }
+    value = PlacesState(
+      places: [
+        for (final p in value.places)
+          p.category.id == id && target != null
+              ? Place(
+                  id: p.id,
+                  name: p.name,
+                  description: p.description,
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                  category: target,
+                )
+              : p,
+      ],
+      categories: categories,
+      isLoading: value.isLoading,
+    );
+  }
 }

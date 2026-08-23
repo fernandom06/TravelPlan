@@ -428,7 +428,7 @@ void main() {
   });
 
   group('rename/delete category', () {
-    PlaceForm _form({
+    PlaceForm form({
       List<Place> places = const [],
       Future<Category> Function(int id, String name)? onRenameCategory,
       Future<void> Function(int id, int? reassignTo)? onDeleteCategory,
@@ -447,7 +447,7 @@ void main() {
     testWidgets(
       'shows rename and delete affordances only with a selection and callbacks',
       (tester) async {
-        await tester.pumpWidget(_wrap(_form()));
+        await tester.pumpWidget(_wrap(form()));
 
         await _fillName(tester);
         await _selectCategory(tester, 'Naturaleza');
@@ -457,7 +457,7 @@ void main() {
 
         await tester.pumpWidget(
           _wrap(
-            _form(
+            form(
               onRenameCategory: (_, name) async =>
                   const Category(id: 1, name: 'X'),
               onDeleteCategory: (_, _) async {},
@@ -480,7 +480,7 @@ void main() {
       String? renamedName;
       await tester.pumpWidget(
         _wrap(
-          _form(
+          form(
             onRenameCategory: (id, name) async {
               renamedId = '$id';
               renamedName = name;
@@ -517,7 +517,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _wrap(
-          _form(
+          form(
             onRenameCategory: (_, _) async =>
                 throw const DuplicateCategoryException('duplicate'),
           ),
@@ -535,43 +535,47 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Ya existe una categoría con ese nombre'), findsOneWidget);
+      expect(
+        find.text('Ya existe una categoría con ese nombre'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('empty rename shows an inline error and does not call the callback', (
-      tester,
-    ) async {
-      var called = false;
-      await tester.pumpWidget(
-        _wrap(
-          _form(
-            onRenameCategory: (_, _) async {
-              called = true;
-              return const Category(id: 1, name: 'X');
-            },
+    testWidgets(
+      'empty rename shows an inline error and does not call the callback',
+      (tester) async {
+        var called = false;
+        await tester.pumpWidget(
+          _wrap(
+            form(
+              onRenameCategory: (_, _) async {
+                called = true;
+                return const Category(id: 1, name: 'X');
+              },
+            ),
           ),
-        ),
-      );
+        );
 
-      await _fillName(tester);
-      await _selectCategory(tester, 'Naturaleza');
-      await tester.tap(find.byIcon(Icons.edit));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nuevo nombre'),
-        '',
-      );
-      await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
-      await tester.pumpAndSettle();
+        await _fillName(tester);
+        await _selectCategory(tester, 'Naturaleza');
+        await tester.tap(find.byIcon(Icons.edit));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Nuevo nombre'),
+          '',
+        );
+        await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('El nombre no puede estar vacío'), findsOneWidget);
-      expect(called, isFalse);
-    });
+        expect(find.text('El nombre no puede estar vacío'), findsOneWidget);
+        expect(called, isFalse);
+      },
+    );
 
     testWidgets('shows an inline error when renaming fails', (tester) async {
       await tester.pumpWidget(
         _wrap(
-          _form(
+          form(
             onRenameCategory: (_, _) async =>
                 throw const PlaceApiException('boom'),
           ),
@@ -599,7 +603,7 @@ void main() {
       final completer = Completer<Category>();
       await tester.pumpWidget(
         _wrap(
-          _form(
+          form(
             onRenameCategory: (_, _) {
               callCount++;
               return completer.future;
@@ -641,7 +645,7 @@ void main() {
         int? reassignTo;
         await tester.pumpWidget(
           _wrap(
-            _form(
+            form(
               places: [_place],
               onDeleteCategory: (id, reassign) async {
                 deletedId = id;
@@ -670,28 +674,20 @@ void main() {
       },
     );
 
-    testWidgets(
-      'deleting the selected category disables save',
-      (tester) async {
-        await tester.pumpWidget(
-          _wrap(
-            _form(
-              places: [_place],
-              onDeleteCategory: (_, _) async {},
-            ),
-          ),
-        );
+    testWidgets('deleting the selected category disables save', (tester) async {
+      await tester.pumpWidget(
+        _wrap(form(places: [_place], onDeleteCategory: (_, _) async {})),
+      );
 
-        await _fillName(tester);
-        await _selectCategory(tester, 'Monumento');
-        await tester.tap(find.byIcon(Icons.delete_outline));
-        await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
-        await tester.pumpAndSettle();
+      await _fillName(tester);
+      await _selectCategory(tester, 'Monumento');
+      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+      await tester.pumpAndSettle();
 
-        expect(_saveButton(tester).onPressed, isNull);
-      },
-    );
+      expect(_saveButton(tester).onPressed, isNull);
+    });
 
     testWidgets(
       'deleting a category with places shows count and destination dropdown',
@@ -700,7 +696,7 @@ void main() {
         int? reassignTo;
         await tester.pumpWidget(
           _wrap(
-            _form(
+            form(
               places: [_place],
               onDeleteCategory: (id, reassign) async {
                 deletedId = id;
@@ -720,7 +716,10 @@ void main() {
         await tester.tap(find.byType(DropdownButtonFormField<Category>).last);
         await tester.pumpAndSettle();
         final items = tester.widgetList<DropdownMenuItem<Category>>(
-          find.byType(DropdownMenuItem<Category>),
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(DropdownMenuItem<Category>),
+          ),
         );
         expect(items.map((i) => i.value!.id), isNot(contains(1)));
         expect(items.map((i) => i.value!.id), contains(2));
@@ -774,7 +773,7 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           _wrap(
-            _form(
+            form(
               places: [_place],
               onDeleteCategory: (_, _) async =>
                   throw const CategoryNotEmptyException('conflict'),
@@ -789,10 +788,7 @@ void main() {
         await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
         await tester.pumpAndSettle();
 
-        expect(
-          find.textContaining('lugares sin destino'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('lugares sin destino'), findsOneWidget);
       },
     );
 
@@ -801,7 +797,7 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           _wrap(
-            _form(
+            form(
               places: [_place],
               onDeleteCategory: (_, _) async =>
                   throw const InvalidReassignTargetException('invalid'),
@@ -825,7 +821,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _wrap(
-          _form(
+          form(
             places: [_place],
             onDeleteCategory: (_, _) async => throw Exception('boom'),
           ),

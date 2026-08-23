@@ -51,6 +51,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   onCreatePlace: widget.placesController.createPlace,
                   onCreateCategory: (name) => widget.placesController
                       .createCategory(CategoryDraft(name: name)),
+                  onRenameCategory: (id, name) => widget.placesController
+                      .renameCategory(id, CategoryDraft(name: name)),
+                  onDeleteCategory: (id, reassignTo) => widget.placesController
+                      .deleteCategory(id, reassignTo: reassignTo),
                 ),
               ),
             ),

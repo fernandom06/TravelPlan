@@ -25,6 +25,24 @@ class DuplicateCategoryException implements Exception {
   String toString() => message;
 }
 
+class CategoryNotEmptyException implements Exception {
+  const CategoryNotEmptyException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class InvalidReassignTargetException implements Exception {
+  const InvalidReassignTargetException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class PlaceApi {
   PlaceApi({required this.baseUrl, http.Client? client})
     : _client = client ?? http.Client();
@@ -89,5 +107,38 @@ class PlaceApi {
       );
     }
     return Category.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<Category> renameCategory(int id, CategoryDraft draft) async {
+    final response = await _client.patch(
+      _uri('/categories/$id'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(draft.toJson()),
+    );
+    if (response.statusCode == 409) {
+      throw const DuplicateCategoryException('Category already exists');
+    }
+    if (response.statusCode != 200) {
+      throw PlaceApiException(
+        'Failed to rename category: ${response.statusCode}',
+      );
+    }
+    return Category.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<void> deleteCategory(int id, {int? reassignTo}) async {
+    final query = reassignTo == null ? '' : '?reassign_to=$reassignTo';
+    final response = await _client.delete(_uri('/categories/$id$query'));
+    if (response.statusCode == 409) {
+      throw const CategoryNotEmptyException('Category has places');
+    }
+    if (response.statusCode == 422) {
+      throw const InvalidReassignTargetException('Invalid reassignment target');
+    }
+    if (response.statusCode != 204) {
+      throw PlaceApiException(
+        'Failed to delete category: ${response.statusCode}',
+      );
+    }
   }
 }

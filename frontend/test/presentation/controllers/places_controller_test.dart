@@ -202,9 +202,7 @@ void main() {
     );
 
     expect(renamed, const Category(id: 1, name: 'Costa'));
-    expect(controller.value.categories, [
-      const Category(id: 1, name: 'Costa'),
-    ]);
+    expect(controller.value.categories, [const Category(id: 1, name: 'Costa')]);
     expect(controller.value.places.single.category.name, 'Costa');
   });
 
@@ -243,10 +241,7 @@ void main() {
 
   test('deleteCategory with reassignTo updates embedded places', () async {
     final controller = PlacesController(
-      _FakePlaceApi(
-        categories: [_category, _playa],
-        places: [_place],
-      ),
+      _FakePlaceApi(categories: [_category, _playa], places: [_place]),
     );
     addTearDown(controller.dispose);
     await controller.loadAll();
@@ -259,10 +254,7 @@ void main() {
 
   test('deleteCategory propagates errors without changing state', () async {
     final controller = PlacesController(
-      _FakePlaceApi(
-        categories: [_category],
-        deleteError: Exception('boom'),
-      ),
+      _FakePlaceApi(categories: [_category], deleteError: Exception('boom')),
     );
     addTearDown(controller.dispose);
     await controller.loadAll();

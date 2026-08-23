@@ -39,6 +39,7 @@ class _PlaceFields extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<Category>(
+          key: ValueKey(selectedCategory?.name),
           initialValue: selectedCategory,
           items: categories
               .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
@@ -67,12 +68,18 @@ class PlaceForm extends StatefulWidget {
     required this.onSave,
     required this.onCancel,
     this.onCreateCategory,
+    this.places = const [],
+    this.onRenameCategory,
+    this.onDeleteCategory,
   });
 
   final List<Category> categories;
   final void Function(String name, int categoryId, String? description) onSave;
   final VoidCallback onCancel;
   final Future<Category> Function(String name)? onCreateCategory;
+  final List<Place> places;
+  final Future<Category> Function(int id, String name)? onRenameCategory;
+  final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
 
   @override
   State<PlaceForm> createState() => _PlaceFormState();
@@ -82,11 +89,16 @@ class _PlaceFormState extends State<PlaceForm> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _categoryNameController;
+  late final TextEditingController _renameNameController;
   late List<Category> _categories;
   Category? _selectedCategory;
   bool _isCreatingCategory = false;
   bool _isSubmittingCategory = false;
+  bool _isRenamingCategory = false;
+  bool _isSubmittingRename = false;
+  bool _isDeletingCategory = false;
   String? _categoryError;
+  String? _renameError;
 
   @override
   void initState() {
@@ -94,6 +106,7 @@ class _PlaceFormState extends State<PlaceForm> {
     _nameController = TextEditingController();
     _descriptionController = TextEditingController();
     _categoryNameController = TextEditingController();
+    _renameNameController = TextEditingController();
     _categories = List.of(widget.categories);
   }
 
@@ -114,6 +127,7 @@ class _PlaceFormState extends State<PlaceForm> {
     _nameController.dispose();
     _descriptionController.dispose();
     _categoryNameController.dispose();
+    _renameNameController.dispose();
     super.dispose();
   }
 
@@ -168,47 +182,264 @@ class _PlaceFormState extends State<PlaceForm> {
     }
   }
 
+  Future<void> _handleRenameCategory() async {
+    final selected = _selectedCategory;
+    final onRenameCategory = widget.onRenameCategory;
+    if (selected == null || onRenameCategory == null || _isSubmittingRename) {
+      return;
+    }
+    final name = _renameNameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _renameError = 'El nombre no puede estar vacío');
+      return;
+    }
+    setState(() {
+      _renameError = null;
+      _isSubmittingRename = true;
+    });
+    try {
+      final renamed = await onRenameCategory(selected.id, name);
+      if (!mounted) return;
+      setState(() {
+        _categories = [
+          for (final c in _categories) c.id == renamed.id ? renamed : c,
+        ];
+        _selectedCategory = renamed;
+        _isRenamingCategory = false;
+        _isSubmittingRename = false;
+      });
+    } on DuplicateCategoryException {
+      if (!mounted) return;
+      setState(() {
+        _renameError = 'Ya existe una categoría con ese nombre';
+        _isSubmittingRename = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _renameError = 'No se pudo renombrar la categoría';
+        _isSubmittingRename = false;
+      });
+    }
+  }
+
+  Future<void> _handleDeleteCategory() async {
+    final selected = _selectedCategory;
+    final onDeleteCategory = widget.onDeleteCategory;
+    if (selected == null || onDeleteCategory == null || _isDeletingCategory) {
+      return;
+    }
+    final count = widget.places
+        .where((p) => p.category.id == selected.id)
+        .length;
+    final candidates = _categories.where((c) => c.id != selected.id).toList();
+    Category? destination;
+    if (count > 0 && candidates.isNotEmpty) {
+      destination = candidates.first;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        if (count == 0) {
+          return AlertDialog(
+            title: const Text('Eliminar categoría'),
+            content: Text('Se eliminará "${selected.name}"'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Eliminar'),
+              ),
+            ],
+          );
+        }
+        if (candidates.isEmpty) {
+          return AlertDialog(
+            title: const Text('No se puede eliminar'),
+            content: const Text(
+              'Es la única categoría, crea otra antes de eliminar',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+            ],
+          );
+        }
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: const Text('Eliminar categoría'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'La categoría tiene $count lugar(es). Elige el destino:',
+                  ),
+                  DropdownButtonFormField<Category>(
+                    initialValue: destination,
+                    items: [
+                      for (final c in candidates)
+                        DropdownMenuItem(value: c, child: Text(c.name)),
+                    ],
+                    onChanged: (c) => setDialogState(() => destination = c),
+                    decoration: const InputDecoration(labelText: 'Mover a'),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Eliminar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeletingCategory = true);
+    try {
+      await onDeleteCategory(selected.id, destination?.id);
+      if (!mounted) return;
+      setState(() {
+        _categories = _categories.where((c) => c.id != selected.id).toList();
+        if (_selectedCategory?.id == selected.id) {
+          _selectedCategory = null;
+        }
+        _isDeletingCategory = false;
+      });
+    } on CategoryNotEmptyException {
+      if (!mounted) return;
+      setState(() => _isDeletingCategory = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo eliminar: la categoría tiene lugares sin destino',
+          ),
+        ),
+      );
+    } on InvalidReassignTargetException {
+      if (!mounted) return;
+      setState(() => _isDeletingCategory = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('El destino no es válido')));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isDeletingCategory = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo eliminar la categoría')),
+      );
+    }
+  }
+
   Widget? _buildCategoryActions() {
-    if (widget.onCreateCategory == null) return null;
+    final selected = _selectedCategory;
+    final hasRename = widget.onRenameCategory != null;
+    final hasDelete = widget.onDeleteCategory != null;
+    final hasCreate = widget.onCreateCategory != null;
+    if (selected == null && !hasCreate) return null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _isSubmittingCategory
-                ? null
-                : () => setState(() {
-                    _isCreatingCategory = !_isCreatingCategory;
-                    _categoryError = null;
-                  }),
-            icon: const Icon(Icons.add),
-            label: const Text('Nueva categoría'),
+        if (selected != null && (hasRename || hasDelete)) ...[
+          Row(
+            children: [
+              if (hasRename)
+                IconButton(
+                  onPressed: _isSubmittingRename
+                      ? null
+                      : () => setState(() {
+                          _isRenamingCategory = !_isRenamingCategory;
+                          _renameError = null;
+                          if (_isRenamingCategory) {
+                            _renameNameController.text = selected.name;
+                          }
+                        }),
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Renombrar categoría',
+                ),
+              if (hasDelete)
+                IconButton(
+                  onPressed: _isDeletingCategory ? null : _handleDeleteCategory,
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Eliminar categoría',
+                ),
+            ],
           ),
-        ),
-        if (_isCreatingCategory) ...[
-          TextField(
-            controller: _categoryNameController,
-            decoration: const InputDecoration(
-              labelText: 'Nombre de la categoría',
+          if (_isRenamingCategory) ...[
+            TextField(
+              controller: _renameNameController,
+              decoration: const InputDecoration(labelText: 'Nuevo nombre'),
             ),
-          ),
-          if (_categoryError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                _categoryError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+            if (_renameError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _renameError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: _isSubmittingRename ? null : _handleRenameCategory,
+                child: const Text('Renombrar'),
               ),
             ),
+          ],
+        ],
+        if (hasCreate) ...[
           Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: _isSubmittingCategory ? null : _handleCreateCategory,
-              child: const Text('Crear'),
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _isSubmittingCategory
+                  ? null
+                  : () => setState(() {
+                      _isCreatingCategory = !_isCreatingCategory;
+                      _categoryError = null;
+                    }),
+              icon: const Icon(Icons.add),
+              label: const Text('Nueva categoría'),
             ),
           ),
+          if (_isCreatingCategory) ...[
+            TextField(
+              controller: _categoryNameController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre de la categoría',
+              ),
+            ),
+            if (_categoryError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _categoryError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: _isSubmittingCategory ? null : _handleCreateCategory,
+                child: const Text('Crear'),
+              ),
+            ),
+          ],
         ],
       ],
     );
