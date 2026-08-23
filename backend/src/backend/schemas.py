@@ -23,6 +23,12 @@ class PlaceCreate(BaseModel):
     longitude: float = Field(ge=-180, le=180)
 
 
+class PlaceUpdate(BaseModel):
+    name: str = Field(min_length=1)
+    category_id: int
+    description: str | None = None
+
+
 class PlaceResponse(BaseModel):
     id: int
     name: str
