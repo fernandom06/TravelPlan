@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import 'models/category.dart';
 import 'models/place.dart';
+import 'models/place_draft.dart';
 
 class PlaceApiException implements Exception {
   const PlaceApiException(this.message);
@@ -43,22 +44,16 @@ class PlaceApi {
     return data.map((e) => Place.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<Place> createPlace({
-    required String name,
-    required int categoryId,
-    String? description,
-    required double latitude,
-    required double longitude,
-  }) async {
+  Future<Place> createPlace(PlaceDraft draft) async {
     final response = await _client.post(
       _uri('/places'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'name': name,
-        'category_id': categoryId,
-        'description': description,
-        'latitude': latitude,
-        'longitude': longitude,
+        'name': draft.name,
+        'category_id': draft.categoryId,
+        'description': draft.description,
+        'latitude': draft.latitude,
+        'longitude': draft.longitude,
       }),
     );
     if (response.statusCode != 201) {

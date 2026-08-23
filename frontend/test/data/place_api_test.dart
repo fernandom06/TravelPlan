@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:frontend/data/models/category.dart';
+import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/data/place_api.dart';
 
 void main() {
@@ -79,11 +80,13 @@ void main() {
       final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
       final place = await api.createPlace(
-        name: 'Mirador',
-        categoryId: 2,
-        description: 'Vistas',
-        latitude: 42.5,
-        longitude: -3.1,
+        const PlaceDraft(
+          name: 'Mirador',
+          categoryId: 2,
+          description: 'Vistas',
+          latitude: 42.5,
+          longitude: -3.1,
+        ),
       );
 
       expect(place.id, 7);
@@ -102,7 +105,9 @@ void main() {
       final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
       await expectLater(
-        api.createPlace(name: 'X', categoryId: 9999, latitude: 0, longitude: 0),
+        api.createPlace(
+          const PlaceDraft(name: 'X', categoryId: 9999, latitude: 0, longitude: 0),
+        ),
         throwsA(isA<PlaceApiException>()),
       );
     });
