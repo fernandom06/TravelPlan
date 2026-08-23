@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/place_draft.dart';
+import 'package:frontend/data/models/place_update.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
@@ -22,12 +23,18 @@ const _place = Place(
 
 Future<void> _noopCreate(PlaceDraft draft) async {}
 
+Future<void> _noopUpdate(int id, PlaceUpdate update) async {}
+
+Future<void> _noopDelete(int id) async {}
+
 Widget _map({
   List<Place> places = const [],
   bool isOnline = true,
   Future<Category> Function(String name)? onCreateCategory,
   Future<Category> Function(int id, String name)? onRenameCategory,
   Future<void> Function(int id, int? reassignTo)? onDeleteCategory,
+  Future<void> Function(int id, PlaceUpdate update)? onUpdatePlace,
+  Future<void> Function(int id)? onDeletePlace,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -35,6 +42,8 @@ Widget _map({
         places: places,
         categories: _categories,
         onCreatePlace: _noopCreate,
+        onUpdatePlace: onUpdatePlace ?? _noopUpdate,
+        onDeletePlace: onDeletePlace ?? _noopDelete,
         onCreateCategory: onCreateCategory,
         onRenameCategory: onRenameCategory,
         onDeleteCategory: onDeleteCategory,
@@ -208,5 +217,279 @@ void main() {
 
     expect(renamedId, '1');
     expect(renamedName, 'Costa');
+  });
+
+  testWidgets('marker tap opens PlaceDetails with Editar and Cerrar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(PlaceDetails), findsOneWidget);
+    expect(find.text('Editar'), findsOneWidget);
+    expect(find.text('Cerrar'), findsOneWidget);
+    expect(find.text('Guardar'), findsNothing);
+  });
+
+  testWidgets('Editar opens a prefilled PlaceForm with Eliminar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(PlaceForm), findsOneWidget);
+    expect(find.text('Mirador'), findsOneWidget);
+    expect(find.text('Eliminar'), findsOneWidget);
+    expect(find.text('Guardar'), findsOneWidget);
+  });
+
+  testWidgets('Guardar in edit calls onUpdatePlace and closes the panel', (
+    tester,
+  ) async {
+    int? updatedId;
+    PlaceUpdate? sentUpdate;
+    await tester.pumpWidget(
+      _map(
+        places: [_place],
+        onUpdatePlace: (id, update) async {
+          updatedId = id;
+          sentUpdate = update;
+        },
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(updatedId, 1);
+    expect(sentUpdate!.name, 'Mirador');
+    expect(sentUpdate!.categoryId, 1);
+    expect(find.byType(PlaceForm), findsNothing);
+    expect(find.byType(PlaceDetails), findsNothing);
+  });
+
+  testWidgets('Cancelar in edit returns to PlaceDetails without updating', (
+    tester,
+  ) async {
+    var updated = false;
+    await tester.pumpWidget(
+      _map(
+        places: [_place],
+        onUpdatePlace: (_, _) async {
+          updated = true;
+        },
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Cancelar'));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(PlaceDetails), findsOneWidget);
+    expect(find.byType(PlaceForm), findsNothing);
+    expect(updated, isFalse);
+  });
+
+  testWidgets('confirming Eliminar calls onDeletePlace and closes the panel', (
+    tester,
+  ) async {
+    int? deletedId;
+    await tester.pumpWidget(
+      _map(
+        places: [_place],
+        onDeletePlace: (id) async {
+          deletedId = id;
+        },
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Eliminar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+    await tester.pumpAndSettle();
+
+    expect(deletedId, 1);
+    expect(find.byType(PlaceForm), findsNothing);
+  });
+
+  testWidgets('cancelling the delete dialog does not call onDeletePlace', (
+    tester,
+  ) async {
+    var deleted = false;
+    await tester.pumpWidget(
+      _map(
+        places: [_place],
+        onDeletePlace: (_) async {
+          deleted = true;
+        },
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Eliminar'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Cancelar'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(deleted, isFalse);
+    expect(find.byType(PlaceForm), findsOneWidget);
+  });
+
+  testWidgets(
+    'offline Guardar in edit shows SnackBar and keeps the panel open',
+    (tester) async {
+      var updated = false;
+      await tester.pumpWidget(
+        _map(
+          places: [_place],
+          isOnline: false,
+          onUpdatePlace: (_, _) async {
+            updated = true;
+          },
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('Editar'));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.enterText(find.byType(TextField).first, 'Nuevo nombre');
+      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.text('Sin conexión'), findsOneWidget);
+      expect(updated, isFalse);
+      expect(find.byType(PlaceForm), findsOneWidget);
+      expect(find.text('Nuevo nombre'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'offline Eliminar keeps the panel open after the confirmation dialog',
+    (tester) async {
+      var deleted = false;
+      await tester.pumpWidget(
+        _map(
+          places: [_place],
+          isOnline: false,
+          onDeletePlace: (_) async {
+            deleted = true;
+          },
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('Editar'));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('Eliminar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sin conexión'), findsOneWidget);
+      expect(deleted, isFalse);
+      expect(find.byType(PlaceForm), findsOneWidget);
+    },
+  );
+
+  testWidgets('tapping the map closes the edit panel', (tester) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byType(PlaceForm), findsOneWidget);
+
+    await tester.tapAt(
+      tester.getCenter(find.byType(FlutterMap)) + const Offset(60, 60),
+    );
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(PlaceForm), findsNothing);
+    expect(find.byType(PlaceDetails), findsNothing);
+  });
+
+  testWidgets('tapping another marker closes the edit panel', (tester) async {
+    const other = Place(
+      id: 2,
+      name: 'Otro',
+      description: null,
+      latitude: 42.02,
+      longitude: -3.02,
+      category: _naturaleza,
+    );
+    await tester.pumpWidget(_map(places: [_place, other]));
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byType(PlaceForm), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.location_on).last);
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(PlaceForm), findsNothing);
+    expect(find.byType(PlaceDetails), findsNothing);
+  });
+
+  testWidgets('dragging the map closes the edit panel', (tester) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byType(PlaceForm), findsOneWidget);
+
+    await tester.drag(find.byType(FlutterMap), const Offset(-50, 0));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(PlaceForm), findsNothing);
+  });
+
+  testWidgets('PlaceDetails overlay is positioned near the marker, not origin', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final positioned = tester.widget<Positioned>(
+      find.ancestor(
+        of: find.byType(PlaceDetails),
+        matching: find.byType(Positioned),
+      ),
+    );
+    expect(positioned.left, isNot(0));
+    expect(positioned.top, isNot(0));
   });
 }
