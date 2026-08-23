@@ -6,7 +6,9 @@ import 'data/place_api.dart';
 import 'presentation/controllers/places_controller.dart';
 import 'presentation/screens/home_screen.dart';
 
-String get kApiBaseUrl {
+final String kApiBaseUrl = _resolveApiBaseUrl();
+
+String _resolveApiBaseUrl() {
   const configured = String.fromEnvironment('API_BASE_URL');
   if (configured.isNotEmpty) return configured;
   return defaultTargetPlatform == TargetPlatform.android
