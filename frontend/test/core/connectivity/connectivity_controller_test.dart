@@ -43,10 +43,9 @@ void main() {
     addTearDown(() => ConnectivityPlatform.instance = original);
 
     final streamController = StreamController<List<ConnectivityResult>>();
-    ConnectivityPlatform.instance = _FakeConnectivityPlatform(
-      [ConnectivityResult.none],
-      streamController,
-    );
+    ConnectivityPlatform.instance = _FakeConnectivityPlatform([
+      ConnectivityResult.none,
+    ], streamController);
 
     final controller = ConnectivityController.live();
     addTearDown(controller.dispose);
@@ -64,10 +63,9 @@ void main() {
       addTearDown(() => ConnectivityPlatform.instance = original);
 
       final streamController = StreamController<List<ConnectivityResult>>();
-      ConnectivityPlatform.instance = _FakeConnectivityPlatform(
-        [ConnectivityResult.wifi],
-        streamController,
-      );
+      ConnectivityPlatform.instance = _FakeConnectivityPlatform([
+        ConnectivityResult.wifi,
+      ], streamController);
 
       final controller = ConnectivityController.live();
       addTearDown(controller.dispose);

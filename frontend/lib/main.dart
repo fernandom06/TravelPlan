@@ -19,9 +19,7 @@ String _resolveApiBaseUrl() {
 void main() {
   final online = ConnectivityController.live();
   final placesController = PlacesController(PlaceApi(baseUrl: kApiBaseUrl));
-  runApp(
-    TravelPlanApp(online: online, placesController: placesController),
-  );
+  runApp(TravelPlanApp(online: online, placesController: placesController));
 }
 
 class TravelPlanApp extends StatelessWidget {

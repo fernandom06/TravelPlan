@@ -46,7 +46,9 @@ def get_place(
 ) -> PlaceResponse:
     row = _fetch_place(conn, place_id)
     if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Place not found"
+        )
     return _row_to_response(row)
 
 
@@ -59,14 +61,22 @@ def create_place(
         "SELECT id, name FROM categories WHERE id = ?", (payload.category_id,)
     ).fetchone()
     if category is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+        )
 
     cursor = conn.execute(
         """
         INSERT INTO places (name, description, latitude, longitude, category_id)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (payload.name, payload.description, payload.latitude, payload.longitude, payload.category_id),
+        (
+            payload.name,
+            payload.description,
+            payload.latitude,
+            payload.longitude,
+            payload.category_id,
+        ),
     )
     conn.commit()
 

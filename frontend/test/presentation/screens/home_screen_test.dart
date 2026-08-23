@@ -34,7 +34,9 @@ void main() {
     addTearDown(controller.dispose);
 
     await tester.pumpWidget(
-      MaterialApp(home: HomeScreen(online: online, placesController: controller)),
+      MaterialApp(
+        home: HomeScreen(online: online, placesController: controller),
+      ),
     );
     await tester.pump();
 
@@ -50,7 +52,9 @@ void main() {
     addTearDown(controller.dispose);
 
     await tester.pumpWidget(
-      MaterialApp(home: HomeScreen(online: online, placesController: controller)),
+      MaterialApp(
+        home: HomeScreen(online: online, placesController: controller),
+      ),
     );
     await tester.pump();
 
@@ -65,7 +69,9 @@ void main() {
     addTearDown(controller.dispose);
 
     await tester.pumpWidget(
-      MaterialApp(home: HomeScreen(online: online, placesController: controller)),
+      MaterialApp(
+        home: HomeScreen(online: online, placesController: controller),
+      ),
     );
     await tester.pump();
     expect(find.text('Sin conexión con el servidor'), findsNothing);
@@ -82,11 +88,15 @@ void main() {
   testWidgets('shows a snackbar when loading fails', (tester) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
-    final controller = PlacesController(_FakePlaceApi(error: Exception('boom')));
+    final controller = PlacesController(
+      _FakePlaceApi(error: Exception('boom')),
+    );
     addTearDown(controller.dispose);
 
     await tester.pumpWidget(
-      MaterialApp(home: HomeScreen(online: online, placesController: controller)),
+      MaterialApp(
+        home: HomeScreen(online: online, placesController: controller),
+      ),
     );
     await tester.pump();
     await tester.pump();
