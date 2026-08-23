@@ -3,6 +3,59 @@ import 'package:flutter/material.dart';
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
 
+class _PlaceFields extends StatelessWidget {
+  const _PlaceFields({
+    required this.categories,
+    required this.nameController,
+    required this.descriptionController,
+    required this.selectedCategory,
+    required this.onCategoryChanged,
+    required this.onNameChanged,
+    required this.enabled,
+  });
+
+  final List<Category> categories;
+  final TextEditingController nameController;
+  final TextEditingController descriptionController;
+  final Category? selectedCategory;
+  final ValueChanged<Category?>? onCategoryChanged;
+  final ValueChanged<String>? onNameChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: nameController,
+          enabled: enabled,
+          onChanged: onNameChanged,
+          decoration: const InputDecoration(labelText: 'Nombre'),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<Category>(
+          initialValue: selectedCategory,
+          items: categories
+              .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
+              .toList(),
+          onChanged: onCategoryChanged,
+          decoration: const InputDecoration(labelText: 'Categoría'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: descriptionController,
+          enabled: enabled,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Descripción'),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
 class PlaceForm extends StatefulWidget {
   const PlaceForm({
     super.key,
@@ -68,31 +121,17 @@ class _PlaceFormState extends State<PlaceForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _nameController,
-              enabled: !_readOnly,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(labelText: 'Nombre'),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<Category>(
-              initialValue: _selectedCategory,
-              items: widget.categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
-                  .toList(),
-              onChanged: _readOnly
+            _PlaceFields(
+              categories: widget.categories,
+              nameController: _nameController,
+              descriptionController: _descriptionController,
+              selectedCategory: _selectedCategory,
+              onCategoryChanged: _readOnly
                   ? null
                   : (c) => setState(() => _selectedCategory = c),
-              decoration: const InputDecoration(labelText: 'Categoría'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _descriptionController,
+              onNameChanged: _readOnly ? null : (_) => setState(() {}),
               enabled: !_readOnly,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Descripción'),
             ),
-            const SizedBox(height: 16),
             if (_readOnly)
               Align(
                 alignment: Alignment.centerRight,
