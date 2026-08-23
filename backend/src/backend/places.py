@@ -70,14 +70,11 @@ def create_place(
     )
     conn.commit()
 
-    row = conn.execute(
-        """
-        SELECT p.id, p.name, p.description, p.latitude, p.longitude,
-               p.category_id, c.name AS category_name
-        FROM places p
-        JOIN categories c ON c.id = p.category_id
-        WHERE p.id = ?
-        """,
-        (cursor.lastrowid,),
-    ).fetchone()
-    return _row_to_response(row)
+    return PlaceResponse(
+        id=cursor.lastrowid,
+        name=payload.name,
+        description=payload.description,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        category=CategoryResponse(id=category["id"], name=category["name"]),
+    )
