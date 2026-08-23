@@ -492,11 +492,13 @@ class PlaceDetails extends StatefulWidget {
     required this.categories,
     required this.place,
     required this.onClose,
+    this.onEdit,
   });
 
   final List<Category> categories;
   final Place place;
   final VoidCallback onClose;
+  final VoidCallback? onEdit;
 
   @override
   State<PlaceDetails> createState() => _PlaceDetailsState();
@@ -541,12 +543,20 @@ class _PlaceDetailsState extends State<PlaceDetails> {
               onNameChanged: null,
               enabled: false,
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: widget.onClose,
-                child: const Text('Cerrar'),
-              ),
+            OverflowBar(
+              alignment: MainAxisAlignment.end,
+              spacing: 8,
+              children: [
+                if (widget.onEdit != null)
+                  OutlinedButton(
+                    onPressed: widget.onEdit,
+                    child: const Text('Editar'),
+                  ),
+                TextButton(
+                  onPressed: widget.onClose,
+                  child: const Text('Cerrar'),
+                ),
+              ],
             ),
           ],
         ),
