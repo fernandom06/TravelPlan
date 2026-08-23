@@ -47,21 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   places: state.places,
                   categories: state.categories,
                   isOnline: isOnline,
-                  onCreatePlace: ({
-                    required name,
-                    required categoryId,
-                    description,
-                    required latitude,
-                    required longitude,
-                  }) {
-                    return widget.placesController.createPlace(
-                      name: name,
-                      categoryId: categoryId,
-                      description: description,
-                      latitude: latitude,
-                      longitude: longitude,
-                    );
-                  },
+                  onCreatePlace: widget.placesController.createPlace,
                 ),
               ),
             ),
