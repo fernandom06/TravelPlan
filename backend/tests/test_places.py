@@ -1,4 +1,8 @@
-def _valid_place(category_id=1):
+def _create_category(client, name="Naturaleza"):
+    return client.post("/categories", json={"name": name}).json()
+
+
+def _valid_place(category_id):
     return {
         "name": "Mirador del Canon",
         "category_id": category_id,
@@ -16,7 +20,9 @@ def test_list_places_empty(test_client):
 
 
 def test_create_place(test_client):
-    response = test_client.post("/places", json=_valid_place())
+    category = _create_category(test_client)
+
+    response = test_client.post("/places", json=_valid_place(category["id"]))
 
     assert response.status_code == 201
     data = response.json()
@@ -24,12 +30,13 @@ def test_create_place(test_client):
     assert data["name"] == "Mirador del Canon"
     assert data["latitude"] == 42.5
     assert data["longitude"] == -3.1
-    assert data["category"]["id"] == 1
-    assert data["category"]["name"] == "Naturaleza"
+    assert data["category"]["id"] == category["id"]
+    assert data["category"]["name"] == category["name"]
 
 
 def test_list_places_after_create(test_client):
-    test_client.post("/places", json=_valid_place())
+    category = _create_category(test_client)
+    test_client.post("/places", json=_valid_place(category["id"]))
 
     response = test_client.get("/places")
 
@@ -38,7 +45,10 @@ def test_list_places_after_create(test_client):
 
 
 def test_get_place_by_id(test_client):
-    created = test_client.post("/places", json=_valid_place()).json()
+    category = _create_category(test_client)
+    created = test_client.post(
+        "/places", json=_valid_place(category["id"])
+    ).json()
 
     response = test_client.get(f"/places/{created['id']}")
 
@@ -53,13 +63,14 @@ def test_get_place_not_found(test_client):
 
 
 def test_create_place_unknown_category(test_client):
-    response = test_client.post("/places", json=_valid_place(category_id=9999))
+    response = test_client.post("/places", json=_valid_place(9999))
 
     assert response.status_code == 404
 
 
 def test_create_place_empty_name(test_client):
-    payload = _valid_place()
+    category = _create_category(test_client)
+    payload = _valid_place(category["id"])
     payload["name"] = ""
 
     response = test_client.post("/places", json=payload)
@@ -68,7 +79,8 @@ def test_create_place_empty_name(test_client):
 
 
 def test_create_place_missing_coordinates(test_client):
-    payload = _valid_place()
+    category = _create_category(test_client)
+    payload = _valid_place(category["id"])
     del payload["latitude"]
     del payload["longitude"]
 
