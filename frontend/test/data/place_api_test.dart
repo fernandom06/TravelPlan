@@ -167,5 +167,121 @@ void main() {
         throwsA(isA<PlaceApiException>()),
       );
     });
+
+    test(
+      'renameCategory sends PATCH with name and returns parsed category',
+      () async {
+        final client = MockClient((request) async {
+          expect(request.method, 'PATCH');
+          expect(request.url.path, '/categories/3');
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body, {'name': 'Costa'});
+          return http.Response(jsonEncode({'id': 3, 'name': 'Costa'}), 200);
+        });
+        final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+        final category = await api.renameCategory(
+          3,
+          const CategoryDraft(name: 'Costa'),
+        );
+
+        expect(category, const Category(id: 3, name: 'Costa'));
+      },
+    );
+
+    test('renameCategory throws DuplicateCategoryException on 409', () async {
+      final client = MockClient(
+        (request) async => http.Response('duplicate', 409),
+      );
+      final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+      await expectLater(
+        api.renameCategory(3, const CategoryDraft(name: 'Costa')),
+        throwsA(isA<DuplicateCategoryException>()),
+      );
+    });
+
+    test('renameCategory throws PlaceApiException on 500', () async {
+      final client = MockClient((request) async => http.Response('error', 500));
+      final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+      await expectLater(
+        api.renameCategory(3, const CategoryDraft(name: 'Costa')),
+        throwsA(isA<PlaceApiException>()),
+      );
+    });
+
+    test('deleteCategory sends DELETE and resolves on 204', () async {
+      final client = MockClient((request) async {
+        expect(request.method, 'DELETE');
+        expect(request.url.path, '/categories/3');
+        expect(request.url.query, isEmpty);
+        return http.Response('', 204);
+      });
+      final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+      await api.deleteCategory(3);
+    });
+
+    test('deleteCategory sends reassign_to query param', () async {
+      final client = MockClient((request) async {
+        expect(request.method, 'DELETE');
+        expect(request.url.path, '/categories/3');
+        expect(request.url.queryParameters['reassign_to'], '5');
+        return http.Response('', 204);
+      });
+      final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+      await api.deleteCategory(3, reassignTo: 5);
+    });
+
+    test('deleteCategory throws CategoryNotEmptyException on 409', () async {
+      final client = MockClient(
+        (request) async => http.Response('conflict', 409),
+      );
+      final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+      await expectLater(
+        api.deleteCategory(3),
+        throwsA(isA<CategoryNotEmptyException>()),
+      );
+    });
+
+    test(
+      'deleteCategory throws InvalidReassignTargetException on 422',
+      () async {
+        final client = MockClient(
+          (request) async => http.Response('unprocessable', 422),
+        );
+        final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+        await expectLater(
+          api.deleteCategory(3, reassignTo: 9999),
+          throwsA(isA<InvalidReassignTargetException>()),
+        );
+      },
+    );
+
+    test('deleteCategory throws PlaceApiException on 404', () async {
+      final client = MockClient(
+        (request) async => http.Response('not found', 404),
+      );
+      final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+      await expectLater(
+        api.deleteCategory(3),
+        throwsA(isA<PlaceApiException>()),
+      );
+    });
+
+    test('deleteCategory throws PlaceApiException on 500', () async {
+      final client = MockClient((request) async => http.Response('error', 500));
+      final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+      await expectLater(
+        api.deleteCategory(3),
+        throwsA(isA<PlaceApiException>()),
+      );
+    });
   });
 }

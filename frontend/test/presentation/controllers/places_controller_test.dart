@@ -15,6 +15,9 @@ class _FakePlaceApi extends PlaceApi {
     this.createdCategory,
     this.error,
     this.createCategoryError,
+    this.renamedCategory,
+    this.renameError,
+    this.deleteError,
   }) : super(baseUrl: 'http://fake');
 
   final List<Category> categories;
@@ -23,6 +26,12 @@ class _FakePlaceApi extends PlaceApi {
   final Category? createdCategory;
   final Object? error;
   final Object? createCategoryError;
+  final Category? renamedCategory;
+  final Object? renameError;
+  final Object? deleteError;
+
+  int? deletedCategoryId;
+  int? deleteReassignTo;
 
   @override
   Future<List<Category>> fetchCategories() async {
@@ -46,6 +55,19 @@ class _FakePlaceApi extends PlaceApi {
   Future<Category> createCategory(CategoryDraft draft) async {
     if (createCategoryError != null) throw createCategoryError!;
     return createdCategory!;
+  }
+
+  @override
+  Future<Category> renameCategory(int id, CategoryDraft draft) async {
+    if (renameError != null) throw renameError!;
+    return renamedCategory!;
+  }
+
+  @override
+  Future<void> deleteCategory(int id, {int? reassignTo}) async {
+    if (deleteError != null) throw deleteError!;
+    deletedCategoryId = id;
+    deleteReassignTo = reassignTo;
   }
 }
 
@@ -157,6 +179,97 @@ void main() {
 
     await expectLater(
       controller.createCategory(const CategoryDraft(name: 'Playa')),
+      throwsA(isA<Exception>()),
+    );
+
+    expect(controller.value.categories, before);
+  });
+
+  test('renameCategory updates the category and embedded places', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category],
+        places: [_place],
+        renamedCategory: const Category(id: 1, name: 'Costa'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+
+    final renamed = await controller.renameCategory(
+      1,
+      const CategoryDraft(name: 'Costa'),
+    );
+
+    expect(renamed, const Category(id: 1, name: 'Costa'));
+    expect(controller.value.categories, [
+      const Category(id: 1, name: 'Costa'),
+    ]);
+    expect(controller.value.places.single.category.name, 'Costa');
+  });
+
+  test('renameCategory propagates errors without changing state', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category],
+        places: [_place],
+        renameError: Exception('boom'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+    final before = controller.value;
+
+    await expectLater(
+      controller.renameCategory(1, const CategoryDraft(name: 'Costa')),
+      throwsA(isA<Exception>()),
+    );
+
+    expect(controller.value.categories, before.categories);
+    expect(controller.value.places, before.places);
+  });
+
+  test('deleteCategory removes the category from state', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(categories: [_category, _playa]),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+
+    await controller.deleteCategory(1);
+
+    expect(controller.value.categories, [_playa]);
+  });
+
+  test('deleteCategory with reassignTo updates embedded places', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category, _playa],
+        places: [_place],
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+
+    await controller.deleteCategory(1, reassignTo: 2);
+
+    expect(controller.value.categories, [_playa]);
+    expect(controller.value.places.single.category, _playa);
+  });
+
+  test('deleteCategory propagates errors without changing state', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category],
+        deleteError: Exception('boom'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+    final before = controller.value.categories;
+
+    await expectLater(
+      controller.deleteCategory(1, reassignTo: 2),
       throwsA(isA<Exception>()),
     );
 
