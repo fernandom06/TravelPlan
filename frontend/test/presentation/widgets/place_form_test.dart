@@ -121,12 +121,7 @@ void main() {
   testWidgets('read-only mode disables fields and shows Cerrar', (tester) async {
     await tester.pumpWidget(
       _wrap(
-        PlaceForm(
-          categories: _categories,
-          place: _place,
-          onSave: (_, _, _) {},
-          onCancel: () {},
-        ),
+        PlaceDetails(categories: _categories, place: _place, onClose: () {}),
       ),
     );
 
@@ -141,22 +136,32 @@ void main() {
     expect(dropdown.onChanged, isNull);
   });
 
-  testWidgets('pressing Cerrar calls onCancel', (tester) async {
-    var cancelled = false;
+  testWidgets('PlaceDetails muestra el nombre y la categoría del lugar', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
-        PlaceForm(
-          categories: _categories,
-          place: _place,
-          onSave: (_, _, _) {},
-          onCancel: () => cancelled = true,
-        ),
+        PlaceDetails(categories: _categories, place: _place, onClose: () {}),
+      ),
+    );
+
+    expect(find.text('Mirador'), findsOneWidget);
+    expect(find.text('Naturaleza'), findsOneWidget);
+  });
+
+  testWidgets('pressing Cerrar calls onClose', (tester) async {
+    var closed = false;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceDetails(categories: _categories, place: _place, onClose: () {
+          closed = true;
+        }),
       ),
     );
 
     await tester.tap(find.text('Cerrar'));
     await tester.pump();
 
-    expect(cancelled, isTrue);
+    expect(closed, isTrue);
   });
 }

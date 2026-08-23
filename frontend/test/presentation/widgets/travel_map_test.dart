@@ -98,7 +98,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.location_on).first);
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(find.byType(PlaceForm), findsOneWidget);
+    expect(find.byType(PlaceDetails), findsOneWidget);
     expect(find.text('Cerrar'), findsOneWidget);
     expect(find.text('Guardar'), findsNothing);
   });

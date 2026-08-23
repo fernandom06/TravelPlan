@@ -62,13 +62,11 @@ class PlaceForm extends StatefulWidget {
     required this.categories,
     required this.onSave,
     required this.onCancel,
-    this.place,
   });
 
   final List<Category> categories;
-  final Place? place;
   final void Function(String name, int categoryId, String? description) onSave;
-  final void Function() onCancel;
+  final VoidCallback onCancel;
 
   @override
   State<PlaceForm> createState() => _PlaceFormState();
@@ -79,15 +77,11 @@ class _PlaceFormState extends State<PlaceForm> {
   late final TextEditingController _descriptionController;
   Category? _selectedCategory;
 
-  bool get _readOnly => widget.place != null;
-
   @override
   void initState() {
     super.initState();
-    final place = widget.place;
-    _nameController = TextEditingController(text: place?.name ?? '');
-    _descriptionController = TextEditingController(text: place?.description ?? '');
-    _selectedCategory = place?.category;
+    _nameController = TextEditingController();
+    _descriptionController = TextEditingController();
   }
 
   @override
@@ -98,9 +92,7 @@ class _PlaceFormState extends State<PlaceForm> {
   }
 
   bool get _canSave =>
-      !_readOnly &&
-      _nameController.text.trim().isNotEmpty &&
-      _selectedCategory != null;
+      _nameController.text.trim().isNotEmpty && _selectedCategory != null;
 
   void _handleSave() {
     final description = _descriptionController.text.trim();
@@ -126,35 +118,93 @@ class _PlaceFormState extends State<PlaceForm> {
               nameController: _nameController,
               descriptionController: _descriptionController,
               selectedCategory: _selectedCategory,
-              onCategoryChanged: _readOnly
-                  ? null
-                  : (c) => setState(() => _selectedCategory = c),
-              onNameChanged: _readOnly ? null : (_) => setState(() {}),
-              enabled: !_readOnly,
+              onCategoryChanged: (c) => setState(() => _selectedCategory = c),
+              onNameChanged: (_) => setState(() {}),
+              enabled: true,
             ),
-            if (_readOnly)
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
+            OverflowBar(
+              alignment: MainAxisAlignment.end,
+              spacing: 8,
+              children: [
+                TextButton(
                   onPressed: widget.onCancel,
-                  child: const Text('Cerrar'),
+                  child: const Text('Cancelar'),
                 ),
-              )
-            else
-              OverflowBar(
-                alignment: MainAxisAlignment.end,
-                spacing: 8,
-                children: [
-                  TextButton(
-                    onPressed: widget.onCancel,
-                    child: const Text('Cancelar'),
-                  ),
-                  FilledButton(
-                    onPressed: _canSave ? _handleSave : null,
-                    child: const Text('Guardar'),
-                  ),
-                ],
+                FilledButton(
+                  onPressed: _canSave ? _handleSave : null,
+                  child: const Text('Guardar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PlaceDetails extends StatefulWidget {
+  const PlaceDetails({
+    super.key,
+    required this.categories,
+    required this.place,
+    required this.onClose,
+  });
+
+  final List<Category> categories;
+  final Place place;
+  final VoidCallback onClose;
+
+  @override
+  State<PlaceDetails> createState() => _PlaceDetailsState();
+}
+
+class _PlaceDetailsState extends State<PlaceDetails> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _descriptionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.place.name);
+    _descriptionController = TextEditingController(
+      text: widget.place.description ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _PlaceFields(
+              categories: widget.categories,
+              nameController: _nameController,
+              descriptionController: _descriptionController,
+              selectedCategory: widget.place.category,
+              onCategoryChanged: null,
+              onNameChanged: null,
+              enabled: false,
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: widget.onClose,
+                child: const Text('Cerrar'),
               ),
+            ),
           ],
         ),
       ),

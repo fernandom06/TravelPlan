@@ -173,24 +173,39 @@ class _TravelMapState extends State<TravelMap> {
     );
   }
 
-  Widget _buildFormOverlay() {
-    final s = _state;
-    final position = s is _Creating ? s.screenPos : Offset.zero;
+  Widget _positionedOverlay(Offset position, Widget child) {
     return Positioned(
       left: position.dx - 130,
       top: position.dy - 40,
       child: FractionalTranslation(
         translation: const Offset(0, -1),
-        child: SizedBox(
-          width: 260,
-          child: PlaceForm(
+        child: SizedBox(width: 260, child: child),
+      ),
+    );
+  }
+
+  Widget _buildFormOverlay() {
+    switch (_state) {
+      case _Creating(:final screenPos):
+        return _positionedOverlay(
+          screenPos,
+          PlaceForm(
             categories: widget.categories,
-            place: s is _Viewing ? s.place : null,
             onSave: _handleSave,
             onCancel: _closeForm,
           ),
-        ),
-      ),
-    );
+        );
+      case _Viewing(:final place):
+        return _positionedOverlay(
+          Offset.zero,
+          PlaceDetails(
+            categories: widget.categories,
+            place: place,
+            onClose: _closeForm,
+          ),
+        );
+      case _Idle():
+        return const SizedBox.shrink();
+    }
   }
 }
