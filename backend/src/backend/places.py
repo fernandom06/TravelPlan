@@ -120,3 +120,18 @@ def update_place(
     conn.commit()
 
     return _row_to_response(_fetch_place(conn, place_id))
+
+
+@router.delete("/{place_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+def delete_place(
+    place_id: int,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> None:
+    existing = _fetch_place(conn, place_id)
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Place not found"
+        )
+
+    conn.execute("DELETE FROM places WHERE id = ?", (place_id,))
+    conn.commit()
