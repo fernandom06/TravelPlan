@@ -49,6 +49,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   categories: state.categories,
                   isOnline: isOnline,
                   onCreatePlace: widget.placesController.createPlace,
+                  onUpdatePlace: widget.placesController.updatePlace,
+                  onDeletePlace: widget.placesController.deletePlace,
                   onCreateCategory: (name) => widget.placesController
                       .createCategory(CategoryDraft(name: name)),
                   onRenameCategory: (id, name) => widget.placesController
