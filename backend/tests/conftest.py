@@ -9,14 +9,13 @@ from backend.main import app
 
 @pytest.fixture
 def test_client(tmp_path, monkeypatch):
-    monkeypatch.setattr("backend.database.DB_PATH", str(tmp_path / "test.db"))
+    monkeypatch.setattr("backend.main.init_database", lambda: None)
 
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     init_db(conn)
     seed_categories(conn)
-    conn.commit()
 
     def override_get_db():
         yield conn

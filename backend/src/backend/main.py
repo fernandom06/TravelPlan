@@ -5,19 +5,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .categories import router as categories_router
-from .database import get_connection, init_db, seed_categories
+from .database import init_database
 from .places import router as places_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    conn = get_connection()
-    try:
-        init_db(conn)
-        seed_categories(conn)
-        conn.commit()
-    finally:
-        conn.close()
+    init_database()
     yield
 
 
