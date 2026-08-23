@@ -94,11 +94,22 @@ class PlaceApi {
   }
 
   Future<Place> updatePlace(int id, PlaceUpdate update) async {
-    throw UnimplementedError();
+    final response = await _client.patch(
+      _uri('/places/$id'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(update.toJson()),
+    );
+    if (response.statusCode != 200) {
+      throw PlaceApiException('Failed to update place: ${response.statusCode}');
+    }
+    return Place.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
   Future<void> deletePlace(int id) async {
-    throw UnimplementedError();
+    final response = await _client.delete(_uri('/places/$id'));
+    if (response.statusCode != 204) {
+      throw PlaceApiException('Failed to delete place: ${response.statusCode}');
+    }
   }
 
   Future<Category> createCategory(CategoryDraft draft) async {
