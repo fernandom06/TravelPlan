@@ -71,6 +71,10 @@ class PlaceForm extends StatefulWidget {
     this.places = const [],
     this.onRenameCategory,
     this.onDeleteCategory,
+    this.initialName,
+    this.initialDescription,
+    this.initialCategory,
+    this.onDelete,
   });
 
   final List<Category> categories;
@@ -80,6 +84,10 @@ class PlaceForm extends StatefulWidget {
   final List<Place> places;
   final Future<Category> Function(int id, String name)? onRenameCategory;
   final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
+  final String? initialName;
+  final String? initialDescription;
+  final Category? initialCategory;
+  final VoidCallback? onDelete;
 
   @override
   State<PlaceForm> createState() => _PlaceFormState();
@@ -103,11 +111,14 @@ class _PlaceFormState extends State<PlaceForm> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _descriptionController = TextEditingController();
+    _nameController = TextEditingController(text: widget.initialName);
+    _descriptionController = TextEditingController(
+      text: widget.initialDescription ?? '',
+    );
     _categoryNameController = TextEditingController();
     _renameNameController = TextEditingController();
     _categories = List.of(widget.categories);
+    _selectedCategory = widget.initialCategory;
   }
 
   @override
@@ -141,6 +152,32 @@ class _PlaceFormState extends State<PlaceForm> {
       _selectedCategory!.id,
       description.isEmpty ? null : description,
     );
+  }
+
+  Future<void> _handleDeleteTap() async {
+    final onDelete = widget.onDelete;
+    if (onDelete == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Eliminar lugar'),
+          content: const Text('¿Eliminar este lugar?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !mounted) return;
+    onDelete();
   }
 
   Future<void> _handleCreateCategory() async {
@@ -469,6 +506,14 @@ class _PlaceFormState extends State<PlaceForm> {
               alignment: MainAxisAlignment.end,
               spacing: 8,
               children: [
+                if (widget.onDelete != null)
+                  TextButton(
+                    onPressed: _handleDeleteTap,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                    child: const Text('Eliminar'),
+                  ),
                 TextButton(
                   onPressed: widget.onCancel,
                   child: const Text('Cancelar'),
