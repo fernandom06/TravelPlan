@@ -8,6 +8,13 @@ from .schemas import CategoryResponse, PlaceCreate, PlaceResponse
 
 router = APIRouter(prefix="/places", tags=["places"])
 
+_PLACE_SELECT = """
+    SELECT p.id, p.name, p.description, p.latitude, p.longitude,
+           p.category_id, c.name AS category_name
+    FROM places p
+    JOIN categories c ON c.id = p.category_id
+"""
+
 
 def _row_to_response(row: sqlite3.Row) -> PlaceResponse:
     return PlaceResponse(
@@ -20,19 +27,15 @@ def _row_to_response(row: sqlite3.Row) -> PlaceResponse:
     )
 
 
+def _fetch_place(conn: sqlite3.Connection, place_id: int) -> sqlite3.Row | None:
+    return conn.execute(_PLACE_SELECT + "WHERE p.id = ?", (place_id,)).fetchone()
+
+
 @router.get("", response_model=list[PlaceResponse])
 def list_places(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[PlaceResponse]:
-    rows = conn.execute(
-        """
-        SELECT p.id, p.name, p.description, p.latitude, p.longitude,
-               p.category_id, c.name AS category_name
-        FROM places p
-        JOIN categories c ON c.id = p.category_id
-        ORDER BY p.id
-        """
-    ).fetchall()
+    rows = conn.execute(_PLACE_SELECT + "ORDER BY p.id").fetchall()
     return [_row_to_response(row) for row in rows]
 
 
@@ -41,16 +44,7 @@ def get_place(
     place_id: int,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> PlaceResponse:
-    row = conn.execute(
-        """
-        SELECT p.id, p.name, p.description, p.latitude, p.longitude,
-               p.category_id, c.name AS category_name
-        FROM places p
-        JOIN categories c ON c.id = p.category_id
-        WHERE p.id = ?
-        """,
-        (place_id,),
-    ).fetchone()
+    row = _fetch_place(conn, place_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
     return _row_to_response(row)
