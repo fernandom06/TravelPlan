@@ -838,4 +838,114 @@ void main() {
       expect(find.text('No se pudo eliminar la categoría'), findsOneWidget);
     });
   });
+
+  group('edit mode', () {
+    testWidgets('PlaceDetails with onEdit shows Editar and calls it on tap', (
+      tester,
+    ) async {
+      var edited = false;
+      await tester.pumpWidget(
+        _wrap(
+          PlaceDetails(
+            categories: _categories,
+            place: _place,
+            onClose: () {},
+            onEdit: () {
+              edited = true;
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Editar'), findsOneWidget);
+      await tester.tap(find.text('Editar'));
+      await tester.pump();
+
+      expect(edited, isTrue);
+    });
+
+    testWidgets('PlaceForm pre-fills name, category and enables Guardar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          PlaceForm(
+            categories: _categories,
+            initialName: 'Mirador',
+            initialDescription: 'Vistas del canon',
+            initialCategory: _naturaleza,
+            onSave: (_, _, _) {},
+            onCancel: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('Mirador'), findsOneWidget);
+      expect(find.text('Vistas del canon'), findsOneWidget);
+      expect(find.text('Naturaleza'), findsOneWidget);
+      expect(_saveButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('Eliminar shows a confirm dialog and cancelling does nothing', (
+      tester,
+    ) async {
+      var deleted = false;
+      await tester.pumpWidget(
+        _wrap(
+          PlaceForm(
+            categories: _categories,
+            initialName: 'Mirador',
+            initialCategory: _naturaleza,
+            onSave: (_, _, _) {},
+            onCancel: () {},
+            onDelete: () {
+              deleted = true;
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Eliminar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('¿Eliminar este lugar?'), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Cancelar'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(deleted, isFalse);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('confirming the delete dialog calls onDelete', (tester) async {
+      var deleted = false;
+      await tester.pumpWidget(
+        _wrap(
+          PlaceForm(
+            categories: _categories,
+            initialName: 'Mirador',
+            initialCategory: _naturaleza,
+            onSave: (_, _, _) {},
+            onCancel: () {},
+            onDelete: () {
+              deleted = true;
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Eliminar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+      await tester.pumpAndSettle();
+
+      expect(deleted, isTrue);
+    });
+  });
 }
