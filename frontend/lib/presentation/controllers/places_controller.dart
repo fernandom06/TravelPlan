@@ -62,11 +62,22 @@ class PlacesController extends ValueNotifier<PlacesState> {
   }
 
   Future<Place> updatePlace(int id, PlaceUpdate update) async {
-    throw UnimplementedError();
+    final updated = await _api.updatePlace(id, update);
+    value = PlacesState(
+      places: [for (final p in value.places) p.id == id ? updated : p],
+      categories: value.categories,
+      isLoading: value.isLoading,
+    );
+    return updated;
   }
 
   Future<void> deletePlace(int id) async {
-    throw UnimplementedError();
+    await _api.deletePlace(id);
+    value = PlacesState(
+      places: value.places.where((p) => p.id != id).toList(),
+      categories: value.categories,
+      isLoading: value.isLoading,
+    );
   }
 
   Future<Category> createCategory(CategoryDraft draft) async {
