@@ -4,6 +4,7 @@ import '../../data/models/category.dart';
 import '../../data/models/category_draft.dart';
 import '../../data/models/place.dart';
 import '../../data/models/place_draft.dart';
+import '../../data/models/place_update.dart';
 import '../../data/place_api.dart';
 
 class PlacesState {
@@ -58,6 +59,14 @@ class PlacesController extends ValueNotifier<PlacesState> {
       isLoading: value.isLoading,
     );
     return place;
+  }
+
+  Future<Place> updatePlace(int id, PlaceUpdate update) async {
+    throw UnimplementedError();
+  }
+
+  Future<void> deletePlace(int id) async {
+    throw UnimplementedError();
   }
 
   Future<Category> createCategory(CategoryDraft draft) async {

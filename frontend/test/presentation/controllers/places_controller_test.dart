@@ -4,6 +4,7 @@ import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/category_draft.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/place_draft.dart';
+import 'package:frontend/data/models/place_update.dart';
 import 'package:frontend/data/place_api.dart';
 import 'package:frontend/presentation/controllers/places_controller.dart';
 
@@ -18,6 +19,9 @@ class _FakePlaceApi extends PlaceApi {
     this.renamedCategory,
     this.renameError,
     this.deleteError,
+    this.updatedPlace,
+    this.updateError,
+    this.deletePlaceError,
   }) : super(baseUrl: 'http://fake');
 
   final List<Category> categories;
@@ -29,9 +33,13 @@ class _FakePlaceApi extends PlaceApi {
   final Category? renamedCategory;
   final Object? renameError;
   final Object? deleteError;
+  final Place? updatedPlace;
+  final Object? updateError;
+  final Object? deletePlaceError;
 
   int? deletedCategoryId;
   int? deleteReassignTo;
+  int? deletedPlaceId;
 
   @override
   Future<List<Category>> fetchCategories() async {
@@ -49,6 +57,18 @@ class _FakePlaceApi extends PlaceApi {
   Future<Place> createPlace(PlaceDraft draft) async {
     if (error != null) throw error!;
     return createdPlace!;
+  }
+
+  @override
+  Future<Place> updatePlace(int id, PlaceUpdate update) async {
+    if (updateError != null) throw updateError!;
+    return updatedPlace!;
+  }
+
+  @override
+  Future<void> deletePlace(int id) async {
+    if (deletePlaceError != null) throw deletePlaceError!;
+    deletedPlaceId = id;
   }
 
   @override
@@ -80,6 +100,14 @@ const _place = Place(
   latitude: 42.5,
   longitude: -3.1,
   category: _category,
+);
+const _updatedPlace = Place(
+  id: 1,
+  name: 'Mirador nuevo',
+  description: 'Otra vista',
+  latitude: 42.5,
+  longitude: -3.1,
+  category: _playa,
 );
 
 void main() {
@@ -266,5 +294,111 @@ void main() {
     );
 
     expect(controller.value.categories, before);
+  });
+
+  test('updatePlace replaces the place in state and returns it', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category, _playa],
+        places: [_place],
+        updatedPlace: _updatedPlace,
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+
+    final updated = await controller.updatePlace(
+      1,
+      const PlaceUpdate(
+        name: 'Mirador nuevo',
+        categoryId: 2,
+        description: 'Otra vista',
+      ),
+    );
+
+    expect(updated, _updatedPlace);
+    expect(controller.value.places, [_updatedPlace]);
+  });
+
+  test('updatePlace keeps order when replacing a middle place', () async {
+    const other = Place(
+      id: 2,
+      name: 'Otro',
+      description: null,
+      latitude: 40.0,
+      longitude: -1.0,
+      category: _playa,
+    );
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category, _playa],
+        places: [_place, other],
+        updatedPlace: _updatedPlace,
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+
+    await controller.updatePlace(
+      1,
+      const PlaceUpdate(name: 'Mirador nuevo', categoryId: 2),
+    );
+
+    expect(controller.value.places.map((p) => p.id), [1, 2]);
+  });
+
+  test('updatePlace propagates errors without changing state', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category],
+        places: [_place],
+        updateError: Exception('boom'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+    final before = controller.value.places;
+
+    await expectLater(
+      controller.updatePlace(
+        1,
+        const PlaceUpdate(name: 'X', categoryId: 1),
+      ),
+      throwsA(isA<Exception>()),
+    );
+
+    expect(controller.value.places, before);
+  });
+
+  test('deletePlace removes the place from state', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(categories: [_category], places: [_place]),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+
+    await controller.deletePlace(1);
+
+    expect(controller.value.places, isEmpty);
+  });
+
+  test('deletePlace propagates errors without changing state', () async {
+    final controller = PlacesController(
+      _FakePlaceApi(
+        categories: [_category],
+        places: [_place],
+        deletePlaceError: Exception('boom'),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAll();
+    final before = controller.value.places;
+
+    await expectLater(
+      controller.deletePlace(1),
+      throwsA(isA<Exception>()),
+    );
+
+    expect(controller.value.places, before);
   });
 }
