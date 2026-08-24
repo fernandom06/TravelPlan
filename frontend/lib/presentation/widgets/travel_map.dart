@@ -28,8 +28,9 @@ class TravelMap extends StatefulWidget {
   final Future<void> Function(PlaceDraft draft) onCreatePlace;
   final Future<void> Function(int id, PlaceUpdate update) onUpdatePlace;
   final Future<void> Function(int id) onDeletePlace;
-  final Future<Category> Function(String name)? onCreateCategory;
-  final Future<Category> Function(int id, String name)? onRenameCategory;
+  final Future<Category> Function(String name, String? icon)? onCreateCategory;
+  final Future<Category> Function(int id, String name, String? icon)?
+      onRenameCategory;
   final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final bool isOnline;
 

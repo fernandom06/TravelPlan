@@ -65,9 +65,10 @@ class PlaceForm extends StatefulWidget {
   final List<Category> categories;
   final void Function(String name, int categoryId, String? description) onSave;
   final VoidCallback onCancel;
-  final Future<Category> Function(String name)? onCreateCategory;
+  final Future<Category> Function(String name, String? icon)? onCreateCategory;
   final List<Place> places;
-  final Future<Category> Function(int id, String name)? onRenameCategory;
+  final Future<Category> Function(int id, String name, String? icon)?
+      onRenameCategory;
   final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final String? initialName;
   final String? initialDescription;

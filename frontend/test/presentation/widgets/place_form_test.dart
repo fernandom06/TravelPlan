@@ -229,7 +229,7 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_) async => const Category(id: 5, name: 'Playa'),
+          onCreateCategory: (_, _) async => const Category(id: 5, name: 'Playa'),
         ),
       ),
     );
@@ -246,7 +246,7 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (name) async {
+          onCreateCategory: (name, icon) async {
             createdName = name;
             return const Category(id: 5, name: 'Playa');
           },
@@ -282,7 +282,7 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (name) async =>
+          onCreateCategory: (_, _) async =>
               throw const DuplicateCategoryException('duplicate'),
         ),
       ),
@@ -311,7 +311,7 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (name) async =>
+          onCreateCategory: (_, _) async =>
               throw const PlaceApiException('boom'),
         ),
       ),
@@ -339,7 +339,7 @@ void main() {
             categories: _categories,
             onSave: (_, _, _) {},
             onCancel: () {},
-            onCreateCategory: (name) async => throw Exception('Network error'),
+            onCreateCategory: (_, _) async => throw Exception('Network error'),
           ),
         ),
       );
@@ -369,7 +369,7 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (name) {
+          onCreateCategory: (_, _) {
             callCount++;
             return completer.future;
           },
@@ -413,7 +413,7 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_) async => const Category(id: 5, name: 'Playa'),
+          onCreateCategory: (_, _) async => const Category(id: 5, name: 'Playa'),
         ),
       ),
     );
@@ -436,7 +436,8 @@ void main() {
   group('rename/delete category', () {
     PlaceForm form({
       List<Place> places = const [],
-      Future<Category> Function(int id, String name)? onRenameCategory,
+      Future<Category> Function(int id, String name, String? icon)?
+      onRenameCategory,
       Future<void> Function(int id, int? reassignTo)? onDeleteCategory,
     }) {
       return PlaceForm(
@@ -444,7 +445,7 @@ void main() {
         places: places,
         onSave: (_, _, _) {},
         onCancel: () {},
-        onCreateCategory: (_) async => const Category(id: 9, name: 'Playa'),
+        onCreateCategory: (_, _) async => const Category(id: 9, name: 'Playa'),
         onRenameCategory: onRenameCategory,
         onDeleteCategory: onDeleteCategory,
       );
@@ -466,7 +467,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           form(
-            onRenameCategory: (_, name) async =>
+            onRenameCategory: (_, name, _) async =>
                 const Category(id: 1, name: 'X'),
             onDeleteCategory: (_, _) async {},
           ),
@@ -489,7 +490,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           form(
-            onRenameCategory: (id, name) async {
+            onRenameCategory: (id, name, icon) async {
               renamedId = '$id';
               renamedName = name;
               return const Category(id: 1, name: 'Costa');
@@ -522,7 +523,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           form(
-            onRenameCategory: (_, _) async =>
+            onRenameCategory: (_, _, _) async =>
                 throw const DuplicateCategoryException('duplicate'),
           ),
         ),
@@ -551,7 +552,7 @@ void main() {
         await tester.pumpWidget(
           _wrap(
             form(
-              onRenameCategory: (_, _) async {
+              onRenameCategory: (_, _, _) async {
                 called = true;
                 return const Category(id: 1, name: 'X');
               },
@@ -578,7 +579,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           form(
-            onRenameCategory: (_, _) async =>
+            onRenameCategory: (_, _, _) async =>
                 throw const PlaceApiException('boom'),
           ),
         ),
@@ -605,7 +606,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           form(
-            onRenameCategory: (_, _) {
+            onRenameCategory: (_, _, _) {
               callCount++;
               return completer.future;
             },

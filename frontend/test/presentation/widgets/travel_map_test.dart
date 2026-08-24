@@ -31,8 +31,9 @@ Future<void> _noopDelete(int id) async {}
 Widget _map({
   List<Place> places = const [],
   bool isOnline = true,
-  Future<Category> Function(String name)? onCreateCategory,
-  Future<Category> Function(int id, String name)? onRenameCategory,
+  Future<Category> Function(String name, String? icon)? onCreateCategory,
+  Future<Category> Function(int id, String name, String? icon)?
+  onRenameCategory,
   Future<void> Function(int id, int? reassignTo)? onDeleteCategory,
   Future<void> Function(int id, PlaceUpdate update)? onUpdatePlace,
   Future<void> Function(int id)? onDeletePlace,
@@ -147,7 +148,7 @@ void main() {
     String? createdName;
     await tester.pumpWidget(
       _map(
-        onCreateCategory: (name) async {
+        onCreateCategory: (name, icon) async {
           createdName = name;
           return const Category(id: 5, name: 'Playa');
         },
@@ -183,7 +184,7 @@ void main() {
     String? renamedName;
     await tester.pumpWidget(
       _map(
-        onRenameCategory: (id, name) async {
+        onRenameCategory: (id, name, icon) async {
           renamedId = '$id';
           renamedName = name;
           return const Category(id: 1, name: 'Costa');
