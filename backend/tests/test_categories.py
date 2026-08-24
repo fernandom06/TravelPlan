@@ -67,7 +67,7 @@ def test_rename_category_returns_200_and_persists(test_client):
     response = test_client.patch(f"/categories/{created['id']}", json={"name": "Costa"})
 
     assert response.status_code == 200
-    assert response.json() == {"id": created["id"], "name": "Costa"}
+    assert response.json() == {"id": created["id"], "name": "Costa", "icon": None}
     listing = test_client.get("/categories").json()
     assert any(c["name"] == "Costa" for c in listing)
     assert all(c["name"] != "Playa" for c in listing)
@@ -120,7 +120,7 @@ def test_rename_category_same_name_returns_200(test_client):
     response = test_client.patch(f"/categories/{created['id']}", json={"name": "A"})
 
     assert response.status_code == 200
-    assert response.json() == {"id": created["id"], "name": "A"}
+    assert response.json() == {"id": created["id"], "name": "A", "icon": None}
 
 
 def test_rename_propagates_to_places(test_client):
@@ -143,6 +143,7 @@ def test_rename_propagates_to_places(test_client):
     places = test_client.get("/places").json()
     assert len(places) == 1
     assert places[0]["category"]["name"] == "Costa"
+    assert places[0]["category"]["icon"] is None
 
 
 def test_delete_category_without_places_returns_204(test_client):
@@ -256,3 +257,97 @@ def test_delete_only_category_with_places_returns_409(test_client):
 
     assert response.status_code == 409
     assert len(test_client.get("/categories").json()) == 1
+
+
+def test_create_category_with_icon_persists_and_returns_it(test_client):
+    response = test_client.post("/categories", json={"name": "Playa", "icon": "beach"})
+
+    assert response.status_code == 201
+    assert response.json()["icon"] == "beach"
+
+    listing = test_client.get("/categories").json()
+    assert any(c["name"] == "Playa" and c["icon"] == "beach" for c in listing)
+
+
+def test_create_category_without_icon_defaults_null(test_client):
+    response = test_client.post("/categories", json={"name": "Playa"})
+
+    assert response.status_code == 201
+    assert response.json()["icon"] is None
+
+
+def test_create_category_icon_too_long_returns_422(test_client):
+    response = test_client.post("/categories", json={"name": "Playa", "icon": "x" * 65})
+
+    assert response.status_code == 422
+
+
+def test_create_category_strips_icon_whitespace(test_client):
+    response = test_client.post(
+        "/categories", json={"name": "Playa", "icon": " beach "}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["icon"] == "beach"
+
+
+def test_update_category_icon(test_client):
+    created = test_client.post("/categories", json={"name": "Costa"}).json()
+
+    response = test_client.patch(
+        f"/categories/{created['id']}", json={"name": "Costa", "icon": "monument"}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": created["id"],
+        "name": "Costa",
+        "icon": "monument",
+    }
+    listing = test_client.get("/categories").json()
+    assert any(c["id"] == created["id"] and c["icon"] == "monument" for c in listing)
+
+
+def test_update_category_clears_icon(test_client):
+    created = test_client.post(
+        "/categories", json={"name": "Costa", "icon": "beach"}
+    ).json()
+
+    response = test_client.patch(
+        f"/categories/{created['id']}", json={"name": "Costa", "icon": None}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["icon"] is None
+    listing = test_client.get("/categories").json()
+    assert any(c["id"] == created["id"] and c["icon"] is None for c in listing)
+
+
+def test_update_category_keeps_icon_when_only_name_changed_form(test_client):
+    created = test_client.post(
+        "/categories", json={"name": "Costa", "icon": "beach"}
+    ).json()
+
+    response = test_client.patch(
+        f"/categories/{created['id']}",
+        json={"name": "Oceano", "icon": "beach"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": created["id"],
+        "name": "Oceano",
+        "icon": "beach",
+    }
+
+
+def test_list_categories_includes_icon(test_client):
+    test_client.post("/categories", json={"name": "Playa", "icon": "beach"})
+    test_client.post("/categories", json={"name": "Museo"})
+
+    listing = test_client.get("/categories").json()
+
+    assert {c["name"]: c["icon"] for c in listing} == {
+        "Playa": "beach",
+        "Museo": None,
+    }

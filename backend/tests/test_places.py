@@ -87,6 +87,22 @@ def test_create_place_missing_coordinates(test_client):
     assert response.status_code == 422
 
 
+def test_place_response_includes_category_icon(test_client):
+    category = test_client.post(
+        "/categories", json={"name": "Playa", "icon": "beach"}
+    ).json()
+
+    created = test_client.post("/places", json=_valid_place(category["id"])).json()
+
+    assert created["category"]["icon"] == "beach"
+
+    listing = test_client.get("/places").json()
+    assert listing[0]["category"]["icon"] == "beach"
+
+    fetched = test_client.get(f"/places/{created['id']}").json()
+    assert fetched["category"]["icon"] == "beach"
+
+
 def _create_place(client, category_id):
     response = client.post("/places", json=_valid_place(category_id))
     assert response.status_code == 201
@@ -100,7 +116,11 @@ def test_update_place_returns_200_and_persists(test_client):
 
     response = test_client.patch(
         f"/places/{created['id']}",
-        json={"name": "Mirador nuevo", "description": "Otra vista", "category_id": other["id"]},
+        json={
+            "name": "Mirador nuevo",
+            "description": "Otra vista",
+            "category_id": other["id"],
+        },
     )
 
     assert response.status_code == 200
@@ -118,9 +138,7 @@ def test_update_place_returns_200_and_persists(test_client):
 
 
 def test_update_place_not_found_returns_404(test_client):
-    response = test_client.patch(
-        "/places/9999", json={"name": "X", "category_id": 1}
-    )
+    response = test_client.patch("/places/9999", json={"name": "X", "category_id": 1})
 
     assert response.status_code == 404
 

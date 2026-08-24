@@ -13,8 +13,11 @@ router = APIRouter(prefix="/categories", tags=["categories"])
 def list_categories(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[CategoryResponse]:
-    rows = conn.execute("SELECT id, name FROM categories ORDER BY id").fetchall()
-    return [CategoryResponse(id=row["id"], name=row["name"]) for row in rows]
+    rows = conn.execute("SELECT id, name, icon FROM categories ORDER BY id").fetchall()
+    return [
+        CategoryResponse(id=row["id"], name=row["name"], icon=row["icon"])
+        for row in rows
+    ]
 
 
 @router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
@@ -24,18 +27,19 @@ def create_category(
 ) -> CategoryResponse:
     try:
         cursor = conn.execute(
-            "INSERT INTO categories (name) VALUES (?)", (payload.name,)
+            "INSERT INTO categories (name, icon) VALUES (?, ?)",
+            (payload.name, payload.icon),
         )
         conn.commit()
     except sqlite3.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Category already exists"
         )
-    return CategoryResponse(id=cursor.lastrowid, name=payload.name)
+    return CategoryResponse(id=cursor.lastrowid, name=payload.name, icon=payload.icon)
 
 
 @router.patch("/{category_id}", response_model=CategoryResponse)
-def rename_category(
+def update_category(
     category_id: int,
     payload: CategoryCreate,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -49,15 +53,15 @@ def rename_category(
         )
     try:
         conn.execute(
-            "UPDATE categories SET name = ? WHERE id = ?",
-            (payload.name, category_id),
+            "UPDATE categories SET name = ?, icon = ? WHERE id = ?",
+            (payload.name, payload.icon, category_id),
         )
         conn.commit()
     except sqlite3.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Category already exists"
         )
-    return CategoryResponse(id=category_id, name=payload.name)
+    return CategoryResponse(id=category_id, name=payload.name, icon=payload.icon)
 
 
 @router.delete(

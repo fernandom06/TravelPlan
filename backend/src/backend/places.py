@@ -10,7 +10,7 @@ router = APIRouter(prefix="/places", tags=["places"])
 
 _PLACE_SELECT = """
     SELECT p.id, p.name, p.description, p.latitude, p.longitude,
-           p.category_id, c.name AS category_name
+           p.category_id, c.name AS category_name, c.icon AS category_icon
     FROM places p
     JOIN categories c ON c.id = p.category_id
 """
@@ -23,7 +23,11 @@ def _row_to_response(row: sqlite3.Row) -> PlaceResponse:
         description=row["description"],
         latitude=row["latitude"],
         longitude=row["longitude"],
-        category=CategoryResponse(id=row["category_id"], name=row["category_name"]),
+        category=CategoryResponse(
+            id=row["category_id"],
+            name=row["category_name"],
+            icon=row["category_icon"],
+        ),
     )
 
 
@@ -58,7 +62,7 @@ def create_place(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> PlaceResponse:
     category = conn.execute(
-        "SELECT id, name FROM categories WHERE id = ?", (payload.category_id,)
+        "SELECT id, name, icon FROM categories WHERE id = ?", (payload.category_id,)
     ).fetchone()
     if category is None:
         raise HTTPException(
@@ -86,7 +90,9 @@ def create_place(
         description=payload.description,
         latitude=payload.latitude,
         longitude=payload.longitude,
-        category=CategoryResponse(id=category["id"], name=category["name"]),
+        category=CategoryResponse(
+            id=category["id"], name=category["name"], icon=category["icon"]
+        ),
     )
 
 
@@ -103,7 +109,7 @@ def update_place(
         )
 
     category = conn.execute(
-        "SELECT id, name FROM categories WHERE id = ?", (payload.category_id,)
+        "SELECT id, name, icon FROM categories WHERE id = ?", (payload.category_id,)
     ).fetchone()
     if category is None:
         raise HTTPException(
@@ -122,7 +128,9 @@ def update_place(
     return _row_to_response(_fetch_place(conn, place_id))
 
 
-@router.delete("/{place_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+@router.delete(
+    "/{place_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
+)
 def delete_place(
     place_id: int,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],

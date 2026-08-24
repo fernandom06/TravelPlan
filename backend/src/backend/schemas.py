@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, StringConstraints, model_validator
 class CategoryResponse(BaseModel):
     id: int
     name: str
+    icon: str | None = None
 
 
 class CategoryCreate(BaseModel):
@@ -14,6 +15,9 @@ class CategoryCreate(BaseModel):
         str,
         StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
     ]
+    icon: (
+        Annotated[str, StringConstraints(strip_whitespace=True, max_length=64)] | None
+    ) = None
 
 
 class PlaceCreate(BaseModel):
