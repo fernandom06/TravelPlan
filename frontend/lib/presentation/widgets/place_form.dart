@@ -2,28 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
-import '../../data/place_api.dart';
+import 'category_dropdown.dart';
 
 class _PlaceFields extends StatelessWidget {
   const _PlaceFields({
-    required this.categories,
     required this.nameController,
     required this.descriptionController,
-    required this.selectedCategory,
-    required this.onCategoryChanged,
+    required this.categoryField,
     required this.onNameChanged,
     required this.enabled,
-    this.categoryActions,
   });
 
-  final List<Category> categories;
   final TextEditingController nameController;
   final TextEditingController descriptionController;
-  final Category? selectedCategory;
-  final ValueChanged<Category?>? onCategoryChanged;
+  final Widget categoryField;
   final ValueChanged<String>? onNameChanged;
   final bool enabled;
-  final Widget? categoryActions;
 
   @override
   Widget build(BuildContext context) {
@@ -38,16 +32,7 @@ class _PlaceFields extends StatelessWidget {
           decoration: const InputDecoration(labelText: 'Nombre'),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<Category>(
-          key: ValueKey(selectedCategory?.name),
-          initialValue: selectedCategory,
-          items: categories
-              .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
-              .toList(),
-          onChanged: onCategoryChanged,
-          decoration: const InputDecoration(labelText: 'Categoría'),
-        ),
-        ?categoryActions,
+        categoryField,
         const SizedBox(height: 8),
         TextField(
           controller: descriptionController,
@@ -96,17 +81,8 @@ class PlaceForm extends StatefulWidget {
 class _PlaceFormState extends State<PlaceForm> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _categoryNameController;
-  late final TextEditingController _renameNameController;
   late List<Category> _categories;
   Category? _selectedCategory;
-  bool _isCreatingCategory = false;
-  bool _isSubmittingCategory = false;
-  bool _isRenamingCategory = false;
-  bool _isSubmittingRename = false;
-  bool _isDeletingCategory = false;
-  String? _categoryError;
-  String? _renameError;
 
   @override
   void initState() {
@@ -115,8 +91,6 @@ class _PlaceFormState extends State<PlaceForm> {
     _descriptionController = TextEditingController(
       text: widget.initialDescription ?? '',
     );
-    _categoryNameController = TextEditingController();
-    _renameNameController = TextEditingController();
     _categories = List.of(widget.categories);
     _selectedCategory = widget.initialCategory;
   }
@@ -137,8 +111,6 @@ class _PlaceFormState extends State<PlaceForm> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _categoryNameController.dispose();
-    _renameNameController.dispose();
     super.dispose();
   }
 
@@ -180,305 +152,28 @@ class _PlaceFormState extends State<PlaceForm> {
     onDelete();
   }
 
-  Future<void> _handleCreateCategory() async {
-    final name = _categoryNameController.text.trim();
-    final onCreateCategory = widget.onCreateCategory;
-    if (name.isEmpty || onCreateCategory == null || _isSubmittingCategory) {
-      return;
-    }
-    setState(() {
-      _categoryError = null;
-      _isSubmittingCategory = true;
-    });
-    try {
-      final category = await onCreateCategory(name);
-      if (!mounted) return;
-      setState(() {
-        _categories = [..._categories, category];
-        _categoryNameController.clear();
-        _isSubmittingCategory = false;
-      });
-    } on DuplicateCategoryException {
-      if (!mounted) return;
-      setState(() {
-        _categoryError = 'Ya existe una categoría con ese nombre';
-        _isSubmittingCategory = false;
-      });
-    } on PlaceApiException {
-      if (!mounted) return;
-      setState(() {
-        _categoryError = 'No se pudo crear la categoría';
-        _isSubmittingCategory = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _categoryError = 'No se pudo crear la categoría';
-        _isSubmittingCategory = false;
-      });
-    }
-  }
-
-  Future<void> _handleRenameCategory() async {
-    final selected = _selectedCategory;
-    final onRenameCategory = widget.onRenameCategory;
-    if (selected == null || onRenameCategory == null || _isSubmittingRename) {
-      return;
-    }
-    final name = _renameNameController.text.trim();
-    if (name.isEmpty) {
-      setState(() => _renameError = 'El nombre no puede estar vacío');
-      return;
-    }
-    setState(() {
-      _renameError = null;
-      _isSubmittingRename = true;
-    });
-    try {
-      final renamed = await onRenameCategory(selected.id, name);
-      if (!mounted) return;
-      setState(() {
-        _categories = [
-          for (final c in _categories) c.id == renamed.id ? renamed : c,
-        ];
-        _selectedCategory = renamed;
-        _isRenamingCategory = false;
-        _isSubmittingRename = false;
-      });
-    } on DuplicateCategoryException {
-      if (!mounted) return;
-      setState(() {
-        _renameError = 'Ya existe una categoría con ese nombre';
-        _isSubmittingRename = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _renameError = 'No se pudo renombrar la categoría';
-        _isSubmittingRename = false;
-      });
-    }
-  }
-
-  Future<void> _handleDeleteCategory() async {
-    final selected = _selectedCategory;
-    final onDeleteCategory = widget.onDeleteCategory;
-    if (selected == null || onDeleteCategory == null || _isDeletingCategory) {
-      return;
-    }
-    final count = widget.places
-        .where((p) => p.category.id == selected.id)
-        .length;
-    final candidates = _categories.where((c) => c.id != selected.id).toList();
-    Category? destination;
-    if (count > 0 && candidates.isNotEmpty) {
-      destination = candidates.first;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        if (count == 0) {
-          return AlertDialog(
-            title: const Text('Eliminar categoría'),
-            content: Text('Se eliminará "${selected.name}"'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Eliminar'),
-              ),
-            ],
-          );
+  Widget _buildCategoryField() {
+    return CategoryDropdown(
+      categories: _categories,
+      value: _selectedCategory,
+      places: widget.places,
+      onCreate: widget.onCreateCategory,
+      onRename: widget.onRenameCategory,
+      onDelete: widget.onDeleteCategory,
+      onChanged: (c) => setState(() => _selectedCategory = c),
+      onCategoryAdded: (c) => setState(() => _categories = [..._categories, c]),
+      onCategoryRenamed: (c) => setState(() {
+        _categories = [for (final x in _categories) x.id == c.id ? c : x];
+        if (_selectedCategory?.id == c.id) {
+          _selectedCategory = c;
         }
-        if (candidates.isEmpty) {
-          return AlertDialog(
-            title: const Text('No se puede eliminar'),
-            content: const Text(
-              'Es la única categoría, crea otra antes de eliminar',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancelar'),
-              ),
-            ],
-          );
-        }
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            return AlertDialog(
-              title: const Text('Eliminar categoría'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'La categoría tiene $count lugar(es). Elige el destino:',
-                  ),
-                  DropdownButtonFormField<Category>(
-                    initialValue: destination,
-                    items: [
-                      for (final c in candidates)
-                        DropdownMenuItem(value: c, child: Text(c.name)),
-                    ],
-                    onChanged: (c) => setDialogState(() => destination = c),
-                    decoration: const InputDecoration(labelText: 'Mover a'),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Eliminar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _isDeletingCategory = true);
-    try {
-      await onDeleteCategory(selected.id, destination?.id);
-      if (!mounted) return;
-      setState(() {
-        _categories = _categories.where((c) => c.id != selected.id).toList();
-        if (_selectedCategory?.id == selected.id) {
+      }),
+      onCategoryDeleted: (id) => setState(() {
+        _categories = _categories.where((x) => x.id != id).toList();
+        if (_selectedCategory?.id == id) {
           _selectedCategory = null;
         }
-        _isDeletingCategory = false;
-      });
-    } on CategoryNotEmptyException {
-      if (!mounted) return;
-      setState(() => _isDeletingCategory = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se pudo eliminar: la categoría tiene lugares sin destino',
-          ),
-        ),
-      );
-    } on InvalidReassignTargetException {
-      if (!mounted) return;
-      setState(() => _isDeletingCategory = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('El destino no es válido')));
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isDeletingCategory = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo eliminar la categoría')),
-      );
-    }
-  }
-
-  Widget? _buildCategoryActions() {
-    final selected = _selectedCategory;
-    final hasRename = widget.onRenameCategory != null;
-    final hasDelete = widget.onDeleteCategory != null;
-    final hasCreate = widget.onCreateCategory != null;
-    if (selected == null && !hasCreate) return null;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (selected != null && (hasRename || hasDelete)) ...[
-          Row(
-            children: [
-              if (hasRename)
-                IconButton(
-                  onPressed: _isSubmittingRename
-                      ? null
-                      : () => setState(() {
-                          _isRenamingCategory = !_isRenamingCategory;
-                          _renameError = null;
-                          if (_isRenamingCategory) {
-                            _renameNameController.text = selected.name;
-                          }
-                        }),
-                  icon: const Icon(Icons.edit),
-                  tooltip: 'Renombrar categoría',
-                ),
-              if (hasDelete)
-                IconButton(
-                  onPressed: _isDeletingCategory ? null : _handleDeleteCategory,
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Eliminar categoría',
-                ),
-            ],
-          ),
-          if (_isRenamingCategory) ...[
-            TextField(
-              controller: _renameNameController,
-              decoration: const InputDecoration(labelText: 'Nuevo nombre'),
-            ),
-            if (_renameError != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  _renameError!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: _isSubmittingRename ? null : _handleRenameCategory,
-                child: const Text('Renombrar'),
-              ),
-            ),
-          ],
-        ],
-        if (hasCreate) ...[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _isSubmittingCategory
-                  ? null
-                  : () => setState(() {
-                      _isCreatingCategory = !_isCreatingCategory;
-                      _categoryError = null;
-                    }),
-              icon: const Icon(Icons.add),
-              label: const Text('Nueva categoría'),
-            ),
-          ),
-          if (_isCreatingCategory) ...[
-            TextField(
-              controller: _categoryNameController,
-              decoration: const InputDecoration(
-                labelText: 'Nombre de la categoría',
-              ),
-            ),
-            if (_categoryError != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  _categoryError!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: _isSubmittingCategory ? null : _handleCreateCategory,
-                child: const Text('Crear'),
-              ),
-            ),
-          ],
-        ],
-      ],
+      }),
     );
   }
 
@@ -493,14 +188,11 @@ class _PlaceFormState extends State<PlaceForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _PlaceFields(
-              categories: _categories,
               nameController: _nameController,
               descriptionController: _descriptionController,
-              selectedCategory: _selectedCategory,
-              onCategoryChanged: (c) => setState(() => _selectedCategory = c),
+              categoryField: _buildCategoryField(),
               onNameChanged: (_) => setState(() {}),
               enabled: true,
-              categoryActions: _buildCategoryActions(),
             ),
             OverflowBar(
               alignment: MainAxisAlignment.end,
@@ -580,11 +272,14 @@ class _PlaceDetailsState extends State<PlaceDetails> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _PlaceFields(
-              categories: widget.categories,
               nameController: _nameController,
               descriptionController: _descriptionController,
-              selectedCategory: widget.place.category,
-              onCategoryChanged: null,
+              categoryField: CategoryDropdown(
+                categories: widget.categories,
+                value: widget.place.category,
+                enabled: false,
+                onChanged: (_) {},
+              ),
               onNameChanged: null,
               enabled: false,
             ),

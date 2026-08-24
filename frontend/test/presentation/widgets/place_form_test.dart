@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/place_api.dart';
+import 'package:frontend/presentation/widgets/category_dropdown.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
 
 const _naturaleza = Category(id: 1, name: 'Naturaleza');
@@ -33,10 +34,39 @@ Future<void> _fillName(WidgetTester tester) async {
   await tester.pump();
 }
 
-Future<void> _selectCategory(WidgetTester tester, String name) async {
-  await tester.tap(find.byType(DropdownButtonFormField<Category>));
+Future<void> _openCategoryMenu(WidgetTester tester) async {
+  await tester.tap(find.byType(CategoryDropdown));
   await tester.pumpAndSettle();
+}
+
+Future<void> _selectCategory(WidgetTester tester, String name) async {
+  await _openCategoryMenu(tester);
   await tester.tap(find.text(name).last);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapEditOn(WidgetTester tester, String name) async {
+  final row = find.ancestor(
+    of: find.text(name),
+    matching: find.byType(ListTile),
+  );
+  await tester.tap(find.descendant(of: row, matching: find.byIcon(Icons.edit)));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapDeleteOn(WidgetTester tester, String name) async {
+  final row = find.ancestor(
+    of: find.text(name),
+    matching: find.byType(ListTile),
+  );
+  await tester.tap(
+    find.descendant(of: row, matching: find.byIcon(Icons.delete_outline)),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _confirmInline(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.check));
   await tester.pumpAndSettle();
 }
 
@@ -55,7 +85,7 @@ void main() {
     );
 
     expect(find.byType(TextField), findsNWidgets(2));
-    expect(find.byType(DropdownButtonFormField<Category>), findsOneWidget);
+    expect(find.byType(CategoryDropdown), findsOneWidget);
     expect(find.text('Guardar'), findsOneWidget);
   });
 
@@ -152,10 +182,11 @@ void main() {
     for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
       expect(field.enabled, isFalse);
     }
-    final dropdown = tester.widget<DropdownButtonFormField<Category>>(
-      find.byType(DropdownButtonFormField<Category>),
-    );
-    expect(dropdown.onChanged, isNull);
+    // The category dropdown is present, but tapping it does not open the menu.
+    expect(find.byType(CategoryDropdown), findsOneWidget);
+    await tester.tap(find.byType(CategoryDropdown));
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsNothing);
   });
 
   testWidgets('PlaceDetails muestra el nombre y la categoría del lugar', (
@@ -203,49 +234,44 @@ void main() {
       ),
     );
 
+    await _openCategoryMenu(tester);
     expect(find.text('Nueva categoría'), findsOneWidget);
   });
 
-  testWidgets(
-    'creating a category adds it to the dropdown without selecting it',
-    (tester) async {
-      String? createdName;
-      await tester.pumpWidget(
-        _wrap(
-          PlaceForm(
-            categories: _categories,
-            onSave: (_, _, _) {},
-            onCancel: () {},
-            onCreateCategory: (name) async {
-              createdName = name;
-              return const Category(id: 5, name: 'Playa');
-            },
-          ),
+  testWidgets('creating a category autoselects it', (tester) async {
+    String? createdName;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+          onCreateCategory: (name) async {
+            createdName = name;
+            return const Category(id: 5, name: 'Playa');
+          },
         ),
-      );
+      ),
+    );
 
-      await _fillName(tester);
-      await _selectCategory(tester, 'Naturaleza');
+    await _fillName(tester);
+    await _selectCategory(tester, 'Naturaleza');
 
-      await tester.tap(find.text('Nueva categoría'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nombre de la categoría'),
-        'Playa',
-      );
-      await tester.tap(find.widgetWithText(FilledButton, 'Crear'));
-      await tester.pumpAndSettle();
+    await _openCategoryMenu(tester);
+    await tester.tap(find.text('Nueva categoría'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Nombre de la categoría'),
+      'Playa',
+    );
+    await _confirmInline(tester);
 
-      expect(createdName, 'Playa');
-      expect(find.text('Naturaleza'), findsOneWidget);
-      expect(find.text('Playa'), findsNothing);
-
-      await tester.tap(find.byType(DropdownButtonFormField<Category>));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Playa'), findsOneWidget);
-    },
-  );
+    expect(createdName, 'Playa');
+    // Autoselected: the trigger and the menu row both show 'Playa'.
+    expect(find.text('Playa'), findsNWidgets(2));
+    // Guardar is enabled once a category is selected and the name is set.
+    expect(_saveButton(tester).onPressed, isNotNull);
+  });
 
   testWidgets('shows an inline error when the category already exists', (
     tester,
@@ -262,23 +288,18 @@ void main() {
       ),
     );
 
+    await _openCategoryMenu(tester);
     await tester.tap(find.text('Nueva categoría'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
       'Playa',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Crear'));
-    await tester.pumpAndSettle();
+    await _confirmInline(tester);
 
     expect(find.textContaining('Ya existe'), findsOneWidget);
-
-    await tester.tap(find.byType(DropdownButtonFormField<Category>));
-    await tester.pumpAndSettle();
-    final items = tester.widgetList<DropdownMenuItem<Category>>(
-      find.byType(DropdownMenuItem<Category>),
-    );
-    expect(items, hasLength(2));
+    // The new category row is not added to the list.
+    expect(find.widgetWithText(ListTile, 'Playa'), findsNothing);
   });
 
   testWidgets('shows an inline error when creating the category fails', (
@@ -296,23 +317,17 @@ void main() {
       ),
     );
 
+    await _openCategoryMenu(tester);
     await tester.tap(find.text('Nueva categoría'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
       'Playa',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Crear'));
-    await tester.pumpAndSettle();
+    await _confirmInline(tester);
 
     expect(find.textContaining('No se pudo crear'), findsOneWidget);
-
-    await tester.tap(find.byType(DropdownButtonFormField<Category>));
-    await tester.pumpAndSettle();
-    final items = tester.widgetList<DropdownMenuItem<Category>>(
-      find.byType(DropdownMenuItem<Category>),
-    );
-    expect(items, hasLength(2));
+    expect(find.widgetWithText(ListTile, 'Playa'), findsNothing);
   });
 
   testWidgets(
@@ -329,27 +344,21 @@ void main() {
         ),
       );
 
+      await _openCategoryMenu(tester);
       await tester.tap(find.text('Nueva categoría'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextField, 'Nombre de la categoría'),
         'Playa',
       );
-      await tester.tap(find.widgetWithText(FilledButton, 'Crear'));
-      await tester.pumpAndSettle();
+      await _confirmInline(tester);
 
       expect(find.textContaining('No se pudo crear'), findsOneWidget);
-
-      await tester.tap(find.byType(DropdownButtonFormField<Category>));
-      await tester.pumpAndSettle();
-      final items = tester.widgetList<DropdownMenuItem<Category>>(
-        find.byType(DropdownMenuItem<Category>),
-      );
-      expect(items, hasLength(2));
+      expect(find.widgetWithText(ListTile, 'Playa'), findsNothing);
     },
   );
 
-  testWidgets('double tap on Crear does not call onCreateCategory twice', (
+  testWidgets('double tap on confirm does not call onCreateCategory twice', (
     tester,
   ) async {
     var callCount = 0;
@@ -368,6 +377,7 @@ void main() {
       ),
     );
 
+    await _openCategoryMenu(tester);
     await tester.tap(find.text('Nueva categoría'));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -375,15 +385,14 @@ void main() {
       'Playa',
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Crear'));
+    await tester.tap(find.byIcon(Icons.check));
     await tester.pump();
-
-    final createButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Crear'),
+    final checkButton = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.check),
     );
-    expect(createButton.onPressed, isNull);
+    expect(checkButton.onPressed, isNull);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Crear'));
+    await tester.tap(find.byIcon(Icons.check), warnIfMissed: false);
     await tester.pump();
 
     expect(callCount, 1);
@@ -392,10 +401,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(callCount, 1);
-
-    await tester.tap(find.byType(DropdownButtonFormField<Category>));
-    await tester.pumpAndSettle();
-    expect(find.text('Playa'), findsOneWidget);
+    expect(find.text('Playa'), findsNWidgets(2));
   });
 
   testWidgets('keeps name and description when creating a category', (
@@ -414,14 +420,14 @@ void main() {
 
     await _fillName(tester);
     await tester.enterText(find.byType(TextField).last, 'Vistas');
+    await _openCategoryMenu(tester);
     await tester.tap(find.text('Nueva categoría'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
       'Playa',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Crear'));
-    await tester.pumpAndSettle();
+    await _confirmInline(tester);
 
     expect(find.text('Mirador'), findsOneWidget);
     expect(find.text('Vistas'), findsOneWidget);
@@ -444,34 +450,36 @@ void main() {
       );
     }
 
-    testWidgets(
-      'shows rename and delete affordances only with a selection and callbacks',
-      (tester) async {
-        await tester.pumpWidget(_wrap(form()));
+    testWidgets('shows no edit/delete icons without callbacks', (tester) async {
+      await tester.pumpWidget(_wrap(form()));
 
-        await _fillName(tester);
-        await _selectCategory(tester, 'Naturaleza');
+      await _fillName(tester);
+      await _openCategoryMenu(tester);
 
-        expect(find.byIcon(Icons.edit), findsNothing);
-        expect(find.byIcon(Icons.delete_outline), findsNothing);
+      expect(find.byIcon(Icons.edit), findsNothing);
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
+    });
 
-        await tester.pumpWidget(
-          _wrap(
-            form(
-              onRenameCategory: (_, name) async =>
-                  const Category(id: 1, name: 'X'),
-              onDeleteCategory: (_, _) async {},
-            ),
+    testWidgets('shows edit/delete icons per row when callbacks are present', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          form(
+            onRenameCategory: (_, name) async =>
+                const Category(id: 1, name: 'X'),
+            onDeleteCategory: (_, _) async {},
           ),
-        );
+        ),
+      );
 
-        await _fillName(tester);
-        await _selectCategory(tester, 'Naturaleza');
+      await _fillName(tester);
+      await _openCategoryMenu(tester);
 
-        expect(find.byIcon(Icons.edit), findsOneWidget);
-        expect(find.byIcon(Icons.delete_outline), findsOneWidget);
-      },
-    );
+      // One edit + one delete per row (2 rows).
+      expect(find.byIcon(Icons.edit), findsNWidgets(2));
+      expect(find.byIcon(Icons.delete_outline), findsNWidgets(2));
+    });
 
     testWidgets('renaming updates the dropdown and keeps the selection', (
       tester,
@@ -493,22 +501,18 @@ void main() {
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
 
-      await tester.tap(find.byIcon(Icons.edit));
-      await tester.pumpAndSettle();
+      await _openCategoryMenu(tester);
+      await _tapEditOn(tester, 'Naturaleza');
       await tester.enterText(
         find.widgetWithText(TextField, 'Nuevo nombre'),
         'Costa',
       );
-      await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
-      await tester.pumpAndSettle();
+      await _confirmInline(tester);
 
       expect(renamedId, '1');
       expect(renamedName, 'Costa');
-      final dropdown = tester.widget<DropdownButtonFormField<Category>>(
-        find.byType(DropdownButtonFormField<Category>),
-      );
-      expect(dropdown.initialValue, const Category(id: 1, name: 'Costa'));
-      expect(find.text('Costa'), findsOneWidget);
+      // The trigger and the row show the new name; the menu stays open.
+      expect(find.text('Costa'), findsNWidgets(2));
       expect(_saveButton(tester).onPressed, isNotNull);
     });
 
@@ -526,14 +530,13 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
-      await tester.tap(find.byIcon(Icons.edit));
-      await tester.pumpAndSettle();
+      await _openCategoryMenu(tester);
+      await _tapEditOn(tester, 'Naturaleza');
       await tester.enterText(
         find.widgetWithText(TextField, 'Nuevo nombre'),
         'Monumento',
       );
-      await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
-      await tester.pumpAndSettle();
+      await _confirmInline(tester);
 
       expect(
         find.text('Ya existe una categoría con ese nombre'),
@@ -558,14 +561,13 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Naturaleza');
-        await tester.tap(find.byIcon(Icons.edit));
-        await tester.pumpAndSettle();
+        await _openCategoryMenu(tester);
+        await _tapEditOn(tester, 'Naturaleza');
         await tester.enterText(
           find.widgetWithText(TextField, 'Nuevo nombre'),
           '',
         );
-        await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
-        await tester.pumpAndSettle();
+        await _confirmInline(tester);
 
         expect(find.text('El nombre no puede estar vacío'), findsOneWidget);
         expect(called, isFalse);
@@ -584,19 +586,18 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
-      await tester.tap(find.byIcon(Icons.edit));
-      await tester.pumpAndSettle();
+      await _openCategoryMenu(tester);
+      await _tapEditOn(tester, 'Naturaleza');
       await tester.enterText(
         find.widgetWithText(TextField, 'Nuevo nombre'),
         'Costa',
       );
-      await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
-      await tester.pumpAndSettle();
+      await _confirmInline(tester);
 
       expect(find.text('No se pudo renombrar la categoría'), findsOneWidget);
     });
 
-    testWidgets('double tap on Renombrar does not call the callback twice', (
+    testWidgets('double tap on confirm does not call rename twice', (
       tester,
     ) async {
       var callCount = 0;
@@ -614,21 +615,21 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
-      await tester.tap(find.byIcon(Icons.edit));
-      await tester.pumpAndSettle();
+      await _openCategoryMenu(tester);
+      await _tapEditOn(tester, 'Naturaleza');
       await tester.enterText(
         find.widgetWithText(TextField, 'Nuevo nombre'),
         'Costa',
       );
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
+      await tester.tap(find.byIcon(Icons.check));
       await tester.pump();
-      final renameButton = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Renombrar'),
+      final checkButton = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.check),
       );
-      expect(renameButton.onPressed, isNull);
+      expect(checkButton.onPressed, isNull);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Renombrar'));
+      await tester.tap(find.byIcon(Icons.check), warnIfMissed: false);
       await tester.pump();
 
       expect(callCount, 1);
@@ -657,8 +658,9 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Monumento');
-        await tester.tap(find.byIcon(Icons.delete_outline));
-        await tester.pumpAndSettle();
+
+        await _openCategoryMenu(tester);
+        await _tapDeleteOn(tester, 'Monumento');
 
         expect(find.byType(AlertDialog), findsOneWidget);
         await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
@@ -666,11 +668,8 @@ void main() {
 
         expect(deletedId, 2);
         expect(reassignTo, isNull);
-
-        await tester.tap(find.byType(DropdownButtonFormField<Category>));
-        await tester.pumpAndSettle();
-        expect(find.text('Monumento'), findsNothing);
-        expect(find.text('Naturaleza'), findsOneWidget);
+        // The deleted (selected) category is gone from the list.
+        expect(find.widgetWithText(ListTile, 'Monumento'), findsNothing);
       },
     );
 
@@ -681,7 +680,8 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Monumento');
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await _openCategoryMenu(tester);
+      await _tapDeleteOn(tester, 'Monumento');
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
       await tester.pumpAndSettle();
@@ -708,8 +708,8 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Naturaleza');
-        await tester.tap(find.byIcon(Icons.delete_outline));
-        await tester.pumpAndSettle();
+        await _openCategoryMenu(tester);
+        await _tapDeleteOn(tester, 'Naturaleza');
 
         expect(find.textContaining('tiene 1 lugar'), findsOneWidget);
 
@@ -754,8 +754,8 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
-      await tester.tap(find.byIcon(Icons.delete_outline));
-      await tester.pumpAndSettle();
+      await _openCategoryMenu(tester);
+      await _tapDeleteOn(tester, 'Naturaleza');
 
       expect(find.textContaining('única categoría'), findsOneWidget);
       expect(
@@ -783,7 +783,8 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Monumento');
-        await tester.tap(find.byIcon(Icons.delete_outline));
+        await _openCategoryMenu(tester);
+        await _tapDeleteOn(tester, 'Monumento');
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
         await tester.pumpAndSettle();
@@ -807,7 +808,8 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Monumento');
-        await tester.tap(find.byIcon(Icons.delete_outline));
+        await _openCategoryMenu(tester);
+        await _tapDeleteOn(tester, 'Monumento');
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
         await tester.pumpAndSettle();
@@ -830,7 +832,8 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Monumento');
-      await tester.tap(find.byIcon(Icons.delete_outline));
+      await _openCategoryMenu(tester);
+      await _tapDeleteOn(tester, 'Monumento');
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
       await tester.pumpAndSettle();
