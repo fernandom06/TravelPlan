@@ -2,10 +2,11 @@ import sqlite3
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
+from . import config
 from .database import get_db
-from .schemas import TripCreate, TripResponse, TripUpdate
+from .schemas import ImageUploadResponse, TripCreate, TripResponse, TripUpdate
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -120,3 +121,31 @@ def delete_trip(
         )
     conn.execute("DELETE FROM trips WHERE id = ?", (trip_id,))
     conn.commit()
+
+
+@router.post(
+    "/images", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED
+)
+def upload_image(
+    file: Annotated[UploadFile, File()],
+) -> ImageUploadResponse:
+    content_type = file.content_type or ""
+    if content_type not in config.ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported content type",
+        )
+
+    content = file.file.read()
+    if len(content) > config.MAX_IMAGE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="Image too large",
+        )
+
+    ext = config.EXT_BY_CONTENT_TYPE[content_type]
+    filename = f"{uuid.uuid4()}{ext}"
+    config.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    (config.UPLOADS_DIR / filename).write_bytes(content)
+
+    return ImageUploadResponse(url=f"/uploads/{filename}")

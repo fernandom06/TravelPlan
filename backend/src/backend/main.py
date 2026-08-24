@@ -4,15 +4,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import config
 from .categories import router as categories_router
 from .database import init_database
 from .places import router as places_router
 from .trips import router as trips_router
+from .uploads import router as uploads_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_database()
+    config.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     yield
 
 
@@ -28,6 +31,7 @@ app.add_middleware(
 app.include_router(categories_router)
 app.include_router(places_router)
 app.include_router(trips_router)
+app.include_router(uploads_router)
 
 
 @app.get("/")
