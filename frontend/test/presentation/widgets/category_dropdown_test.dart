@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/data/category_icon_catalog.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/place_api.dart';
@@ -29,9 +30,11 @@ Widget _wrap(Widget child) => MaterialApp(
 class _Record {
   String? renamedId;
   String? renamedName;
+  String? renamedIcon;
   int? deletedId;
   int? reassignTo;
   String? createdName;
+  String? createdIcon;
   int createCalls = 0;
   int renameCalls = 0;
   int deleteCalls = 0;
@@ -53,8 +56,8 @@ class _Harness extends StatefulWidget {
 
   final List<Category> categories;
   final Category? value;
-  final Future<Category> Function(String name)? onCreate;
-  final Future<Category> Function(int id, String name)? onRename;
+  final Future<Category> Function(String name, String? icon)? onCreate;
+  final Future<Category> Function(int id, String name, String? icon)? onRename;
   final Future<void> Function(int id, int? reassignTo)? onDelete;
   final List<Place> places;
   final _Record? record;
@@ -290,8 +293,8 @@ void main() {
         CategoryDropdown(
           categories: [_naturaleza, _monumento],
           onChanged: (_) {},
-          onCreate: (_) async => _naturaleza,
-          onRename: (_, _) async => _naturaleza,
+          onCreate: (_, _) async => _naturaleza,
+          onRename: (_, _, _) async => _naturaleza,
           onDelete: (_, _) async {},
         ),
       ),
@@ -312,8 +315,8 @@ void main() {
           value: _naturaleza,
           enabled: false,
           onChanged: (_) {},
-          onCreate: (_) async => _naturaleza,
-          onRename: (_, _) async => _naturaleza,
+          onCreate: (_, _) async => _naturaleza,
+          onRename: (_, _, _) async => _naturaleza,
           onDelete: (_, _) async {},
         ),
       ),
@@ -332,7 +335,7 @@ void main() {
         CategoryDropdown(
           categories: [_naturaleza],
           onChanged: (_) {},
-          onCreate: (_) async => _naturaleza,
+          onCreate: (_, _) async => _naturaleza,
         ),
       ),
     );
@@ -371,7 +374,7 @@ void main() {
                   categories: [_naturaleza],
                   value: _naturaleza,
                   onChanged: (_) {},
-                  onRename: (_, _) async => _naturaleza,
+                  onRename: (_, _, _) async => _naturaleza,
                   onDelete: (_, _) async {},
                 ),
               ),
@@ -403,9 +406,10 @@ void main() {
           categories: [_naturaleza, _monumento],
           value: _naturaleza,
           record: record,
-          onRename: (id, name) async {
+          onRename: (id, name, icon) async {
             record.renamedId = '$id';
             record.renamedName = name;
+            record.renamedIcon = icon;
             return const Category(id: 1, name: 'Costa');
           },
         ),
@@ -437,9 +441,10 @@ void main() {
           categories: [_naturaleza],
           value: _naturaleza,
           record: record,
-          onRename: (id, name) async {
+          onRename: (id, name, icon) async {
             record.renamedId = '$id';
             record.renamedName = name;
+            record.renamedIcon = icon;
             return const Category(id: 1, name: 'Costa');
           },
         ),
@@ -465,7 +470,7 @@ void main() {
           categories: [_naturaleza],
           value: _naturaleza,
           record: record,
-          onRename: (_, _) async {
+          onRename: (_, _, _) async {
             record.renameCalls++;
             return _naturaleza;
           },
@@ -492,7 +497,7 @@ void main() {
           categories: [_naturaleza],
           value: _naturaleza,
           record: record,
-          onRename: (_, _) async {
+          onRename: (_, _, _) async {
             record.renameCalls++;
             return _naturaleza;
           },
@@ -517,8 +522,8 @@ void main() {
         _Harness(
           categories: [_naturaleza, _monumento],
           value: _naturaleza,
-          onCreate: (_) async => _naturaleza,
-          onRename: (_, _) async =>
+          onCreate: (_, _) async => _naturaleza,
+          onRename: (_, _, _) async =>
               throw const DuplicateCategoryException('dup'),
         ),
       );
@@ -547,7 +552,7 @@ void main() {
             categories: [_naturaleza],
             value: _naturaleza,
             record: record,
-            onRename: (_, _) async {
+            onRename: (_, _, _) async {
               record.renameCalls++;
               return _naturaleza;
             },
@@ -571,7 +576,7 @@ void main() {
         _Harness(
           categories: [_naturaleza],
           value: _naturaleza,
-          onRename: (_, _) async => throw const PlaceApiException('boom'),
+          onRename: (_, _, _) async => throw const PlaceApiException('boom'),
         ),
       );
 
@@ -593,7 +598,7 @@ void main() {
           categories: [_naturaleza],
           value: _naturaleza,
           record: record,
-          onRename: (_, _) {
+          onRename: (_, _, _) {
             record.renameCalls++;
             return completer.future;
           },
@@ -625,8 +630,9 @@ void main() {
         _Harness(
           categories: [_naturaleza],
           record: record,
-          onCreate: (name) async {
+          onCreate: (name, icon) async {
             record.createdName = name;
+            record.createdIcon = icon;
             record.createCalls++;
             return const Category(id: 5, name: 'Playa');
           },
@@ -657,7 +663,7 @@ void main() {
         _Harness(
           categories: [_naturaleza],
           record: record,
-          onCreate: (name) async {
+          onCreate: (name, icon) async {
             record.createdName = name;
             return const Category(id: 5, name: 'Playa');
           },
@@ -681,7 +687,7 @@ void main() {
         _Harness(
           categories: [_naturaleza],
           record: record,
-          onCreate: (name) async {
+          onCreate: (name, icon) async {
             record.createCalls++;
             return const Category(id: 5, name: 'Playa');
           },
@@ -706,7 +712,7 @@ void main() {
         _Harness(
           categories: [_naturaleza],
           record: record,
-          onCreate: (name) async {
+          onCreate: (name, icon) async {
             record.createCalls++;
             return const Category(id: 5, name: 'Playa');
           },
@@ -732,7 +738,7 @@ void main() {
         _Harness(
           categories: [_naturaleza],
           record: record,
-          onCreate: (name) async {
+          onCreate: (name, icon) async {
             record.createCalls++;
             throw const DuplicateCategoryException('dup');
           },
@@ -760,7 +766,7 @@ void main() {
         _Harness(
           categories: [_naturaleza],
           record: record,
-          onCreate: (name) async {
+          onCreate: (name, icon) async {
             record.createCalls++;
             throw const PlaceApiException('boom');
           },
@@ -781,7 +787,7 @@ void main() {
       await tester.pumpWidget(
         _Harness(
           categories: [_naturaleza],
-          onCreate: (name) async => throw Exception('boom'),
+          onCreate: (_, _) async => throw Exception('boom'),
         ),
       );
 
@@ -802,7 +808,7 @@ void main() {
         _Harness(
           categories: [_naturaleza],
           record: record,
-          onCreate: (name) {
+          onCreate: (_, _) {
             record.createCalls++;
             return completer.future;
           },
@@ -991,6 +997,203 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No se pudo eliminar la categoría'), findsOneWidget);
+    });
+  });
+
+  group('icon display', () {
+    testWidgets('trigger shows the selected category icon', (tester) async {
+      const beach = Category(id: 1, name: 'Playa', icon: 'beach');
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [beach],
+            value: beach,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.beach_access), findsOneWidget);
+    });
+
+    testWidgets('rows show their category icon', (tester) async {
+      const beach = Category(id: 1, name: 'Playa', icon: 'beach');
+      const monument = Category(id: 2, name: 'Monumento', icon: 'monument');
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [beach, monument],
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      await _openMenu(tester);
+
+      expect(find.byIcon(Icons.beach_access), findsOneWidget);
+      expect(find.byIcon(Icons.account_balance), findsOneWidget);
+    });
+
+    testWidgets('categories without icon show the placeholder', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [_naturaleza],
+            value: _naturaleza,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      // Placeholder in the trigger + placeholder as the row leading icon.
+      await _openMenu(tester);
+      expect(find.byIcon(categoryPlaceholderIcon), findsNWidgets(2));
+    });
+  });
+
+  group('icon pick', () {
+    testWidgets('creating a category with an icon passes it to onCreate', (
+      tester,
+    ) async {
+      final record = _Record();
+      await tester.pumpWidget(
+        _Harness(
+          categories: [_naturaleza],
+          record: record,
+          onCreate: (name, icon) async {
+            record.createdName = name;
+            record.createdIcon = icon;
+            return const Category(id: 5, name: 'Playa', icon: 'beach');
+          },
+        ),
+      );
+
+      await _openMenu(tester);
+      await _startCreate(tester);
+      await tester.enterText(find.byType(TextField), 'Playa');
+
+      // Open the picker and choose the beach icon.
+      await tester.tap(find.byTooltip('Elegir icono'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.beach_access));
+      await tester.pumpAndSettle();
+
+      // The picker button in the create row now shows the chosen icon.
+      expect(find.byIcon(Icons.beach_access), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.check));
+      await tester.pumpAndSettle();
+
+      expect(record.createdName, 'Playa');
+      expect(record.createdIcon, 'beach');
+    });
+
+    testWidgets('editing a category preloads its icon and can change it', (
+      tester,
+    ) async {
+      final record = _Record();
+      const beach = Category(id: 1, name: 'Playa', icon: 'beach');
+      await tester.pumpWidget(
+        _Harness(
+          categories: [beach],
+          value: beach,
+          record: record,
+          onRename: (id, name, icon) async {
+            record.renamedId = '$id';
+            record.renamedName = name;
+            record.renamedIcon = icon;
+            return Category(id: 1, name: name, icon: icon);
+          },
+        ),
+      );
+
+      await _openMenu(tester);
+      await _startRename(tester);
+
+      // The edit row's icon button shows the preloaded icon.
+      final editRow = find.ancestor(
+        of: find.text('Nuevo nombre'),
+        matching: find.byType(Row),
+      );
+      expect(
+        find.descendant(of: editRow, matching: find.byIcon(Icons.beach_access)),
+        findsOneWidget,
+      );
+
+      // Change the icon to monument via the picker.
+      await tester.tap(find.byTooltip('Elegir icono'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.account_balance));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.check));
+      await tester.pumpAndSettle();
+
+      expect(record.renamedId, '1');
+      expect(record.renamedName, 'Playa');
+      expect(record.renamedIcon, 'monument');
+    });
+
+    testWidgets('"Sin icono" in the picker clears the icon', (tester) async {
+      final record = _Record();
+      const beach = Category(id: 1, name: 'Playa', icon: 'beach');
+      await tester.pumpWidget(
+        _Harness(
+          categories: [beach],
+          value: beach,
+          record: record,
+          onRename: (id, name, icon) async {
+            record.renamedName = name;
+            record.renamedIcon = icon;
+            return Category(id: 1, name: name, icon: icon);
+          },
+        ),
+      );
+
+      await _openMenu(tester);
+      await _startRename(tester);
+      await tester.tap(find.byTooltip('Elegir icono'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Sin icono'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.check));
+      await tester.pumpAndSettle();
+
+      expect(record.renamedIcon, isNull);
+    });
+
+    testWidgets('cancelling the picker keeps the previous icon', (
+      tester,
+    ) async {
+      final record = _Record();
+      const beach = Category(id: 1, name: 'Playa', icon: 'beach');
+      await tester.pumpWidget(
+        _Harness(
+          categories: [beach],
+          value: beach,
+          record: record,
+          onRename: (id, name, icon) async {
+            record.renamedName = name;
+            record.renamedIcon = icon;
+            return Category(id: 1, name: name, icon: icon);
+          },
+        ),
+      );
+
+      await _openMenu(tester);
+      await _startRename(tester);
+      await tester.tap(find.byTooltip('Elegir icono'));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.check));
+      await tester.pumpAndSettle();
+
+      expect(record.renamedIcon, 'beach');
     });
   });
 }

@@ -3,9 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/category_icon_catalog.dart';
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
 import '../../data/place_api.dart';
+import 'category_icon_picker.dart';
 
 /// A custom Material 3 dropdown for selecting and managing categories.
 ///
@@ -34,8 +36,8 @@ class CategoryDropdown extends StatefulWidget {
   final Category? value;
   final bool enabled;
   final ValueChanged<Category?> onChanged;
-  final Future<Category> Function(String name)? onCreate;
-  final Future<Category> Function(int id, String name)? onRename;
+  final Future<Category> Function(String name, String? icon)? onCreate;
+  final Future<Category> Function(int id, String name, String? icon)? onRename;
   final Future<void> Function(int id, int? reassignTo)? onDelete;
   final List<Place> places;
   final ValueChanged<Category>? onCategoryAdded;
@@ -55,12 +57,14 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   late final TextEditingController _editController;
   late final FocusNode _editFocus;
   String? _editError;
+  String? _editIcon;
   bool _isSubmittingEdit = false;
 
   bool _isCreating = false;
   late final TextEditingController _createController;
   late final FocusNode _createFocus;
   String? _createError;
+  String? _createIcon;
   bool _isSubmittingCreate = false;
 
   @override
@@ -99,8 +103,10 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _isOpen = false;
       _editingId = null;
       _editError = null;
+      _editIcon = null;
       _isCreating = false;
       _createError = null;
+      _createIcon = null;
       _overlayController.hide();
     });
   }
@@ -110,6 +116,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     setState(() {
       _editingId = c.id;
       _editError = null;
+      _editIcon = c.icon;
       _isSubmittingEdit = false;
     });
     _editFocus.requestFocus();
@@ -119,6 +126,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     setState(() {
       _editingId = null;
       _editError = null;
+      _editIcon = null;
       _isSubmittingEdit = false;
     });
   }
@@ -137,7 +145,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _isSubmittingEdit = true;
     });
     try {
-      final renamed = await onRename(id, name);
+      final renamed = await onRename(id, name, _editIcon);
       if (!mounted) return;
       widget.onCategoryRenamed?.call(renamed);
       if (widget.value?.id == id) {
@@ -146,6 +154,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       setState(() {
         _editingId = null;
         _editError = null;
+        _editIcon = null;
         _isSubmittingEdit = false;
       });
     } on DuplicateCategoryException {
@@ -186,6 +195,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     setState(() {
       _isCreating = true;
       _createError = null;
+      _createIcon = null;
       _isSubmittingCreate = false;
     });
     _createFocus.requestFocus();
@@ -195,6 +205,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     setState(() {
       _isCreating = false;
       _createError = null;
+      _createIcon = null;
       _isSubmittingCreate = false;
     });
   }
@@ -212,7 +223,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _isSubmittingCreate = true;
     });
     try {
-      final category = await onCreate(name);
+      final category = await onCreate(name, _createIcon);
       if (!mounted) return;
       widget.onCategoryAdded?.call(category);
       // Autoselect the newly created category.
@@ -220,6 +231,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       setState(() {
         _isCreating = false;
         _createError = null;
+        _createIcon = null;
         _isSubmittingCreate = false;
       });
     } on DuplicateCategoryException {
@@ -253,6 +265,32 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  Future<void> _pickIcon({required bool forCreate}) async {
+    final result = await pickCategoryIcon(
+      context,
+      current: forCreate ? _createIcon : _editIcon,
+    );
+    if (!mounted) return;
+    setState(() {
+      switch (result) {
+        case IconPickerPicked(:final id):
+          if (forCreate) {
+            _createIcon = id;
+          } else {
+            _editIcon = id;
+          }
+        case IconPickerCleared():
+          if (forCreate) {
+            _createIcon = null;
+          } else {
+            _editIcon = null;
+          }
+        case IconPickerCancelled():
+          break;
+      }
+    });
   }
 
   Future<void> _handleDelete(Category c) async {
@@ -382,7 +420,16 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
             labelText: 'Categoría',
             suffixIcon: Icon(Icons.arrow_drop_down),
           ),
-          child: Text(selectedName),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(categoryIconFor(widget.value?.icon), size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(selectedName, overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -488,6 +535,11 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
                 ),
               ),
               IconButton(
+                icon: Icon(categoryIconFor(_createIcon)),
+                tooltip: 'Elegir icono',
+                onPressed: () => _pickIcon(forCreate: true),
+              ),
+              IconButton(
                 icon: const Icon(Icons.check),
                 tooltip: 'Confirmar',
                 onPressed: _isSubmittingCreate ? null : _confirmCreate,
@@ -519,6 +571,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       return _buildEditRow(context, c);
     }
     return ListTile(
+      leading: Icon(categoryIconFor(c.icon)),
       title: Text(c.name),
       onTap: () {
         widget.onChanged(c);
@@ -567,6 +620,11 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
                     ),
                   ),
                 ),
+              ),
+              IconButton(
+                icon: Icon(categoryIconFor(_editIcon)),
+                tooltip: 'Elegir icono',
+                onPressed: () => _pickIcon(forCreate: false),
               ),
               IconButton(
                 icon: const Icon(Icons.check),
