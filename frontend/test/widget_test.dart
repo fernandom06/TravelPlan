@@ -30,5 +30,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('TravelPlan'), findsOneWidget);
+    expect(find.text('Mapa'), findsOneWidget);
+    expect(find.text('Viajes'), findsOneWidget);
   });
 }
