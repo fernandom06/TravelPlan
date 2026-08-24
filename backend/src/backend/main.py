@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .categories import router as categories_router
 from .database import init_database
 from .places import router as places_router
+from .trips import router as trips_router
 
 
 @asynccontextmanager
@@ -26,6 +27,7 @@ app.add_middleware(
 
 app.include_router(categories_router)
 app.include_router(places_router)
+app.include_router(trips_router)
 
 
 @app.get("/")
