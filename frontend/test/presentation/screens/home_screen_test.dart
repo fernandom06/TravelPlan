@@ -163,7 +163,9 @@ void main() {
     expect(find.byType(TravelMap).hitTestable(), findsNothing);
   });
 
-  testWidgets('returning to Mapa preserves the TravelMap state', (tester) async {
+  testWidgets('returning to Mapa preserves the TravelMap state', (
+    tester,
+  ) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
     final controller = PlacesController(_FakePlaceApi());
