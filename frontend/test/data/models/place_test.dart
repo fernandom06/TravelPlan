@@ -49,7 +49,7 @@ void main() {
         'description': 'Vistas del canon',
         'latitude': 42.5,
         'longitude': -3.1,
-        'category': {'id': 2, 'name': 'Monumento'},
+        'category': {'id': 2, 'name': 'Monumento', 'icon': null},
       });
     });
 
