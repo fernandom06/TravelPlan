@@ -3,9 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
+import 'package:frontend/data/models/trip.dart';
 import 'package:frontend/data/place_api.dart';
+import 'package:frontend/data/trip_api.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/presentation/controllers/places_controller.dart';
+import 'package:frontend/presentation/controllers/trips_controller.dart';
 
 class _FakePlaceApi extends PlaceApi {
   _FakePlaceApi() : super(baseUrl: 'http://fake');
@@ -17,15 +20,29 @@ class _FakePlaceApi extends PlaceApi {
   Future<List<Place>> fetchPlaces() async => const [];
 }
 
+class _FakeTripApi extends TripApi {
+  _FakeTripApi() : super(baseUrl: 'http://fake');
+
+  @override
+  Future<List<Trip>> fetchTrips() async => const [];
+}
+
 void main() {
   testWidgets('TravelPlanApp smoke test', (tester) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
+    final tripsController = TripsController(_FakeTripApi());
+    addTearDown(tripsController.dispose);
 
     await tester.pumpWidget(
-      TravelPlanApp(online: online, placesController: controller),
+      TravelPlanApp(
+        online: online,
+        placesController: controller,
+        tripsController: tripsController,
+        apiBaseUrl: 'http://fake',
+      ),
     );
     await tester.pump();
 

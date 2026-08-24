@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 
 import 'core/connectivity/connectivity_controller.dart';
 import 'data/place_api.dart';
+import 'data/trip_api.dart';
 import 'presentation/controllers/places_controller.dart';
+import 'presentation/controllers/trips_controller.dart';
 import 'presentation/screens/home_screen.dart';
 
 final String kApiBaseUrl = _resolveApiBaseUrl();
@@ -19,7 +21,15 @@ String _resolveApiBaseUrl() {
 void main() {
   final online = ConnectivityController.live();
   final placesController = PlacesController(PlaceApi(baseUrl: kApiBaseUrl));
-  runApp(TravelPlanApp(online: online, placesController: placesController));
+  final tripsController = TripsController(TripApi(baseUrl: kApiBaseUrl));
+  runApp(
+    TravelPlanApp(
+      online: online,
+      placesController: placesController,
+      tripsController: tripsController,
+      apiBaseUrl: kApiBaseUrl,
+    ),
+  );
 }
 
 class TravelPlanApp extends StatelessWidget {
@@ -27,10 +37,14 @@ class TravelPlanApp extends StatelessWidget {
     super.key,
     required this.online,
     required this.placesController,
+    required this.tripsController,
+    required this.apiBaseUrl,
   });
 
   final ValueNotifier<bool> online;
   final PlacesController placesController;
+  final TripsController tripsController;
+  final String apiBaseUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +53,12 @@ class TravelPlanApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
-      home: HomeScreen(online: online, placesController: placesController),
+      home: HomeScreen(
+        online: online,
+        placesController: placesController,
+        tripsController: tripsController,
+        apiBaseUrl: apiBaseUrl,
+      ),
     );
   }
 }

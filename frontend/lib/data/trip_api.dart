@@ -90,9 +90,7 @@ class TripApi {
     final streamed = await _client.send(request);
     final response = await http.Response.fromStream(streamed);
     if (response.statusCode != 201) {
-      throw TripApiException(
-        'Failed to upload image: ${response.statusCode}',
-      );
+      throw TripApiException('Failed to upload image: ${response.statusCode}');
     }
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     return data['url'] as String;

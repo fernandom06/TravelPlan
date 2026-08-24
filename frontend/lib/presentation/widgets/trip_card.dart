@@ -86,15 +86,9 @@ class TripCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  trip.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text(trip.name, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 4),
-                Text(
-                  _dates,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text(_dates, style: Theme.of(context).textTheme.bodySmall),
                 if (trip.description != null) ...[
                   const SizedBox(height: 4),
                   Text(

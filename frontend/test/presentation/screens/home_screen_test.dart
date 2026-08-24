@@ -3,8 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
+import 'package:frontend/data/models/trip.dart';
 import 'package:frontend/data/place_api.dart';
+import 'package:frontend/data/trip_api.dart';
 import 'package:frontend/presentation/controllers/places_controller.dart';
+import 'package:frontend/presentation/controllers/trips_controller.dart';
 import 'package:frontend/presentation/screens/home_screen.dart';
 import 'package:frontend/presentation/screens/trips_screen.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
@@ -27,6 +30,25 @@ class _FakePlaceApi extends PlaceApi {
   }
 }
 
+class _FakeTripApi extends TripApi {
+  _FakeTripApi() : super(baseUrl: 'http://fake');
+
+  @override
+  Future<List<Trip>> fetchTrips() async => const [];
+}
+
+HomeScreen _homeScreen(
+  ValueNotifier<bool> online,
+  PlacesController placesController,
+) {
+  return HomeScreen(
+    online: online,
+    placesController: placesController,
+    tripsController: TripsController(_FakeTripApi()),
+    apiBaseUrl: 'http://fake',
+  );
+}
+
 void main() {
   testWidgets('shows AppBar, map and no banner when online', (tester) async {
     final online = ValueNotifier<bool>(true);
@@ -34,11 +56,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(online: online, placesController: controller),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
     await tester.pump();
 
     expect(find.text('TravelPlan'), findsOneWidget);
@@ -52,11 +70,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(online: online, placesController: controller),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
     await tester.pump();
 
     expect(find.text('Sin conexión con el servidor'), findsOneWidget);
@@ -69,11 +83,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(online: online, placesController: controller),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
     await tester.pump();
     expect(find.text('Sin conexión con el servidor'), findsNothing);
 
@@ -94,11 +104,7 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(online: online, placesController: controller),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
     await tester.pump();
     await tester.pump();
 
@@ -112,11 +118,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(online: online, placesController: controller),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
     await tester.pump();
 
     expect(find.text('TravelPlan'), findsOneWidget);
@@ -132,28 +134,20 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(online: online, placesController: controller),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
     await tester.pump();
 
     expect(find.byType(TravelMap).hitTestable(), findsOneWidget);
     expect(find.byType(TripsScreen).hitTestable(), findsNothing);
   });
 
-  testWidgets('tapping Viajes shows the placeholder', (tester) async {
+  testWidgets('tapping Viajes shows the trips content', (tester) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(online: online, placesController: controller),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
     await tester.pump();
 
     await tester.tap(find.text('Viajes'));
@@ -161,6 +155,24 @@ void main() {
 
     expect(find.byType(TripsScreen).hitTestable(), findsOneWidget);
     expect(find.byType(TravelMap).hitTestable(), findsNothing);
+    expect(find.text('No hay viajes'), findsOneWidget);
+  });
+
+  testWidgets('shows offline banner in Viajes tab when offline', (
+    tester,
+  ) async {
+    final online = ValueNotifier<bool>(false);
+    addTearDown(online.dispose);
+    final controller = PlacesController(_FakePlaceApi());
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
+    await tester.pump();
+
+    await tester.tap(find.text('Viajes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sin conexión con el servidor'), findsOneWidget);
   });
 
   testWidgets('returning to Mapa preserves the TravelMap state', (
@@ -171,11 +183,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(online: online, placesController: controller),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
     await tester.pump();
 
     await tester.tap(find.text('Viajes'));

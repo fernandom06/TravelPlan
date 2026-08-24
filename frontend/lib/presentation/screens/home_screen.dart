@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/category_draft.dart';
 import '../controllers/places_controller.dart';
+import '../controllers/trips_controller.dart';
+import '../widgets/offline_banner.dart';
 import '../widgets/travel_map.dart';
 import 'trips_screen.dart';
 
@@ -10,10 +12,14 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.online,
     required this.placesController,
+    required this.tripsController,
+    required this.apiBaseUrl,
   });
 
   final ValueNotifier<bool> online;
   final PlacesController placesController;
+  final TripsController tripsController;
+  final String apiBaseUrl;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -68,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       body: IndexedStack(
         index: _tabController.index,
-        children: [_buildMapContent(), const TripsScreen()],
+        children: [_buildMapContent(), _buildTripsContent()],
       ),
     );
   }
@@ -78,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen>
       valueListenable: widget.online,
       builder: (_, isOnline, _) => Column(
         children: [
-          if (!isOnline) const _OfflineBanner(),
+          if (!isOnline) const OfflineBanner(),
           Expanded(
             child: ValueListenableBuilder<PlacesState>(
               valueListenable: widget.placesController,
@@ -102,34 +108,12 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
-}
 
-class _OfflineBanner extends StatelessWidget {
-  const _OfflineBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).colorScheme.errorContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Row(
-          children: [
-            Icon(
-              Icons.wifi_off,
-              size: 18,
-              color: Theme.of(context).colorScheme.onErrorContainer,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Sin conexión con el servidor',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onErrorContainer,
-              ),
-            ),
-          ],
-        ),
-      ),
+  Widget _buildTripsContent() {
+    return TripsScreen(
+      tripsController: widget.tripsController,
+      online: widget.online,
+      baseUrl: widget.apiBaseUrl,
     );
   }
 }

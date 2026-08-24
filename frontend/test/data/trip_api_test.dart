@@ -144,10 +144,7 @@ void main() {
       );
       final api = TripApi(baseUrl: 'http://localhost:8000', client: client);
 
-      await expectLater(
-        api.fetchTrip('abc'),
-        throwsA(isA<TripApiException>()),
-      );
+      await expectLater(api.fetchTrip('abc'), throwsA(isA<TripApiException>()));
     });
 
     test('uploadImage posts multipart and returns url', () async {

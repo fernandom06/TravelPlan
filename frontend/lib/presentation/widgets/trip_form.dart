@@ -37,12 +37,12 @@ class _TripFormState extends State<TripForm> {
     final trip = widget.initialTrip;
     final now = DateTime.now();
     _nameController = TextEditingController(text: trip?.name);
-    _descriptionController = TextEditingController(text: trip?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: trip?.description ?? '',
+    );
     _urlController = TextEditingController(text: trip?.imageUrl ?? '');
     _startDate = trip?.startDate ?? DateTime(now.year, now.month, now.day);
-    _endDate =
-        trip?.endDate ??
-        _startDate.add(const Duration(days: 1));
+    _endDate = trip?.endDate ?? _startDate.add(const Duration(days: 1));
     _imageUrl = trip?.imageUrl;
   }
 
@@ -55,8 +55,7 @@ class _TripFormState extends State<TripForm> {
   }
 
   bool get _canSave =>
-      _nameController.text.trim().isNotEmpty &&
-      !_endDate.isBefore(_startDate);
+      _nameController.text.trim().isNotEmpty && !_endDate.isBefore(_startDate);
 
   Future<void> _pickDate({required bool isStart}) async {
     final current = isStart ? _startDate : _endDate;
@@ -181,9 +180,7 @@ class _TripFormState extends State<TripForm> {
             if (_endDate.isBefore(_startDate))
               Text(
                 'La fecha de fin debe ser posterior a la de inicio',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             const SizedBox(height: 8),
             TextField(

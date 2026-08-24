@@ -44,8 +44,7 @@ class Trip {
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
 
-  bool get imageIsRelative =>
-      imageUrl == null || !imageUrl!.startsWith('http');
+  bool get imageIsRelative => imageUrl == null || !imageUrl!.startsWith('http');
 
   String displayImageUrl(String baseUrl) {
     final url = imageUrl;

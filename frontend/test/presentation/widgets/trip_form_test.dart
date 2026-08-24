@@ -26,8 +26,9 @@ Trip _trip({
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-  testWidgets('renders name, dates, description and save button',
-      (tester) async {
+  testWidgets('renders name, dates, description and save button', (
+    tester,
+  ) async {
     await tester.pumpWidget(wrap(TripForm(onSave: (_) {}, onCancel: () {})));
 
     expect(find.text('Nombre'), findsOneWidget);
@@ -46,8 +47,9 @@ void main() {
     expect(saveButton.onPressed, isNull);
   });
 
-  testWidgets('save is disabled when end date before start date',
-      (tester) async {
+  testWidgets('save is disabled when end date before start date', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       wrap(
         TripForm(
@@ -92,7 +94,10 @@ void main() {
       ),
     );
 
-    await tester.enterText(find.widgetWithText(TextField, 'Nombre'), 'Viaje nuevo');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Nombre'),
+      'Viaje nuevo',
+    );
     await tester.tap(find.text('Guardar'));
     await tester.pump();
 
@@ -118,8 +123,9 @@ void main() {
     expect(find.text('Costas'), findsOneWidget);
   });
 
-  testWidgets('delete button opens confirm and confirms calls onDelete',
-      (tester) async {
+  testWidgets('delete button opens confirm and confirms calls onDelete', (
+    tester,
+  ) async {
     var deleted = false;
     await tester.pumpWidget(
       wrap(
@@ -147,8 +153,9 @@ void main() {
     expect(deleted, isTrue);
   });
 
-  testWidgets('onPickImage returning url shows preview and includes in draft',
-      (tester) async {
+  testWidgets('onPickImage returning url shows preview and includes in draft', (
+    tester,
+  ) async {
     TripDraft? saved;
     await tester.pumpWidget(
       wrap(
@@ -197,9 +204,7 @@ void main() {
   testWidgets('cancel calls onCancel', (tester) async {
     var cancelled = false;
     await tester.pumpWidget(
-      wrap(
-        TripForm(onSave: (_) {}, onCancel: () => cancelled = true),
-      ),
+      wrap(TripForm(onSave: (_) {}, onCancel: () => cancelled = true)),
     );
 
     await tester.tap(find.text('Cancelar'));
