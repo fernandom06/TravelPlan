@@ -11,10 +11,36 @@ void main() {
       expect(category.name, 'Naturaleza');
     });
 
+    test('fromJson parses the icon', () {
+      final category = Category.fromJson({
+        'id': 1,
+        'name': 'Naturaleza',
+        'icon': 'beach',
+      });
+
+      expect(category.icon, 'beach');
+    });
+
+    test('fromJson without icon defaults to null', () {
+      final category = Category.fromJson({'id': 1, 'name': 'Naturaleza'});
+
+      expect(category.icon, isNull);
+    });
+
     test('toJson produces the expected map', () {
       const category = Category(id: 1, name: 'Naturaleza');
 
-      expect(category.toJson(), {'id': 1, 'name': 'Naturaleza'});
+      expect(category.toJson(), {'id': 1, 'name': 'Naturaleza', 'icon': null});
+    });
+
+    test('toJson includes a non-null icon', () {
+      const category = Category(id: 1, name: 'Naturaleza', icon: 'beach');
+
+      expect(category.toJson(), {
+        'id': 1,
+        'name': 'Naturaleza',
+        'icon': 'beach',
+      });
     });
 
     test('categories with same id are equal', () {
