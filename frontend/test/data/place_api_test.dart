@@ -134,8 +134,11 @@ void main() {
           expect(request.method, 'POST');
           expect(request.url.path, '/categories');
           final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body, {'name': 'Playa'});
-          return http.Response(jsonEncode({'id': 5, 'name': 'Playa'}), 201);
+          expect(body, {'name': 'Playa', 'icon': null});
+          return http.Response(
+            jsonEncode({'id': 5, 'name': 'Playa', 'icon': null}),
+            201,
+          );
         });
         final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
@@ -144,6 +147,29 @@ void main() {
         );
 
         expect(category, const Category(id: 5, name: 'Playa'));
+      },
+    );
+
+    test(
+      'createCategory sends POST with a non-null icon in the body',
+      () async {
+        final client = MockClient((request) async {
+          expect(request.method, 'POST');
+          expect(request.url.path, '/categories');
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body, {'name': 'Playa', 'icon': 'beach'});
+          return http.Response(
+            jsonEncode({'id': 5, 'name': 'Playa', 'icon': 'beach'}),
+            201,
+          );
+        });
+        final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
+
+        final category = await api.createCategory(
+          const CategoryDraft(name: 'Playa', icon: 'beach'),
+        );
+
+        expect(category, const Category(id: 5, name: 'Playa', icon: 'beach'));
       },
     );
 
@@ -176,8 +202,11 @@ void main() {
           expect(request.method, 'PATCH');
           expect(request.url.path, '/categories/3');
           final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body, {'name': 'Costa'});
-          return http.Response(jsonEncode({'id': 3, 'name': 'Costa'}), 200);
+          expect(body, {'name': 'Costa', 'icon': null});
+          return http.Response(
+            jsonEncode({'id': 3, 'name': 'Costa', 'icon': null}),
+            200,
+          );
         });
         final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
