@@ -1,6 +1,7 @@
+from datetime import date
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 
 class CategoryResponse(BaseModel):
@@ -36,3 +37,45 @@ class PlaceResponse(BaseModel):
     latitude: float
     longitude: float
     category: CategoryResponse
+
+
+class TripResponse(BaseModel):
+    id: str
+    name: str
+    description: str | None
+    start_date: date
+    end_date: date
+    image_url: str | None
+    created_at: str
+
+
+class TripCreate(BaseModel):
+    name: str = Field(min_length=1)
+    start_date: date
+    end_date: date
+    description: str | None = None
+    image_url: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_dates(self):
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        return self
+
+
+class TripUpdate(BaseModel):
+    name: str = Field(min_length=1)
+    start_date: date
+    end_date: date
+    description: str | None = None
+    image_url: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_dates(self):
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        return self
+
+
+class ImageUploadResponse(BaseModel):
+    url: str
