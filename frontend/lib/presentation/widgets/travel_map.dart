@@ -111,9 +111,11 @@ class _TravelMapState extends State<TravelMap> {
           try {
             return await widget.onResolveMapUrl!(url);
           } catch (error) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error al importar: $error')),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error al importar: $error')),
+              );
+            }
             rethrow;
           }
         },
