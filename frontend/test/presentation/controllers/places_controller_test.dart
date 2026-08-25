@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/category_draft.dart';
@@ -22,6 +23,8 @@ class _FakePlaceApi extends PlaceApi {
     this.updatedPlace,
     this.updateError,
     this.deletePlaceError,
+    this.resolvedCoords,
+    this.resolveError,
   }) : super(baseUrl: 'http://fake');
 
   final List<Category> categories;
@@ -36,10 +39,13 @@ class _FakePlaceApi extends PlaceApi {
   final Place? updatedPlace;
   final Object? updateError;
   final Object? deletePlaceError;
+  final LatLng? resolvedCoords;
+  final Object? resolveError;
 
   int? deletedCategoryId;
   int? deleteReassignTo;
   int? deletedPlaceId;
+  String? requestedUrl;
 
   @override
   Future<List<Category>> fetchCategories() async {
@@ -88,6 +94,13 @@ class _FakePlaceApi extends PlaceApi {
     if (deleteError != null) throw deleteError!;
     deletedCategoryId = id;
     deleteReassignTo = reassignTo;
+  }
+
+  @override
+  Future<LatLng> resolveMapUrl(String url) async {
+    if (resolveError != null) throw resolveError!;
+    requestedUrl = url;
+    return resolvedCoords!;
   }
 }
 
@@ -394,5 +407,37 @@ void main() {
     await expectLater(controller.deletePlace(1), throwsA(isA<Exception>()));
 
     expect(controller.value.places, before);
+  });
+
+  test('resolveMapUrl delegates to the api and returns the coords', () async {
+    final api = _FakePlaceApi(
+      resolvedCoords: const LatLng(41.6474339, -0.8861451),
+    );
+    final controller = PlacesController(api);
+    addTearDown(controller.dispose);
+
+    final point = await controller.resolveMapUrl('https://maps.app.goo.gl/x');
+
+    expect(api.requestedUrl, 'https://maps.app.goo.gl/x');
+    expect(point, const LatLng(41.6474339, -0.8861451));
+    expect(
+      controller.value,
+      const PlacesState(places: [], categories: [], isLoading: false),
+    );
+  });
+
+  test('resolveMapUrl propagates errors without touching state', () async {
+    final api = _FakePlaceApi(resolveError: MapUrlResolveException('boom'));
+    final controller = PlacesController(api);
+    addTearDown(controller.dispose);
+
+    await expectLater(
+      controller.resolveMapUrl('https://maps.app.goo.gl/x'),
+      throwsA(isA<MapUrlResolveException>()),
+    );
+    expect(
+      controller.value,
+      const PlacesState(places: [], categories: [], isLoading: false),
+    );
   });
 }
