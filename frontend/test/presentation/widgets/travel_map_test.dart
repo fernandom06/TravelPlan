@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/data/models/place_update.dart';
 import 'package:frontend/presentation/widgets/category_dropdown.dart';
+import 'package:frontend/presentation/widgets/import_url_dialog.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
 const _naturaleza = Category(id: 1, name: 'Naturaleza');
 const _categories = [_naturaleza];
+
+class MapUrlResolveTestException implements Exception {
+  const MapUrlResolveTestException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 const _place = Place(
   id: 1,
@@ -37,6 +48,7 @@ Widget _map({
   Future<void> Function(int id, int? reassignTo)? onDeleteCategory,
   Future<void> Function(int id, PlaceUpdate update)? onUpdatePlace,
   Future<void> Function(int id)? onDeletePlace,
+  Future<LatLng> Function(String url)? onResolveMapUrl,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -50,6 +62,7 @@ Widget _map({
         onRenameCategory: onRenameCategory,
         onDeleteCategory: onDeleteCategory,
         isOnline: isOnline,
+        onResolveMapUrl: onResolveMapUrl,
       ),
     ),
   );
@@ -497,4 +510,121 @@ void main() {
       expect(positioned.top, isNot(0));
     },
   );
+
+  group('import from Google Maps', () {
+    testWidgets('no FAB when onResolveMapUrl is not provided', (tester) async {
+      await tester.pumpWidget(_map());
+
+      expect(find.byIcon(Icons.link), findsNothing);
+    });
+
+    testWidgets('shows the FAB when onResolveMapUrl is provided', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _map(
+          onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
+        ),
+      );
+
+      expect(find.byIcon(Icons.link), findsOneWidget);
+    });
+
+    testWidgets('offline tap shows SnackBar and does not open the dialog', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _map(
+          isOnline: false,
+          onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.link));
+      await tester.pump();
+
+      expect(find.text('Sin conexión'), findsOneWidget);
+      expect(find.byType(ImportUrlDialog), findsNothing);
+    });
+
+    testWidgets(
+      'resolved URL centers the map and opens the create form with red marker',
+      (tester) async {
+        await tester.pumpWidget(
+          _map(
+            onResolveMapUrl: (url) async =>
+                const LatLng(41.6474339, -0.8861451),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.link));
+        await tester.pumpAndSettle();
+        expect(find.byType(ImportUrlDialog), findsOneWidget);
+
+        await tester.enterText(
+          find.byType(TextField),
+          'https://maps.app.goo.gl/tpabGChzziYCfgjy5',
+        );
+        await tester.tap(find.text('Importar'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ImportUrlDialog), findsNothing);
+        expect(find.byType(PlaceForm), findsOneWidget);
+        expect(_markers(tester), hasLength(1));
+        expect(_markerIcon(_markers(tester).first).color, Colors.red);
+      },
+    );
+
+    testWidgets('resolve error shows SnackBar and does not open the form', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _map(
+          onResolveMapUrl: (url) async =>
+              throw MapUrlResolveTestException('No se pudo resolver el enlace'),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.link));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField),
+        'https://maps.app.goo.gl/x',
+      );
+      await tester.tap(find.text('Importar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Error al importar: No se pudo resolver el enlace'),
+        findsOneWidget,
+      );
+      expect(find.byType(PlaceForm), findsNothing);
+    });
+
+    testWidgets('Cancelar after import closes the form without creating', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _map(
+          onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
+        ),
+      );
+
+      await tester.tap(find.byIcon(Icons.link));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField),
+        'https://maps.app.goo.gl/tpabGChzziYCfgjy5',
+      );
+      await tester.tap(find.text('Importar'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PlaceForm), findsOneWidget);
+
+      await tester.tap(find.text('Cancelar'));
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.byType(PlaceForm), findsNothing);
+      expect(_markers(tester), isEmpty);
+    });
+  });
 }
