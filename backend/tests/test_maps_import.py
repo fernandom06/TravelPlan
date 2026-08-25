@@ -1,7 +1,32 @@
 import pytest
 from pydantic import ValidationError
 
+from backend.maps_import import parse_maps_coords
 from backend.schemas import MapCoordsResponse, MapUrlRequest
+
+
+class TestParseMapsCoords:
+    def test_extracts_coords(self):
+        result = parse_maps_coords(
+            "https://www.google.com/maps/place/Zaragoza/"
+            "@41.6474339,-0.8861451,17z/data=!3m1!4b1"
+            "!4m6!3m5!1s0x0:0x0!8m2!3d41.6474339!4d-0.8861451"
+        )
+        assert result == (41.6474339, -0.8861451)
+
+    def test_returns_none_without_coords(self):
+        assert parse_maps_coords("https://www.google.com/maps/place/Zaragoza/") is None
+
+    def test_takes_last_pair_when_multiple(self):
+        result = parse_maps_coords(
+            "https://www.google.com/maps/@41.1,-0.1,15z"
+            "!3d41.6474339!4d-0.8861451"
+        )
+        assert result == (41.6474339, -0.8861451)
+
+    def test_returns_out_of_range_values(self):
+        result = parse_maps_coords("https://www.google.com/maps/@0,0,1z!3d91!4d200")
+        assert result == (91.0, 200.0)
 
 
 class TestMapUrlRequest:
