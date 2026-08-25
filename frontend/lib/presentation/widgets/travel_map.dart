@@ -6,6 +6,7 @@ import '../../data/models/category.dart';
 import '../../data/models/place.dart';
 import '../../data/models/place_draft.dart';
 import '../../data/models/place_update.dart';
+import 'import_url_dialog.dart';
 import 'map_constants.dart';
 import 'place_form.dart';
 
@@ -21,6 +22,7 @@ class TravelMap extends StatefulWidget {
     this.onRenameCategory,
     this.onDeleteCategory,
     this.isOnline = true,
+    this.onResolveMapUrl,
   });
 
   final List<Place> places;
@@ -30,9 +32,10 @@ class TravelMap extends StatefulWidget {
   final Future<void> Function(int id) onDeletePlace;
   final Future<Category> Function(String name, String? icon)? onCreateCategory;
   final Future<Category> Function(int id, String name, String? icon)?
-      onRenameCategory;
+  onRenameCategory;
   final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final bool isOnline;
+  final Future<LatLng> Function(String url)? onResolveMapUrl;
 
   @override
   State<TravelMap> createState() => _TravelMapState();
@@ -86,6 +89,38 @@ class _TravelMapState extends State<TravelMap> {
       case _Editing():
         _closeForm();
     }
+  }
+
+  void _handleImportedPoint(LatLng point) {
+    _mapController.move(point, kDefaultZoom);
+    final offset = _mapController.camera.latLngToScreenOffset(point);
+    setState(() => _state = _Creating(point: point, screenPos: offset));
+  }
+
+  Future<void> _handleImportPressed() async {
+    if (!widget.isOnline) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Sin conexión')));
+      return;
+    }
+    final point = await showDialog<LatLng>(
+      context: context,
+      builder: (_) => ImportUrlDialog(
+        onResolve: (url) async {
+          try {
+            return await widget.onResolveMapUrl!(url);
+          } catch (error) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error al importar: $error')),
+            );
+            rethrow;
+          }
+        },
+      ),
+    );
+    if (point == null) return;
+    _handleImportedPoint(point);
   }
 
   void _handleMarkerTap(Place place) {
@@ -257,6 +292,16 @@ class _TravelMapState extends State<TravelMap> {
           ],
         ),
         if (_state is! _Idle) _buildFormOverlay(),
+        if (widget.onResolveMapUrl != null)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: FloatingActionButton(
+              onPressed: _handleImportPressed,
+              tooltip: 'Importar desde Google Maps',
+              child: const Icon(Icons.link),
+            ),
+          ),
       ],
     );
   }
