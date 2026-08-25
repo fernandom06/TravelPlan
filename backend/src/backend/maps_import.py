@@ -46,13 +46,13 @@ def resolve_url(payload: MapUrlRequest) -> MapCoordsResponse:
     coords = parse_maps_coords(final_url)
     if coords is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="No se pudieron extraer coordenadas",
         )
     latitude, longitude = coords
     if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Coordenadas fuera de rango",
         )
     return MapCoordsResponse(latitude=latitude, longitude=longitude)
