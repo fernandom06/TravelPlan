@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
 
 import 'models/category.dart';
 import 'models/category_draft.dart';
@@ -37,6 +38,15 @@ class CategoryNotEmptyException implements Exception {
 
 class InvalidReassignTargetException implements Exception {
   const InvalidReassignTargetException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class MapUrlResolveException implements Exception {
+  const MapUrlResolveException(this.message);
 
   final String message;
 
@@ -160,5 +170,32 @@ class PlaceApi {
         'Failed to delete category: ${response.statusCode}',
       );
     }
+  }
+
+  Future<LatLng> resolveMapUrl(String url) async {
+    final response = await _client.post(
+      _uri('/maps/resolve-url'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'url': url}),
+    );
+    if (response.statusCode != 200) {
+      throw MapUrlResolveException(_detailOrFallback(response));
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return LatLng(
+      (data['latitude'] as num).toDouble(),
+      (data['longitude'] as num).toDouble(),
+    );
+  }
+
+  String _detailOrFallback(http.Response response) {
+    try {
+      final body = jsonDecode(response.body);
+      final detail = (body as Map<String, dynamic>)['detail'];
+      if (detail is String && detail.isNotEmpty) return detail;
+    } catch (_) {
+      // Fall through to the generic message.
+    }
+    return 'No se pudo resolver el enlace: ${response.statusCode}';
   }
 }
