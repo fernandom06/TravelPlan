@@ -83,3 +83,7 @@ class TripUpdate(BaseModel):
 
 class ImageUploadResponse(BaseModel):
     url: str
+
+
+class HealthResponse(BaseModel):
+    status: str
