@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:latlong2/latlong.dart';
 
 import '../../data/models/category.dart';
 import '../../data/models/category_draft.dart';
@@ -142,4 +143,6 @@ class PlacesController extends ValueNotifier<PlacesState> {
       isLoading: value.isLoading,
     );
   }
+
+  Future<LatLng> resolveMapUrl(String url) => _api.resolveMapUrl(url);
 }
