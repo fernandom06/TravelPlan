@@ -101,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen>
                     .renameCategory(id, CategoryDraft(name: name, icon: icon)),
                 onDeleteCategory: (id, reassignTo) => widget.placesController
                     .deleteCategory(id, reassignTo: reassignTo),
+                onResolveMapUrl: widget.placesController.resolveMapUrl,
               ),
             ),
           ),
