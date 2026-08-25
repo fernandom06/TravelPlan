@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import config
 from .categories import router as categories_router
 from .database import init_database
+from .maps_import import router as maps_router
 from .places import router as places_router
 from .schemas import HealthResponse
 from .trips import router as trips_router
@@ -33,6 +34,7 @@ app.include_router(categories_router)
 app.include_router(places_router)
 app.include_router(trips_router)
 app.include_router(uploads_router)
+app.include_router(maps_router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
