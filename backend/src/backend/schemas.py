@@ -1,7 +1,14 @@
 from datetime import date
 from typing import Annotated
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 
 class CategoryResponse(BaseModel):
@@ -83,6 +90,25 @@ class TripUpdate(BaseModel):
 
 class ImageUploadResponse(BaseModel):
     url: str
+
+
+class MapUrlRequest(BaseModel):
+    url: str
+
+    @field_validator("url")
+    @classmethod
+    def _validate_url(cls, v: str) -> str:
+        v = v.strip()
+        if v.startswith("maps.app.goo.gl"):
+            v = f"https://{v}"
+        if urlparse(v).hostname != "maps.app.goo.gl":
+            raise ValueError("URL must point to maps.app.goo.gl")
+        return v
+
+
+class MapCoordsResponse(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
 
 
 class HealthResponse(BaseModel):
