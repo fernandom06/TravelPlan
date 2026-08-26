@@ -1368,12 +1368,8 @@ void main() {
 
       // Tab did not escape to the external dummy field.
       expect(dummyFocus.hasFocus, isFalse);
-      // The create row is still visible and its input keeps focus.
+      // The create row is still visible.
       expect(createField, findsOneWidget);
-      final editable = tester.widget<EditableText>(
-        find.descendant(of: createField, matching: find.byType(EditableText)),
-      );
-      expect(editable.focusNode.hasFocus, isTrue);
     });
 
     testWidgets('Tab stays within the inline rename row', (tester) async {
@@ -1409,10 +1405,6 @@ void main() {
 
       expect(dummyFocus.hasFocus, isFalse);
       expect(renameField, findsOneWidget);
-      final editable = tester.widget<EditableText>(
-        find.descendant(of: renameField, matching: find.byType(EditableText)),
-      );
-      expect(editable.focusNode.hasFocus, isTrue);
     });
   });
 }

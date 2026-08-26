@@ -169,6 +169,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _editIcon = null;
       _isSubmittingEdit = false;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _isOpen) _triggerFocus.requestFocus();
+    });
   }
 
   Future<void> _confirmEdit() async {
@@ -196,6 +199,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
         _editError = null;
         _editIcon = null;
         _isSubmittingEdit = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isOpen) _triggerFocus.requestFocus();
       });
     } on DuplicateCategoryException {
       if (!mounted) return;
@@ -250,6 +256,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _createIcon = null;
       _isSubmittingCreate = false;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _isOpen) _triggerFocus.requestFocus();
+    });
   }
 
   Future<void> _confirmCreate() async {
@@ -275,6 +284,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
         _createError = null;
         _createIcon = null;
         _isSubmittingCreate = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isOpen) _triggerFocus.requestFocus();
       });
     } on DuplicateCategoryException {
       if (!mounted) return;
@@ -566,54 +578,56 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   }
 
   Widget _buildCreateRow(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Focus(
-                  focusNode: _createFocus,
-                  onKeyEvent: _handleCreateKey,
-                  child: TextField(
-                    controller: _createController,
-                    focusNode: _createInputFocus,
-                    onSubmitted: (_) => _confirmCreate(),
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre de la categoría',
+    return FocusTraversalGroup(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Focus(
+                    focusNode: _createFocus,
+                    onKeyEvent: _handleCreateKey,
+                    child: TextField(
+                      controller: _createController,
+                      focusNode: _createInputFocus,
+                      onSubmitted: (_) => _confirmCreate(),
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre de la categoría',
+                      ),
                     ),
                   ),
                 ),
-              ),
-              IconButton(
-                icon: Icon(categoryIconFor(_createIcon)),
-                tooltip: 'Elegir icono',
-                onPressed: () => _pickIcon(forCreate: true),
-              ),
-              IconButton(
-                icon: const Icon(Icons.check),
-                tooltip: 'Confirmar',
-                onPressed: _isSubmittingCreate ? null : _confirmCreate,
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Cancelar',
-                onPressed: _cancelCreate,
-              ),
-            ],
-          ),
-          if (_createError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                _createError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+                IconButton(
+                  icon: Icon(categoryIconFor(_createIcon)),
+                  tooltip: 'Elegir icono',
+                  onPressed: () => _pickIcon(forCreate: true),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.check),
+                  tooltip: 'Confirmar',
+                  onPressed: _isSubmittingCreate ? null : _confirmCreate,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Cancelar',
+                  onPressed: _cancelCreate,
+                ),
+              ],
             ),
-        ],
+            if (_createError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _createError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -654,54 +668,56 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   }
 
   Widget _buildEditRow(BuildContext context, Category c) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Focus(
-                  focusNode: _editFocus,
-                  onKeyEvent: _handleEditKey,
-                  child: TextField(
-                    controller: _editController,
-                    focusNode: _editInputFocus,
-                    onSubmitted: (_) => _confirmEdit(),
-                    decoration: const InputDecoration(
-                      labelText: 'Nuevo nombre',
+    return FocusTraversalGroup(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Focus(
+                    focusNode: _editFocus,
+                    onKeyEvent: _handleEditKey,
+                    child: TextField(
+                      controller: _editController,
+                      focusNode: _editInputFocus,
+                      onSubmitted: (_) => _confirmEdit(),
+                      decoration: const InputDecoration(
+                        labelText: 'Nuevo nombre',
+                      ),
                     ),
                   ),
                 ),
-              ),
-              IconButton(
-                icon: Icon(categoryIconFor(_editIcon)),
-                tooltip: 'Elegir icono',
-                onPressed: () => _pickIcon(forCreate: false),
-              ),
-              IconButton(
-                icon: const Icon(Icons.check),
-                tooltip: 'Confirmar',
-                onPressed: _isSubmittingEdit ? null : _confirmEdit,
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Cancelar',
-                onPressed: _cancelEdit,
-              ),
-            ],
-          ),
-          if (_editError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                _editError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+                IconButton(
+                  icon: Icon(categoryIconFor(_editIcon)),
+                  tooltip: 'Elegir icono',
+                  onPressed: () => _pickIcon(forCreate: false),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.check),
+                  tooltip: 'Confirmar',
+                  onPressed: _isSubmittingEdit ? null : _confirmEdit,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Cancelar',
+                  onPressed: _cancelEdit,
+                ),
+              ],
             ),
-        ],
+            if (_editError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _editError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
