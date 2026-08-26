@@ -107,6 +107,59 @@ void main() {
     expect(find.byType(PlaceForm), findsOneWidget);
   });
 
+  testWidgets('autofocus on Nombre when creating via tap', (tester) async {
+    await tester.pumpWidget(_map());
+
+    await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceForm), findsOneWidget);
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('autofocus on Nombre when editing', (tester) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceForm), findsOneWidget);
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('autofocus on Nombre when importing', (tester) async {
+    await tester.pumpWidget(
+      _map(
+        onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.link));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField),
+      'https://maps.app.goo.gl/tpabGChzziYCfgjy5',
+    );
+    await tester.tap(find.text('Importar'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceForm), findsOneWidget);
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
   testWidgets(
     'second tap while the form is open closes it without a new marker',
     (tester) async {
