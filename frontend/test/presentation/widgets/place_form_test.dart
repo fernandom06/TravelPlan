@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
@@ -139,6 +140,91 @@ void main() {
         .widgetList<EditableText>(find.byType(EditableText))) {
       expect(editable.focusNode.hasFocus, isFalse);
     }
+  });
+
+  testWidgets('Tab from Nombre moves focus to Categoria and opens panel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+
+    // The category trigger took focus and opened its panel.
+    expect(find.byType(ListTile), findsWidgets);
+    final nameEditable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameEditable.focusNode.hasFocus, isFalse);
+  });
+
+  testWidgets('Tab from Categoria moves to Descripcion and closes panel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsWidgets);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+
+    final descriptionField = tester.widget<EditableText>(
+      find.byType(EditableText).at(1),
+    );
+    expect(descriptionField.focusNode.hasFocus, isTrue);
+    expect(find.byType(ListTile), findsNothing);
+  });
+
+  testWidgets('disabled Guardar is skipped by Tab', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Name is empty so Guardar is disabled.
+    expect(_saveButton(tester).onPressed, isNull);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+
+    final descriptionField = tester.widget<EditableText>(
+      find.byType(EditableText).at(1),
+    );
+    expect(descriptionField.focusNode.hasFocus, isTrue);
+    final saveButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Guardar'),
+    );
+    expect(saveButton.focusNode?.hasFocus, isFalse);
   });
 
   testWidgets('save is disabled when name is empty', (tester) async {
