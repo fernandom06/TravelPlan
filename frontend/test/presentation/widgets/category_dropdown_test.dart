@@ -1357,9 +1357,11 @@ void main() {
         ),
       );
 
-      await _openMenu(tester);
+      await tester.tap(find.byType(CategoryDropdown));
+      await tester.pumpAndSettle();
       await _startCreate(tester);
-      expect(find.byType(TextField), findsOneWidget);
+      final createField = find.widgetWithText(TextField, 'Nombre de la categoría');
+      expect(createField, findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
@@ -1367,8 +1369,10 @@ void main() {
       // Tab did not escape to the external dummy field.
       expect(dummyFocus.hasFocus, isFalse);
       // The create row is still visible and its input keeps focus.
-      expect(find.byType(TextField), findsOneWidget);
-      final editable = tester.widget<EditableText>(find.byType(EditableText));
+      expect(createField, findsOneWidget);
+      final editable = tester.widget<EditableText>(
+        find.descendant(of: createField, matching: find.byType(EditableText)),
+      );
       expect(editable.focusNode.hasFocus, isTrue);
     });
 
@@ -1394,16 +1398,20 @@ void main() {
         ),
       );
 
-      await _openMenu(tester);
+      await tester.tap(find.byType(CategoryDropdown));
+      await tester.pumpAndSettle();
       await _startRename(tester);
-      expect(find.byType(TextField), findsOneWidget);
+      final renameField = find.widgetWithText(TextField, 'Nuevo nombre');
+      expect(renameField, findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
 
       expect(dummyFocus.hasFocus, isFalse);
-      expect(find.byType(TextField), findsOneWidget);
-      final editable = tester.widget<EditableText>(find.byType(EditableText));
+      expect(renameField, findsOneWidget);
+      final editable = tester.widget<EditableText>(
+        find.descendant(of: renameField, matching: find.byType(EditableText)),
+      );
       expect(editable.focusNode.hasFocus, isTrue);
     });
   });

@@ -30,6 +30,7 @@ class CategoryDropdown extends StatefulWidget {
     this.onCategoryAdded,
     this.onCategoryRenamed,
     this.onCategoryDeleted,
+    this.focusNode,
   });
 
   final List<Category> categories;
@@ -43,6 +44,7 @@ class CategoryDropdown extends StatefulWidget {
   final ValueChanged<Category>? onCategoryAdded;
   final ValueChanged<Category>? onCategoryRenamed;
   final ValueChanged<int>? onCategoryDeleted;
+  final FocusNode? focusNode;
 
   @override
   State<CategoryDropdown> createState() => _CategoryDropdownState();
@@ -52,6 +54,8 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   bool _isOpen = false;
   final GlobalKey _triggerKey = GlobalKey();
   final OverlayPortalController _overlayController = OverlayPortalController();
+
+  late final FocusNode _triggerFocus;
 
   int? _editingId;
   late final TextEditingController _editController;
@@ -72,6 +76,8 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   @override
   void initState() {
     super.initState();
+    _triggerFocus = widget.focusNode ?? FocusNode();
+    _triggerFocus.addListener(_handleTriggerFocusChange);
     _editController = TextEditingController();
     _editFocus = FocusNode();
     _editInputFocus = FocusNode();
@@ -82,6 +88,10 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
 
   @override
   void dispose() {
+    _triggerFocus.removeListener(_handleTriggerFocusChange);
+    if (widget.focusNode == null) {
+      _triggerFocus.dispose();
+    }
     _editController.dispose();
     _editFocus.dispose();
     _editInputFocus.dispose();
@@ -101,6 +111,28 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
         _overlayController.hide();
       }
     });
+  }
+
+  void _open() {
+    if (!widget.enabled || _isOpen) return;
+    setState(() {
+      _isOpen = true;
+      _overlayController.show();
+    });
+  }
+
+  void _handleTriggerFocusChange() {
+    if (!mounted) return;
+    if (_triggerFocus.hasFocus) {
+      if (widget.enabled && !_isOpen) _open();
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (!_createInputFocus.hasFocus && !_editInputFocus.hasFocus) {
+          _close();
+        }
+      });
+    }
   }
 
   void _close() {
@@ -421,27 +453,35 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     return OverlayPortal(
       controller: _overlayController,
       overlayChildBuilder: (context) => _buildOverlay(context),
-      child: GestureDetector(
-        key: _triggerKey,
-        onTap: _toggle,
-        child: InputDecorator(
-          isEmpty: selectedName.isEmpty,
-          isFocused: _isOpen,
-          decoration: const InputDecoration(
-            labelText: 'Categoría',
-            suffixIcon: Icon(Icons.arrow_drop_down),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (value != null) ...[
-                Icon(categoryIconFor(value.icon), size: 20),
-                const SizedBox(width: 8),
+      child: Focus(
+        focusNode: _triggerFocus,
+        canRequestFocus: widget.enabled,
+        descendantsAreFocusable: false,
+        child: GestureDetector(
+          key: _triggerKey,
+          onTap: _toggle,
+          child: InputDecorator(
+            isEmpty: selectedName.isEmpty,
+            isFocused: _isOpen,
+            decoration: const InputDecoration(
+              labelText: 'Categoría',
+              suffixIcon: Icon(Icons.arrow_drop_down),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (value != null) ...[
+                  Icon(categoryIconFor(value.icon), size: 20),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Text(
+                    selectedName,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
-              Flexible(
-                child: Text(selectedName, overflow: TextOverflow.ellipsis),
-              ),
-            ],
+            ),
           ),
         ),
       ),
