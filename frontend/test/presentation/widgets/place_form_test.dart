@@ -220,7 +220,52 @@ void main() {
     expect(savedDescription, 'Vistas');
   });
 
-  testWidgets('pressing Enter on the name submits the form', (tester) async {
+  testWidgets('name field uses textInputAction next', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    final nameField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(nameField.textInputAction, TextInputAction.next);
+  });
+
+  testWidgets('pressing next on name moves focus to category without saving', (
+    tester,
+  ) async {
+    String? savedName;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (name, _, _) {
+            savedName = name;
+          },
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    await _selectCategory(tester, 'Monumento');
+    await _fillName(tester);
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pump();
+
+    expect(savedName, isNull);
+    // The category trigger took focus: the panel is open and name lost focus.
+    expect(find.byType(ListTile), findsWidgets);
+    final nameEditable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameEditable.focusNode.hasFocus, isFalse);
+  });
+
+  testWidgets('pressing next on the name does not save', (tester) async {
     String? savedName;
     int? savedCategoryId;
     await tester.pumpWidget(
@@ -238,11 +283,13 @@ void main() {
 
     await _selectCategory(tester, 'Monumento');
     await _fillName(tester);
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(TextInputAction.next);
     await tester.pump();
 
-    expect(savedName, 'Mirador');
-    expect(savedCategoryId, 2);
+    expect(savedName, isNull);
+    expect(savedCategoryId, isNull);
+    // The category trigger took focus: the panel is open.
+    expect(find.byType(ListTile), findsWidgets);
   });
 
   testWidgets('pressing Enter on the description submits the form', (
@@ -273,9 +320,7 @@ void main() {
     expect(savedCategoryId, 2);
   });
 
-  testWidgets('pressing Enter does not submit when the form is invalid', (
-    tester,
-  ) async {
+  testWidgets('pressing next on name never saves', (tester) async {
     var submitted = false;
     await tester.pumpWidget(
       _wrap(
@@ -288,7 +333,7 @@ void main() {
     );
 
     await _fillName(tester);
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.testTextInput.receiveAction(TextInputAction.next);
     await tester.pump();
 
     expect(submitted, isFalse);
