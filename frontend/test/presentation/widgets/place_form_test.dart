@@ -210,8 +210,7 @@ void main() {
     // Name is empty so Guardar is disabled.
     expect(_saveButton(tester).onPressed, isNull);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pumpAndSettle();
+    // Two tabs reach Descripcion: Nombre -> Categoria -> Descripcion.
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
@@ -221,10 +220,26 @@ void main() {
       find.byType(EditableText).at(1),
     );
     expect(descriptionField.focusNode.hasFocus, isTrue);
-    final saveButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Guardar'),
-    );
-    expect(saveButton.focusNode?.hasFocus, isFalse);
+
+    // A third tab crosses the button row skipping the disabled Guardar.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+
+    // The disabled Guardar never receives focus: the primary focus is not
+    // within the save button.
+    final primary = FocusManager.instance.primaryFocus;
+    final saveFinder = find.widgetWithText(FilledButton, 'Guardar');
+    final onSave = primary != null &&
+        find
+            .descendant(
+              of: saveFinder,
+              matching: find.byWidgetPredicate(
+                (w) => w == primary.context?.widget,
+              ),
+            )
+            .evaluate()
+            .isNotEmpty;
+    expect(onSave, isFalse);
   });
 
   testWidgets('save is disabled when name is empty', (tester) async {

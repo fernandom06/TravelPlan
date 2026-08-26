@@ -532,20 +532,23 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
         .clamp(margin, math.max(margin, screenHeight - 4))
         .toDouble();
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: _close,
+    return FocusScope(
+      skipTraversal: true,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _close,
+            ),
           ),
-        ),
-        Positioned(
-          left: left,
-          top: top,
-          child: _buildPanel(context, panelWidth),
-        ),
-      ],
+          Positioned(
+            left: left,
+            top: top,
+            child: _buildPanel(context, panelWidth),
+          ),
+        ],
+      ),
     );
   }
 
