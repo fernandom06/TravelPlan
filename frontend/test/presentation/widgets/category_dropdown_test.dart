@@ -1732,44 +1732,45 @@ void main() {
       expect(find.byType(ListTile), findsNothing);
     });
 
-    testWidgets('tap-selecting a row during keyboard nav returns focus to trigger', (
-      tester,
-    ) async {
-      final triggerFocus = FocusNode();
-      final externalFocus = FocusNode();
-      final selected = <Category?>[];
-      addTearDown(triggerFocus.dispose);
-      addTearDown(externalFocus.dispose);
-      await pumpNavHarness(
-        tester,
-        triggerFocus: triggerFocus,
-        externalFocus: externalFocus,
-        onChanged: selected.add,
-      );
+    testWidgets(
+      'tap-selecting a row during keyboard nav returns focus to trigger',
+      (tester) async {
+        final triggerFocus = FocusNode();
+        final externalFocus = FocusNode();
+        final selected = <Category?>[];
+        addTearDown(triggerFocus.dispose);
+        addTearDown(externalFocus.dispose);
+        await pumpNavHarness(
+          tester,
+          triggerFocus: triggerFocus,
+          externalFocus: externalFocus,
+          onChanged: selected.add,
+        );
 
-      triggerFocus.requestFocus();
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-      expect(
-        Focus.maybeOf(
-          tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
-        )!.hasPrimaryFocus,
-        isTrue,
-      );
+        triggerFocus.requestFocus();
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(
+          Focus.maybeOf(
+            tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
+          )!.hasPrimaryFocus,
+          isTrue,
+        );
 
-      await tester.tap(find.text('Monumento'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Monumento'));
+        await tester.pumpAndSettle();
 
-      expect(selected.last, _monumento);
-      expect(find.byType(ListTile), findsNothing);
-      expect(triggerFocus.hasFocus, isTrue);
+        expect(selected.last, _monumento);
+        expect(find.byType(ListTile), findsNothing);
+        expect(triggerFocus.hasFocus, isTrue);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-      expect(externalFocus.hasFocus, isTrue);
-      expect(find.byType(ListTile), findsNothing);
-    });
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(externalFocus.hasFocus, isTrue);
+        expect(find.byType(ListTile), findsNothing);
+      },
+    );
   });
 
   group('Tab stays within the inline rows', () {

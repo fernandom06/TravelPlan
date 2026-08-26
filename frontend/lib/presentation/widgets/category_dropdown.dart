@@ -581,10 +581,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
                     const SizedBox(width: 8),
                   ],
                   Flexible(
-                    child: Text(
-                      selectedName,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(selectedName, overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
