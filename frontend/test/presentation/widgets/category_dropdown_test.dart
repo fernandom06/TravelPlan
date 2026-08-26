@@ -1016,6 +1016,21 @@ void main() {
       expect(find.byIcon(Icons.beach_access), findsOneWidget);
     });
 
+    testWidgets('trigger shows no icon when no category is selected', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [_naturaleza],
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(find.byIcon(categoryPlaceholderIcon), findsNothing);
+    });
+
     testWidgets('rows show their category icon', (tester) async {
       const beach = Category(id: 1, name: 'Playa', icon: 'beach');
       const monument = Category(id: 2, name: 'Monumento', icon: 'monument');

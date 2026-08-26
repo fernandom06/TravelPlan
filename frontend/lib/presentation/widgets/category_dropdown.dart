@@ -406,7 +406,8 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedName = widget.value?.name ?? '';
+    final value = widget.value;
+    final selectedName = value?.name ?? '';
     return OverlayPortal(
       controller: _overlayController,
       overlayChildBuilder: (context) => _buildOverlay(context),
@@ -423,8 +424,10 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(categoryIconFor(widget.value?.icon), size: 20),
-              const SizedBox(width: 8),
+              if (value != null) ...[
+                Icon(categoryIconFor(value.icon), size: 20),
+                const SizedBox(width: 8),
+              ],
               Flexible(
                 child: Text(selectedName, overflow: TextOverflow.ellipsis),
               ),
