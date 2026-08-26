@@ -1040,12 +1040,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        _wrap(
-          CategoryDropdown(
-            categories: [_naturaleza],
-            onChanged: (_) {},
-          ),
-        ),
+        _wrap(CategoryDropdown(categories: [_naturaleza], onChanged: (_) {})),
       );
 
       expect(find.byIcon(categoryPlaceholderIcon), findsNothing);
@@ -1056,10 +1051,7 @@ void main() {
       const monument = Category(id: 2, name: 'Monumento', icon: 'monument');
       await tester.pumpWidget(
         _wrap(
-          CategoryDropdown(
-            categories: [beach, monument],
-            onChanged: (_) {},
-          ),
+          CategoryDropdown(categories: [beach, monument], onChanged: (_) {}),
         ),
       );
 
@@ -1069,9 +1061,7 @@ void main() {
       expect(find.byIcon(Icons.account_balance), findsOneWidget);
     });
 
-    testWidgets('categories without icon show the placeholder', (
-      tester,
-    ) async {
+    testWidgets('categories without icon show the placeholder', (tester) async {
       await tester.pumpWidget(
         _wrap(
           CategoryDropdown(
@@ -1308,31 +1298,32 @@ void main() {
       expect(find.byType(ListTile), findsNothing);
     });
 
-    testWidgets('trigger losing focus to internal inline row keeps panel open', (
-      tester,
-    ) async {
-      final triggerFocus = FocusNode();
-      addTearDown(triggerFocus.dispose);
-      await tester.pumpWidget(
-        _wrap(
-          CategoryDropdown(
-            categories: [_naturaleza, _monumento],
-            focusNode: triggerFocus,
-            onChanged: (_) {},
-            onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+    testWidgets(
+      'trigger losing focus to internal inline row keeps panel open',
+      (tester) async {
+        final triggerFocus = FocusNode();
+        addTearDown(triggerFocus.dispose);
+        await tester.pumpWidget(
+          _wrap(
+            CategoryDropdown(
+              categories: [_naturaleza, _monumento],
+              focusNode: triggerFocus,
+              onChanged: (_) {},
+              onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+            ),
           ),
-        ),
-      );
+        );
 
-      triggerFocus.requestFocus();
-      await tester.pumpAndSettle();
-      expect(find.byType(ListTile), findsWidgets);
+        triggerFocus.requestFocus();
+        await tester.pumpAndSettle();
+        expect(find.byType(ListTile), findsWidgets);
 
-      await _startCreate(tester);
+        await _startCreate(tester);
 
-      expect(find.byType(ListTile), findsWidgets);
-      expect(find.byType(TextField), findsOneWidget);
-    });
+        expect(find.byType(ListTile), findsWidgets);
+        expect(find.byType(TextField), findsOneWidget);
+      },
+    );
   });
 
   group('Tab stays within the inline rows', () {
@@ -1360,7 +1351,10 @@ void main() {
       await tester.tap(find.byType(CategoryDropdown));
       await tester.pumpAndSettle();
       await _startCreate(tester);
-      final createField = find.widgetWithText(TextField, 'Nombre de la categoría');
+      final createField = find.widgetWithText(
+        TextField,
+        'Nombre de la categoría',
+      );
       expect(createField, findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);

@@ -136,8 +136,9 @@ void main() {
     );
     await tester.pump();
 
-    for (final editable in tester
-        .widgetList<EditableText>(find.byType(EditableText))) {
+    for (final editable in tester.widgetList<EditableText>(
+      find.byType(EditableText),
+    )) {
       expect(editable.focusNode.hasFocus, isFalse);
     }
   });
@@ -229,7 +230,8 @@ void main() {
     // within the save button.
     final primary = FocusManager.instance.primaryFocus;
     final saveFinder = find.widgetWithText(FilledButton, 'Guardar');
-    final onSave = primary != null &&
+    final onSave =
+        primary != null &&
         find
             .descendant(
               of: saveFinder,
