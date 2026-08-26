@@ -56,6 +56,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   int? _editingId;
   late final TextEditingController _editController;
   late final FocusNode _editFocus;
+  late final FocusNode _editInputFocus;
   String? _editError;
   String? _editIcon;
   bool _isSubmittingEdit = false;
@@ -63,6 +64,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   bool _isCreating = false;
   late final TextEditingController _createController;
   late final FocusNode _createFocus;
+  late final FocusNode _createInputFocus;
   String? _createError;
   String? _createIcon;
   bool _isSubmittingCreate = false;
@@ -72,16 +74,20 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     super.initState();
     _editController = TextEditingController();
     _editFocus = FocusNode();
+    _editInputFocus = FocusNode();
     _createController = TextEditingController();
     _createFocus = FocusNode();
+    _createInputFocus = FocusNode();
   }
 
   @override
   void dispose() {
     _editController.dispose();
     _editFocus.dispose();
+    _editInputFocus.dispose();
     _createController.dispose();
     _createFocus.dispose();
+    _createInputFocus.dispose();
     super.dispose();
   }
 
@@ -119,7 +125,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _editIcon = c.icon;
       _isSubmittingEdit = false;
     });
-    _editFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _editInputFocus.requestFocus();
+    });
   }
 
   void _cancelEdit() {
@@ -198,7 +206,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _createIcon = null;
       _isSubmittingCreate = false;
     });
-    _createFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _createInputFocus.requestFocus();
+    });
   }
 
   void _cancelCreate() {
@@ -530,6 +540,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
                   onKeyEvent: _handleCreateKey,
                   child: TextField(
                     controller: _createController,
+                    focusNode: _createInputFocus,
                     onSubmitted: (_) => _confirmCreate(),
                     decoration: const InputDecoration(
                       labelText: 'Nombre de la categoría',
@@ -617,6 +628,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
                   onKeyEvent: _handleEditKey,
                   child: TextField(
                     controller: _editController,
+                    focusNode: _editInputFocus,
                     onSubmitted: (_) => _confirmEdit(),
                     decoration: const InputDecoration(
                       labelText: 'Nuevo nombre',

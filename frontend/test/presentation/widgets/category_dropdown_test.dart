@@ -622,6 +622,26 @@ void main() {
   });
 
   group('create inline', () {
+    testWidgets('tapping Nueva categoría focuses the name input', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _Harness(
+          categories: [_naturaleza],
+          onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+        ),
+      );
+
+      await _openMenu(tester);
+      await _startCreate(tester);
+
+      final field = find.byType(TextField);
+      expect(field, findsOneWidget);
+      final editable = tester.widget<EditableText>(find.byType(EditableText));
+      expect(editable.focusNode.hasFocus, isTrue);
+      expect(tester.testTextInput.hasAnyClients, isTrue);
+    });
+
     testWidgets('confirm via check adds category and autoselects', (
       tester,
     ) async {
