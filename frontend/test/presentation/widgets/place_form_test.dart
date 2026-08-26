@@ -89,6 +89,58 @@ void main() {
     expect(find.text('Guardar'), findsOneWidget);
   });
 
+  testWidgets('autofocus on Nombre in create mode', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('autofocus on Nombre in edit mode', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          initialName: 'Mirador',
+          initialCategory: _naturaleza,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('PlaceDetails does not autofocus', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceDetails(categories: _categories, place: _place, onClose: () {}),
+      ),
+    );
+    await tester.pump();
+
+    for (final editable in tester
+        .widgetList<EditableText>(find.byType(EditableText))) {
+      expect(editable.focusNode.hasFocus, isFalse);
+    }
+  });
+
   testWidgets('save is disabled when name is empty', (tester) async {
     await tester.pumpWidget(
       _wrap(
