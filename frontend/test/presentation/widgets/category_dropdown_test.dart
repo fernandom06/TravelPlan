@@ -1231,4 +1231,107 @@ void main() {
       expect(record.renamedIcon, 'beach');
     });
   });
+
+  group('trigger focus', () {
+    testWidgets('trigger receiving focus opens the panel', (tester) async {
+      final triggerFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [_naturaleza, _monumento],
+            focusNode: triggerFocus,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListTile), findsWidgets);
+    });
+
+    testWidgets('trigger losing focus to external node closes panel', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                CategoryDropdown(
+                  categories: [_naturaleza, _monumento],
+                  focusNode: triggerFocus,
+                  onChanged: (_) {},
+                ),
+                TextField(focusNode: externalFocus),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+      expect(find.byType(ListTile), findsWidgets);
+
+      externalFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListTile), findsNothing);
+    });
+
+    testWidgets('disabled dropdown trigger does not open on focus', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [_naturaleza, _monumento],
+            focusNode: triggerFocus,
+            enabled: false,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListTile), findsNothing);
+    });
+
+    testWidgets('trigger losing focus to internal inline row keeps panel open', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [_naturaleza, _monumento],
+            focusNode: triggerFocus,
+            onChanged: (_) {},
+            onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+          ),
+        ),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+      expect(find.byType(ListTile), findsWidgets);
+
+      await _startCreate(tester);
+
+      expect(find.byType(ListTile), findsWidgets);
+      expect(find.byType(TextField), findsOneWidget);
+    });
+  });
 }
