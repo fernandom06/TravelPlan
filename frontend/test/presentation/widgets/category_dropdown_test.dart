@@ -1334,4 +1334,77 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
     });
   });
+
+  group('Tab stays within the inline rows', () {
+    testWidgets('Tab stays within the inline create row', (tester) async {
+      final dummyFocus = FocusNode();
+      addTearDown(dummyFocus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                CategoryDropdown(
+                  categories: [_naturaleza, _monumento],
+                  onChanged: (_) {},
+                  onCreate: (_, _) async =>
+                      const Category(id: 5, name: 'Playa'),
+                ),
+                TextField(focusNode: dummyFocus),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await _openMenu(tester);
+      await _startCreate(tester);
+      expect(find.byType(TextField), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      // Tab did not escape to the external dummy field.
+      expect(dummyFocus.hasFocus, isFalse);
+      // The create row is still visible and its input keeps focus.
+      expect(find.byType(TextField), findsOneWidget);
+      final editable = tester.widget<EditableText>(find.byType(EditableText));
+      expect(editable.focusNode.hasFocus, isTrue);
+    });
+
+    testWidgets('Tab stays within the inline rename row', (tester) async {
+      final dummyFocus = FocusNode();
+      addTearDown(dummyFocus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                CategoryDropdown(
+                  categories: [_naturaleza, _monumento],
+                  value: _naturaleza,
+                  onChanged: (_) {},
+                  onRename: (_, _, _) async => _naturaleza,
+                  onDelete: (_, _) async {},
+                ),
+                TextField(focusNode: dummyFocus),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await _openMenu(tester);
+      await _startRename(tester);
+      expect(find.byType(TextField), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      expect(dummyFocus.hasFocus, isFalse);
+      expect(find.byType(TextField), findsOneWidget);
+      final editable = tester.widget<EditableText>(find.byType(EditableText));
+      expect(editable.focusNode.hasFocus, isTrue);
+    });
+  });
 }
