@@ -35,31 +35,37 @@ class _PlaceFields extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: nameController,
-          focusNode: nameFocus,
-          autofocus: autofocus,
-          enabled: enabled,
-          onChanged: onNameChanged,
-          textInputAction: onNameNext == null ? null : TextInputAction.next,
-          onSubmitted: onNameNext == null ? null : (_) => onNameNext!(),
-          decoration: const InputDecoration(labelText: 'Nombre'),
+        FocusTraversalOrder(
+          order: const NumericFocusOrder(0),
+          child: TextField(
+            controller: nameController,
+            focusNode: nameFocus,
+            autofocus: autofocus,
+            enabled: enabled,
+            onChanged: onNameChanged,
+            textInputAction: onNameNext == null ? null : TextInputAction.next,
+            onSubmitted: onNameNext == null ? null : (_) => onNameNext!(),
+            decoration: const InputDecoration(labelText: 'Nombre'),
+          ),
         ),
         const SizedBox(height: 8),
         categoryField,
         const SizedBox(height: 8),
-        TextField(
-          controller: descriptionController,
-          focusNode: descriptionFocus,
-          enabled: enabled,
-          maxLines: 3,
-          textInputAction: onDescriptionSubmit == null
-              ? null
-              : TextInputAction.done,
-          onSubmitted: onDescriptionSubmit == null
-              ? null
-              : (_) => onDescriptionSubmit!(),
-          decoration: const InputDecoration(labelText: 'Descripción'),
+        FocusTraversalOrder(
+          order: NumericFocusOrder((1 << 20).toDouble()),
+          child: TextField(
+            controller: descriptionController,
+            focusNode: descriptionFocus,
+            enabled: enabled,
+            maxLines: 3,
+            textInputAction: onDescriptionSubmit == null
+                ? null
+                : TextInputAction.done,
+            onSubmitted: onDescriptionSubmit == null
+                ? null
+                : (_) => onDescriptionSubmit!(),
+            decoration: const InputDecoration(labelText: 'Descripción'),
+          ),
         ),
         const SizedBox(height: 16),
       ],
@@ -225,6 +231,7 @@ class _PlaceFormState extends State<PlaceForm> {
     return Card(
       elevation: 4,
       child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
