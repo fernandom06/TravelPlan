@@ -168,6 +168,80 @@ void main() {
     expect(savedDescription, 'Vistas');
   });
 
+  testWidgets('pressing Enter on the name submits the form', (tester) async {
+    String? savedName;
+    int? savedCategoryId;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (name, categoryId, _) {
+            savedName = name;
+            savedCategoryId = categoryId;
+          },
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    await _selectCategory(tester, 'Monumento');
+    await _fillName(tester);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(savedName, 'Mirador');
+    expect(savedCategoryId, 2);
+  });
+
+  testWidgets('pressing Enter on the description submits the form', (
+    tester,
+  ) async {
+    String? savedName;
+    int? savedCategoryId;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (name, categoryId, _) {
+            savedName = name;
+            savedCategoryId = categoryId;
+          },
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    await _selectCategory(tester, 'Monumento');
+    await _fillName(tester);
+    await tester.enterText(find.byType(TextField).last, 'Vistas');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(savedName, 'Mirador');
+    expect(savedCategoryId, 2);
+  });
+
+  testWidgets('pressing Enter does not submit when the form is invalid', (
+    tester,
+  ) async {
+    var submitted = false;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) => submitted = true,
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    await _fillName(tester);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(submitted, isFalse);
+  });
+
   testWidgets('read-only mode disables fields and shows Cerrar', (
     tester,
   ) async {
@@ -229,7 +303,8 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_, _) async => const Category(id: 5, name: 'Playa'),
+          onCreateCategory: (_, _) async =>
+              const Category(id: 5, name: 'Playa'),
         ),
       ),
     );
@@ -413,7 +488,8 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_, _) async => const Category(id: 5, name: 'Playa'),
+          onCreateCategory: (_, _) async =>
+              const Category(id: 5, name: 'Playa'),
         ),
       ),
     );

@@ -11,6 +11,7 @@ class _PlaceFields extends StatelessWidget {
     required this.categoryField,
     required this.onNameChanged,
     required this.enabled,
+    this.onSubmit,
   });
 
   final TextEditingController nameController;
@@ -18,9 +19,11 @@ class _PlaceFields extends StatelessWidget {
   final Widget categoryField;
   final ValueChanged<String>? onNameChanged;
   final bool enabled;
+  final VoidCallback? onSubmit;
 
   @override
   Widget build(BuildContext context) {
+    final onSubmitted = onSubmit == null ? null : (_) => onSubmit!();
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -29,6 +32,7 @@ class _PlaceFields extends StatelessWidget {
           controller: nameController,
           enabled: enabled,
           onChanged: onNameChanged,
+          onSubmitted: onSubmitted,
           decoration: const InputDecoration(labelText: 'Nombre'),
         ),
         const SizedBox(height: 8),
@@ -38,6 +42,8 @@ class _PlaceFields extends StatelessWidget {
           controller: descriptionController,
           enabled: enabled,
           maxLines: 3,
+          textInputAction: onSubmit == null ? null : TextInputAction.done,
+          onSubmitted: onSubmitted,
           decoration: const InputDecoration(labelText: 'Descripción'),
         ),
         const SizedBox(height: 16),
@@ -68,7 +74,7 @@ class PlaceForm extends StatefulWidget {
   final Future<Category> Function(String name, String? icon)? onCreateCategory;
   final List<Place> places;
   final Future<Category> Function(int id, String name, String? icon)?
-      onRenameCategory;
+  onRenameCategory;
   final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final String? initialName;
   final String? initialDescription;
@@ -125,6 +131,11 @@ class _PlaceFormState extends State<PlaceForm> {
       _selectedCategory!.id,
       description.isEmpty ? null : description,
     );
+  }
+
+  void _submit() {
+    if (!_canSave) return;
+    _handleSave();
   }
 
   Future<void> _handleDeleteTap() async {
@@ -194,6 +205,7 @@ class _PlaceFormState extends State<PlaceForm> {
               categoryField: _buildCategoryField(),
               onNameChanged: (_) => setState(() {}),
               enabled: true,
+              onSubmit: _submit,
             ),
             OverflowBar(
               alignment: MainAxisAlignment.end,
