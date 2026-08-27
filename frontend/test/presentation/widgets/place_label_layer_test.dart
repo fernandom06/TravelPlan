@@ -16,18 +16,12 @@ void main() {
 
   group('hiddenLabelIndexes', () {
     test('returns empty when nothing overlaps', () {
-      const rects = [
-        Rect.fromLTWH(0, 0, 10, 10),
-        Rect.fromLTWH(20, 0, 10, 10),
-      ];
+      const rects = [Rect.fromLTWH(0, 0, 10, 10), Rect.fromLTWH(20, 0, 10, 10)];
       expect(hiddenLabelIndexes(rects), isEmpty);
     });
 
     test('hides the second of two overlapping rects', () {
-      const rects = [
-        Rect.fromLTWH(0, 0, 20, 10),
-        Rect.fromLTWH(10, 0, 20, 10),
-      ];
+      const rects = [Rect.fromLTWH(0, 0, 20, 10), Rect.fromLTWH(10, 0, 20, 10)];
       expect(hiddenLabelIndexes(rects), {1});
     });
 
