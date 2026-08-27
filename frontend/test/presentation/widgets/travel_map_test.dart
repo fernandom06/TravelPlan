@@ -72,9 +72,7 @@ Widget _map({
 }
 
 List<Marker> _markers(WidgetTester tester) =>
-    tester
-        .widget<MarkerLayer>(find.byType(MarkerLayer).first)
-        .markers;
+    tester.widget<MarkerLayer>(find.byType(MarkerLayer).first).markers;
 
 Icon _markerIcon(Marker marker) {
   final child = marker.child;
@@ -331,7 +329,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(PlaceForm), findsOneWidget);
-    expect(find.text('Mirador'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(PlaceForm),
+        matching: find.text('Mirador'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Eliminar'), findsOneWidget);
     expect(find.text('Guardar'), findsOneWidget);
   });

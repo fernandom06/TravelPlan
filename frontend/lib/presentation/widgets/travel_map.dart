@@ -9,6 +9,7 @@ import '../../data/models/place_update.dart';
 import 'import_url_dialog.dart';
 import 'map_constants.dart';
 import 'place_form.dart';
+import 'place_label_layer.dart';
 
 class TravelMap extends StatefulWidget {
   const TravelMap({
@@ -23,6 +24,7 @@ class TravelMap extends StatefulWidget {
     this.onDeleteCategory,
     this.isOnline = true,
     this.onResolveMapUrl,
+    this.mapController,
   });
 
   final List<Place> places;
@@ -36,6 +38,7 @@ class TravelMap extends StatefulWidget {
   final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final bool isOnline;
   final Future<LatLng> Function(String url)? onResolveMapUrl;
+  final MapController? mapController;
 
   @override
   State<TravelMap> createState() => _TravelMapState();
@@ -71,9 +74,35 @@ class _Editing extends _MapFormState {
 }
 
 class _TravelMapState extends State<TravelMap> {
-  final _mapController = MapController();
+  late final MapController _mapController;
+  late final bool _ownsMapController;
 
   _MapFormState _state = const _Idle();
+
+  @override
+  void initState() {
+    super.initState();
+    final injected = widget.mapController;
+    if (injected != null) {
+      _mapController = injected;
+      _ownsMapController = false;
+    } else {
+      _mapController = MapController();
+      _ownsMapController = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_ownsMapController) _mapController.dispose();
+    super.dispose();
+  }
+
+  int? get _formPlaceId => switch (_state) {
+    _Viewing(:final place) => place.id,
+    _Editing(:final place) => place.id,
+    _Idle() || _Creating() => null,
+  };
 
   void _closeForm() {
     setState(() => _state = const _Idle());
@@ -291,6 +320,10 @@ class _TravelMapState extends State<TravelMap> {
               userAgentPackageName: 'dev.travelplan.frontend',
             ),
             MarkerLayer(markers: markers),
+            PlaceLabelsLayer(
+              places: widget.places,
+              hiddenPlaceId: _formPlaceId,
+            ),
           ],
         ),
         if (_state is! _Idle) _buildFormOverlay(),
