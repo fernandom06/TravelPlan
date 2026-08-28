@@ -11,6 +11,7 @@ class TripForm extends StatefulWidget {
     this.onDelete,
     this.onPickImage,
     this.initialTrip,
+    this.initialDraft,
   });
 
   final void Function(TripDraft draft) onSave;
@@ -18,6 +19,7 @@ class TripForm extends StatefulWidget {
   final VoidCallback? onDelete;
   final Future<String?> Function()? onPickImage;
   final Trip? initialTrip;
+  final TripDraft? initialDraft;
 
   @override
   State<TripForm> createState() => _TripFormState();
@@ -35,15 +37,22 @@ class _TripFormState extends State<TripForm> {
   void initState() {
     super.initState();
     final trip = widget.initialTrip;
+    final draft = widget.initialDraft;
     final now = DateTime.now();
-    _nameController = TextEditingController(text: trip?.name);
-    _descriptionController = TextEditingController(
-      text: trip?.description ?? '',
+    _nameController = TextEditingController(
+      text: trip?.name ?? draft?.name,
     );
-    _urlController = TextEditingController(text: trip?.imageUrl ?? '');
-    _startDate = trip?.startDate ?? DateTime(now.year, now.month, now.day);
-    _endDate = trip?.endDate ?? _startDate.add(const Duration(days: 1));
-    _imageUrl = trip?.imageUrl;
+    _descriptionController = TextEditingController(
+      text: trip?.description ?? draft?.description ?? '',
+    );
+    _urlController = TextEditingController(
+      text: trip?.imageUrl ?? draft?.imageUrl ?? '',
+    );
+    _startDate =
+        trip?.startDate ?? draft?.startDate ?? DateTime(now.year, now.month, now.day);
+    _endDate =
+        trip?.endDate ?? draft?.endDate ?? _startDate.add(const Duration(days: 1));
+    _imageUrl = trip?.imageUrl ?? draft?.imageUrl;
   }
 
   @override
