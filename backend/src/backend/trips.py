@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from . import config
 from .database import get_db
 from .schemas import ImageUploadResponse, TripCreate, TripResponse, TripUpdate
+from .zones import link_places_in_zone
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -61,6 +62,8 @@ def create_trip(
             payload.image_url,
         ),
     )
+    if payload.zone is not None:
+        link_places_in_zone(conn, trip_id, payload.zone.points)
     conn.commit()
     return _row_to_response(_fetch_trip(conn, trip_id))
 
