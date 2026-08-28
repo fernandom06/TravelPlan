@@ -60,12 +60,22 @@ class TripResponse(BaseModel):
     created_at: str
 
 
+class ZonePoint(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class ZoneCreate(BaseModel):
+    points: list[ZonePoint] = Field(min_length=3, max_length=200)
+
+
 class TripCreate(BaseModel):
     name: str = Field(min_length=1)
     start_date: date
     end_date: date
     description: str | None = None
     image_url: str | None = None
+    zone: ZoneCreate | None = None
 
     @model_validator(mode="after")
     def _validate_dates(self):
