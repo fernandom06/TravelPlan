@@ -1,3 +1,5 @@
+import 'zone_point.dart';
+
 class TripDraft {
   const TripDraft({
     required this.name,
@@ -5,6 +7,7 @@ class TripDraft {
     required this.endDate,
     this.description,
     this.imageUrl,
+    this.zone,
   });
 
   final String name;
@@ -12,6 +15,16 @@ class TripDraft {
   final DateTime endDate;
   final String? description;
   final String? imageUrl;
+  final List<ZonePoint>? zone;
+
+  TripDraft copyWith({List<ZonePoint>? zone}) => TripDraft(
+    name: name,
+    startDate: startDate,
+    endDate: endDate,
+    description: description,
+    imageUrl: imageUrl,
+    zone: zone ?? this.zone,
+  );
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -19,6 +32,7 @@ class TripDraft {
     'end_date': _formatDate(endDate),
     'description': description,
     'image_url': imageUrl,
+    'zone': zone?.map((p) => p.toJson()).toList(),
   };
 
   static String _formatDate(DateTime d) =>
