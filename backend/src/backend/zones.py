@@ -59,11 +59,17 @@ def _on_segment(
 def link_places_in_zone(
     conn: sqlite3.Connection, trip_id: str, points: list[ZonePoint]
 ) -> int:
-    """Vincula a ``trip_places`` los places que caen dentro de la zona.
+    """Vincula a ``trip_itinerary_items`` los places que caen dentro de la zona.
 
-    No hace commit propio: la transacción la cierra el router. La PK
-    ``(trip_id, place_id)`` descarta duplicados si se llama dos veces.
+    Los items se crean en la lista general (``day_date``/``slot`` NULL) al
+    final de la misma, con ``position`` correlativo. No hace commit propio:
+    la transacción la cierra el router.
     """
+    next_position = conn.execute(
+        "SELECT COALESCE(MAX(position) + 1, 0) FROM trip_itinerary_items "
+        "WHERE trip_id = ? AND day_date IS NULL AND slot IS NULL",
+        (trip_id,),
+    ).fetchone()[0]
     rows = conn.execute(
         "SELECT id, latitude, longitude FROM places"
     ).fetchall()
@@ -71,8 +77,11 @@ def link_places_in_zone(
     for row in rows:
         if point_in_polygon(row["latitude"], row["longitude"], points):
             conn.execute(
-                "INSERT INTO trip_places (trip_id, place_id) VALUES (?, ?)",
-                (trip_id, row["id"]),
+                "INSERT INTO trip_itinerary_items "
+                "(trip_id, place_id, day_date, slot, position) "
+                "VALUES (?, ?, NULL, NULL, ?)",
+                (trip_id, row["id"], next_position),
             )
+            next_position += 1
             linked += 1
     return linked

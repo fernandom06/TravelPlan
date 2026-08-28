@@ -39,7 +39,10 @@ def _create_place(client, category_id, latitude, longitude, name="Mirador"):
 
 def _linked_place_ids(db_conn, trip_id):
     rows = db_conn.execute(
-        "SELECT place_id FROM trip_places WHERE trip_id = ?", (trip_id,)
+        "SELECT place_id FROM trip_itinerary_items "
+        "WHERE trip_id = ? AND day_date IS NULL AND slot IS NULL "
+        "ORDER BY position",
+        (trip_id,),
     ).fetchall()
     return sorted(row["place_id"] for row in rows)
 
@@ -158,3 +161,42 @@ def test_delete_trip_cascades_trip_places(test_client, db_conn):
     assert _linked_place_ids(db_conn, created["id"]) == []
     # El place sobrevive al borrado del viaje.
     assert test_client.get(f"/places/{inside['id']}").status_code == 200
+
+
+def test_zone_bulk_add_uses_correlative_positions_in_general_list(
+    test_client, db_conn
+):
+    category = _create_category(test_client)
+    _create_place(test_client, category["id"], 42.5, -3.5, "Dentro 1")
+    _create_place(test_client, category["id"], 42.3, -3.2, "Dentro 2")
+
+    created = test_client.post(
+        "/trips", json=_valid_trip(zone=_square_zone())
+    ).json()
+
+    rows = db_conn.execute(
+        "SELECT place_id, position, day_date, slot FROM trip_itinerary_items "
+        "WHERE trip_id = ? ORDER BY position",
+        (created["id"],),
+    ).fetchall()
+    assert [row["place_id"] for row in rows] == sorted(
+        row["place_id"] for row in rows
+    )
+    assert [row["position"] for row in rows] == [0, 1]
+    assert all(row["day_date"] is None and row["slot"] is None for row in rows)
+
+
+def test_zone_bulk_add_links_each_place_once(test_client, db_conn):
+    category = _create_category(test_client)
+    inside = _create_place(test_client, category["id"], 42.5, -3.5, "Dentro")
+
+    created = test_client.post(
+        "/trips", json=_valid_trip(zone=_square_zone())
+    ).json()
+
+    count = db_conn.execute(
+        "SELECT COUNT(*) FROM trip_itinerary_items "
+        "WHERE trip_id = ? AND place_id = ?",
+        (created["id"], inside["id"]),
+    ).fetchone()[0]
+    assert count == 1
