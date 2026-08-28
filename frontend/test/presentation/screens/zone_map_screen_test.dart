@@ -190,4 +190,21 @@ void main() {
     expect(result, isNull);
     expect(find.byType(ZoneMapScreen), findsNothing);
   });
+
+  testWidgets('BackButton after drawing points pops with null and discards', (
+    tester,
+  ) async {
+    TripDraft? result;
+    await tester.pumpWidget(_Host(onResult: (r) => result = r));
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+
+    await _drawThreePoints(tester);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(result, isNull);
+    expect(find.byType(ZoneMapScreen), findsNothing);
+  });
 }

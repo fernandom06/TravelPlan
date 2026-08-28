@@ -122,6 +122,39 @@ void main() {
       expect(trip.id, 'abc');
     });
 
+    test('createTrip sends collinear 3-point zone unchanged', () async {
+      const points = [
+        ZonePoint(latitude: 42.0, longitude: -4.0),
+        ZonePoint(latitude: 42.0, longitude: -3.0),
+        ZonePoint(latitude: 42.0, longitude: -2.0),
+      ];
+      final client = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/trips');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['zone'], {
+          'points': [
+            {'latitude': 42.0, 'longitude': -4.0},
+            {'latitude': 42.0, 'longitude': -3.0},
+            {'latitude': 42.0, 'longitude': -2.0},
+          ],
+        });
+        return http.Response(jsonEncode(_tripJson), 201);
+      });
+      final api = TripApi(baseUrl: 'http://localhost:8000', client: client);
+
+      final trip = await api.createTrip(
+        TripDraft(
+          name: 'Viaje a Galicia',
+          startDate: DateTime(2026, 6, 1),
+          endDate: DateTime(2026, 6, 10),
+          zone: points,
+        ),
+      );
+
+      expect(trip.id, 'abc');
+    });
+
     test('updateTrip sends PATCH with body', () async {
       final client = MockClient((request) async {
         expect(request.method, 'PATCH');
