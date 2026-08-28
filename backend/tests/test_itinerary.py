@@ -464,3 +464,20 @@ def test_delete_item_not_found(test_client):
     response = test_client.delete(f"/trips/{trip['id']}/itinerary/999")
 
     assert response.status_code == 404
+
+
+def test_deleting_place_removes_it_from_all_itineraries(test_client):
+    category = _create_category(test_client)
+    place = _create_place(test_client, category["id"], "Mirador")
+    trip_a = _create_trip(test_client)
+    trip_b = _create_trip(test_client)
+    _add_item(test_client, trip_a["id"], place["id"])
+    _add_item(test_client, trip_a["id"], place["id"])
+    _add_item(test_client, trip_b["id"], place["id"])
+
+    response = test_client.delete(f"/places/{place['id']}")
+
+    assert response.status_code == 204
+    for trip in (trip_a, trip_b):
+        itinerary = test_client.get(f"/trips/{trip['id']}/itinerary").json()
+        assert itinerary == []
