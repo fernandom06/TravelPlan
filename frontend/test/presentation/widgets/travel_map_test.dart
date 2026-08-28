@@ -9,6 +9,7 @@ import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/data/models/place_update.dart';
 import 'package:frontend/presentation/widgets/category_dropdown.dart';
 import 'package:frontend/presentation/widgets/import_url_dialog.dart';
+import 'package:frontend/presentation/widgets/map_constants.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
@@ -42,6 +43,7 @@ Future<void> _noopDelete(int id) async {}
 Widget _map({
   List<Place> places = const [],
   bool isOnline = true,
+  MapController? mapController,
   Future<Category> Function(String name, String? icon)? onCreateCategory,
   Future<Category> Function(int id, String name, String? icon)?
   onRenameCategory,
@@ -63,18 +65,31 @@ Widget _map({
         onDeleteCategory: onDeleteCategory,
         isOnline: isOnline,
         onResolveMapUrl: onResolveMapUrl,
+        mapController: mapController,
       ),
     ),
   );
 }
 
 List<Marker> _markers(WidgetTester tester) =>
-    tester.widget<MarkerLayer>(find.byType(MarkerLayer)).markers;
+    tester.widget<MarkerLayer>(find.byType(MarkerLayer).first).markers;
 
 Icon _markerIcon(Marker marker) {
   final child = marker.child;
   if (child is Icon) return child;
   return (child as GestureDetector).child as Icon;
+}
+
+double _labelOpacity(WidgetTester tester, int id) {
+  final opacity = tester.widget<Opacity>(
+    find
+        .descendant(
+          of: find.byKey(ValueKey('place-label-$id')),
+          matching: find.byType(Opacity),
+        )
+        .first,
+  );
+  return opacity.opacity;
 }
 
 void main() {
@@ -105,6 +120,59 @@ void main() {
     expect(_markers(tester), hasLength(1));
     expect(_markerIcon(_markers(tester).first).color, Colors.red);
     expect(find.byType(PlaceForm), findsOneWidget);
+  });
+
+  testWidgets('autofocus on Nombre when creating via tap', (tester) async {
+    await tester.pumpWidget(_map());
+
+    await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceForm), findsOneWidget);
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('autofocus on Nombre when editing', (tester) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('Editar'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceForm), findsOneWidget);
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('autofocus on Nombre when importing', (tester) async {
+    await tester.pumpWidget(
+      _map(
+        onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.link));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField),
+      'https://maps.app.goo.gl/tpabGChzziYCfgjy5',
+    );
+    await tester.tap(find.text('Importar'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceForm), findsOneWidget);
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
   });
 
   testWidgets(
@@ -261,7 +329,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(PlaceForm), findsOneWidget);
-    expect(find.text('Mirador'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(PlaceForm),
+        matching: find.text('Mirador'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Eliminar'), findsOneWidget);
     expect(find.text('Guardar'), findsOneWidget);
   });
@@ -625,6 +699,146 @@ void main() {
 
       expect(find.byType(PlaceForm), findsNothing);
       expect(_markers(tester), isEmpty);
+    });
+  });
+
+  group('place labels', () {
+    testWidgets('label is visible with the place name at default zoom', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_map(places: [_place]));
+
+      expect(_labelOpacity(tester, 1), 1.0);
+      expect(find.text('Mirador'), findsOneWidget);
+    });
+
+    testWidgets('label is hidden below zoom 9', (tester) async {
+      final controller = MapController();
+      await tester.pumpWidget(
+        _map(places: [_place], mapController: controller),
+      );
+      await tester.pumpAndSettle();
+
+      controller.move(kDefaultCenter, 8.0);
+      await tester.pump();
+
+      expect(_labelOpacity(tester, 1), 0.0);
+    });
+
+    testWidgets('label fades at intermediate zoom', (tester) async {
+      final controller = MapController();
+      await tester.pumpWidget(
+        _map(places: [_place], mapController: controller),
+      );
+      await tester.pumpAndSettle();
+
+      controller.move(kDefaultCenter, 10.0);
+      await tester.pump();
+
+      expect(_labelOpacity(tester, 1), closeTo(0.5, 0.001));
+    });
+
+    testWidgets('overlapping labels keep only the first place visible', (
+      tester,
+    ) async {
+      const other = Place(
+        id: 2,
+        name: 'Otro',
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await tester.pumpWidget(_map(places: [_place, other]));
+
+      expect(_labelOpacity(tester, 1), 1.0);
+      expect(_labelOpacity(tester, 2), 0.0);
+    });
+
+    testWidgets('open popup hides its own label', (tester) async {
+      const other = Place(
+        id: 2,
+        name: 'Otro',
+        description: null,
+        latitude: 42.02,
+        longitude: -3.02,
+        category: _naturaleza,
+      );
+      await tester.pumpWidget(_map(places: [_place, other]));
+
+      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.byType(PlaceDetails), findsOneWidget);
+      expect(_labelOpacity(tester, 1), 0.0);
+      expect(_labelOpacity(tester, 2), 1.0);
+    });
+
+    testWidgets('editing keeps the open label hidden', (tester) async {
+      const other = Place(
+        id: 2,
+        name: 'Otro',
+        description: null,
+        latitude: 42.02,
+        longitude: -3.02,
+        category: _naturaleza,
+      );
+      await tester.pumpWidget(_map(places: [_place, other]));
+
+      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('Editar'));
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.byType(PlaceForm), findsOneWidget);
+      expect(_labelOpacity(tester, 1), 0.0);
+    });
+
+    testWidgets('closing the popup restores the label', (tester) async {
+      const other = Place(
+        id: 2,
+        name: 'Otro',
+        description: null,
+        latitude: 42.02,
+        longitude: -3.02,
+        category: _naturaleza,
+      );
+      await tester.pumpWidget(_map(places: [_place, other]));
+
+      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('Cerrar'));
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.byType(PlaceDetails), findsNothing);
+      expect(_labelOpacity(tester, 1), 1.0);
+    });
+
+    testWidgets('creating a place does not add a label', (tester) async {
+      await tester.pumpWidget(_map());
+
+      await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.byType(PlaceForm), findsOneWidget);
+      expect(find.byKey(const ValueKey('place-label-1')), findsNothing);
+    });
+
+    testWidgets('runtime place updates refresh labels', (tester) async {
+      const other = Place(
+        id: 2,
+        name: 'Otro',
+        description: null,
+        latitude: 42.02,
+        longitude: -3.02,
+        category: _naturaleza,
+      );
+      await tester.pumpWidget(_map(places: [_place]));
+      expect(find.byKey(const ValueKey('place-label-1')), findsOneWidget);
+
+      await tester.pumpWidget(_map(places: [_place, other]));
+      expect(find.byKey(const ValueKey('place-label-1')), findsOneWidget);
+      expect(find.byKey(const ValueKey('place-label-2')), findsOneWidget);
     });
   });
 }

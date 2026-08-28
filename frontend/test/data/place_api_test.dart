@@ -406,25 +406,31 @@ void main() {
     });
 
     group('resolveMapUrl', () {
-      test('sends POST with url body and returns parsed LatLng on 200', () async {
-        final client = MockClient((request) async {
-          expect(request.method, 'POST');
-          expect(request.url.path, '/maps/resolve-url');
-          final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body, {'url': 'https://maps.app.goo.gl/tpabGChzziYCfgjy5'});
-          return http.Response(
-            jsonEncode({'latitude': 41.6474339, 'longitude': -0.8861451}),
-            200,
+      test(
+        'sends POST with url body and returns parsed LatLng on 200',
+        () async {
+          final client = MockClient((request) async {
+            expect(request.method, 'POST');
+            expect(request.url.path, '/maps/resolve-url');
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            expect(body, {'url': 'https://maps.app.goo.gl/tpabGChzziYCfgjy5'});
+            return http.Response(
+              jsonEncode({'latitude': 41.6474339, 'longitude': -0.8861451}),
+              200,
+            );
+          });
+          final api = PlaceApi(
+            baseUrl: 'http://localhost:8000',
+            client: client,
           );
-        });
-        final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
-        final point = await api.resolveMapUrl(
-          'https://maps.app.goo.gl/tpabGChzziYCfgjy5',
-        );
+          final point = await api.resolveMapUrl(
+            'https://maps.app.goo.gl/tpabGChzziYCfgjy5',
+          );
 
-        expect(point, const LatLng(41.6474339, -0.8861451));
-      });
+          expect(point, const LatLng(41.6474339, -0.8861451));
+        },
+      );
 
       test('throws MapUrlResolveException with server detail on 422', () async {
         final client = MockClient(
@@ -469,7 +475,9 @@ void main() {
       });
 
       test('throws MapUrlResolveException on generic 500', () async {
-        final client = MockClient((request) async => http.Response('error', 500));
+        final client = MockClient(
+          (request) async => http.Response('error', 500),
+        );
         final api = PlaceApi(baseUrl: 'http://localhost:8000', client: client);
 
         await expectLater(

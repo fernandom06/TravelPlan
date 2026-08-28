@@ -622,6 +622,26 @@ void main() {
   });
 
   group('create inline', () {
+    testWidgets('tapping Nueva categoría focuses the name input', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _Harness(
+          categories: [_naturaleza],
+          onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+        ),
+      );
+
+      await _openMenu(tester);
+      await _startCreate(tester);
+
+      final field = find.byType(TextField);
+      expect(field, findsOneWidget);
+      final editable = tester.widget<EditableText>(find.byType(EditableText));
+      expect(editable.focusNode.hasFocus, isTrue);
+      expect(tester.testTextInput.hasAnyClients, isTrue);
+    });
+
     testWidgets('confirm via check adds category and autoselects', (
       tester,
     ) async {
@@ -1020,12 +1040,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        _wrap(
-          CategoryDropdown(
-            categories: [_naturaleza],
-            onChanged: (_) {},
-          ),
-        ),
+        _wrap(CategoryDropdown(categories: [_naturaleza], onChanged: (_) {})),
       );
 
       expect(find.byIcon(categoryPlaceholderIcon), findsNothing);
@@ -1036,10 +1051,7 @@ void main() {
       const monument = Category(id: 2, name: 'Monumento', icon: 'monument');
       await tester.pumpWidget(
         _wrap(
-          CategoryDropdown(
-            categories: [beach, monument],
-            onChanged: (_) {},
-          ),
+          CategoryDropdown(categories: [beach, monument], onChanged: (_) {}),
         ),
       );
 
@@ -1049,9 +1061,7 @@ void main() {
       expect(find.byIcon(Icons.account_balance), findsOneWidget);
     });
 
-    testWidgets('categories without icon show the placeholder', (
-      tester,
-    ) async {
+    testWidgets('categories without icon show the placeholder', (tester) async {
       await tester.pumpWidget(
         _wrap(
           CategoryDropdown(
@@ -1209,6 +1219,633 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(record.renamedIcon, 'beach');
+    });
+  });
+
+  group('trigger focus', () {
+    testWidgets('trigger receiving focus opens the panel', (tester) async {
+      final triggerFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [_naturaleza, _monumento],
+            focusNode: triggerFocus,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListTile), findsWidgets);
+    });
+
+    testWidgets('trigger losing focus to external node closes panel', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                CategoryDropdown(
+                  categories: [_naturaleza, _monumento],
+                  focusNode: triggerFocus,
+                  onChanged: (_) {},
+                ),
+                TextField(focusNode: externalFocus),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+      expect(find.byType(ListTile), findsWidgets);
+
+      externalFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListTile), findsNothing);
+    });
+
+    testWidgets('disabled dropdown trigger does not open on focus', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          CategoryDropdown(
+            categories: [_naturaleza, _monumento],
+            focusNode: triggerFocus,
+            enabled: false,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListTile), findsNothing);
+    });
+
+    testWidgets(
+      'trigger losing focus to internal inline row keeps panel open',
+      (tester) async {
+        final triggerFocus = FocusNode();
+        addTearDown(triggerFocus.dispose);
+        await tester.pumpWidget(
+          _wrap(
+            CategoryDropdown(
+              categories: [_naturaleza, _monumento],
+              focusNode: triggerFocus,
+              onChanged: (_) {},
+              onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+            ),
+          ),
+        );
+
+        triggerFocus.requestFocus();
+        await tester.pumpAndSettle();
+        expect(find.byType(ListTile), findsWidgets);
+
+        await _startCreate(tester);
+
+        expect(find.byType(ListTile), findsWidgets);
+        expect(find.byType(TextField), findsOneWidget);
+      },
+    );
+  });
+
+  group('Tab navigation through rows', () {
+    Future<void> pumpNavHarness(
+      WidgetTester tester, {
+      required FocusNode triggerFocus,
+      required FocusNode externalFocus,
+      List<Category> categories = const [_naturaleza, _monumento],
+      ValueChanged<Category?>? onChanged,
+      Future<Category> Function(String name, String? icon)? onCreate,
+      Future<Category> Function(int id, String name, String? icon)? onRename,
+      Future<void> Function(int id, int? reassignTo)? onDelete,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                CategoryDropdown(
+                  categories: categories,
+                  focusNode: triggerFocus,
+                  onChanged: onChanged ?? (_) {},
+                  onCreate: onCreate,
+                  onRename: onRename,
+                  onDelete: onDelete,
+                ),
+                TextField(focusNode: externalFocus),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('Tab from trigger enters the first category row', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+
+      final rowFocus = Focus.maybeOf(
+        tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
+      );
+      expect(rowFocus, isNotNull);
+      expect(rowFocus!.hasPrimaryFocus, isTrue);
+      expect(externalFocus.hasFocus, isFalse);
+      expect(find.byType(ListTile), findsWidgets);
+    });
+
+    testWidgets('Tab traverses the rows in visual order', (tester) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+        onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
+        )!.hasPrimaryFocus,
+        isTrue,
+      );
+      expect(find.byType(ListTile), findsWidgets);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Monumento')),
+        )!.hasPrimaryFocus,
+        isTrue,
+      );
+      expect(find.byType(ListTile), findsWidgets);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Nueva categoría')),
+        )!.hasPrimaryFocus,
+        isTrue,
+      );
+      expect(find.byType(ListTile), findsWidgets);
+    });
+
+    testWidgets('Tab from the last row exits to the external field', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+        onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+
+      expect(externalFocus.hasFocus, isTrue);
+      expect(find.byType(ListTile), findsNothing);
+    });
+
+    testWidgets('Shift+Tab from the external field returns to the trigger', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+        onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(externalFocus.hasFocus, isTrue);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+
+      expect(triggerFocus.hasFocus, isTrue);
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Nueva categoría')),
+        )!.hasPrimaryFocus,
+        isFalse,
+      );
+      expect(find.byType(ListTile), findsWidgets);
+    });
+
+    testWidgets(
+      'Enter on a focused row selects it, closes the panel and the next Tab exits',
+      (tester) async {
+        final triggerFocus = FocusNode();
+        final externalFocus = FocusNode();
+        final selected = <Category?>[];
+        addTearDown(triggerFocus.dispose);
+        addTearDown(externalFocus.dispose);
+        await pumpNavHarness(
+          tester,
+          triggerFocus: triggerFocus,
+          externalFocus: externalFocus,
+          onChanged: selected.add,
+        );
+
+        triggerFocus.requestFocus();
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(
+          Focus.maybeOf(
+            tester.element(find.widgetWithText(ListTile, 'Monumento')),
+          )!.hasPrimaryFocus,
+          isTrue,
+        );
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        expect(selected.last, _monumento);
+        expect(find.byType(ListTile), findsNothing);
+        expect(triggerFocus.hasFocus, isTrue);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(externalFocus.hasFocus, isTrue);
+        expect(find.byType(ListTile), findsNothing);
+      },
+    );
+
+    testWidgets('Space on a focused row selects it and closes the panel', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      final selected = <Category?>[];
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+        onChanged: selected.add,
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+
+      expect(selected.last, _monumento);
+      expect(find.byType(ListTile), findsNothing);
+      expect(triggerFocus.hasFocus, isTrue);
+    });
+
+    testWidgets('Enter on "Nueva categoría" starts the inline create', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+        onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+
+      final createField = find.widgetWithText(
+        TextField,
+        'Nombre de la categoría',
+      );
+      expect(createField, findsOneWidget);
+      final editable = tester.widget<EditableText>(
+        find.descendant(of: createField, matching: find.byType(EditableText)),
+      );
+      expect(editable.focusNode.hasFocus, isTrue);
+    });
+
+    testWidgets('each row is a single tab-stop, skipping the icon buttons', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+        onRename: (_, _, _) async => _naturaleza,
+        onDelete: (_, _) async {},
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      // The edit/delete icon buttons exist on the rows.
+      expect(find.byIcon(Icons.edit), findsNWidgets(2));
+      expect(find.byIcon(Icons.delete_outline), findsNWidgets(2));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
+        )!.hasPrimaryFocus,
+        isTrue,
+      );
+
+      // A single Tab lands on the next row, not on an icon button.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Monumento')),
+        )!.hasPrimaryFocus,
+        isTrue,
+      );
+    });
+
+    testWidgets('panel stays open while focus moves between trigger and rows', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(find.byType(ListTile), findsWidgets);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(find.byType(ListTile), findsWidgets);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
+        )!.hasPrimaryFocus,
+        isTrue,
+      );
+      expect(find.byType(ListTile), findsWidgets);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(triggerFocus.hasFocus, isTrue);
+      expect(find.byType(ListTile), findsWidgets);
+    });
+
+    testWidgets('empty list: trigger to "Nueva categoría" then exits', (
+      tester,
+    ) async {
+      final triggerFocus = FocusNode();
+      final externalFocus = FocusNode();
+      addTearDown(triggerFocus.dispose);
+      addTearDown(externalFocus.dispose);
+      await pumpNavHarness(
+        tester,
+        triggerFocus: triggerFocus,
+        externalFocus: externalFocus,
+        categories: const [],
+        onCreate: (_, _) async => const Category(id: 5, name: 'Playa'),
+      );
+
+      triggerFocus.requestFocus();
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Nueva categoría')),
+        )!.hasPrimaryFocus,
+        isTrue,
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(externalFocus.hasFocus, isTrue);
+      expect(find.byType(ListTile), findsNothing);
+    });
+
+    testWidgets(
+      'tap-selecting a row during keyboard nav returns focus to trigger',
+      (tester) async {
+        final triggerFocus = FocusNode();
+        final externalFocus = FocusNode();
+        final selected = <Category?>[];
+        addTearDown(triggerFocus.dispose);
+        addTearDown(externalFocus.dispose);
+        await pumpNavHarness(
+          tester,
+          triggerFocus: triggerFocus,
+          externalFocus: externalFocus,
+          onChanged: selected.add,
+        );
+
+        triggerFocus.requestFocus();
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(
+          Focus.maybeOf(
+            tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
+          )!.hasPrimaryFocus,
+          isTrue,
+        );
+
+        await tester.tap(find.text('Monumento'));
+        await tester.pumpAndSettle();
+
+        expect(selected.last, _monumento);
+        expect(find.byType(ListTile), findsNothing);
+        expect(triggerFocus.hasFocus, isTrue);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(externalFocus.hasFocus, isTrue);
+        expect(find.byType(ListTile), findsNothing);
+      },
+    );
+  });
+
+  group('Tab stays within the inline rows', () {
+    testWidgets('Tab stays within the inline create row', (tester) async {
+      final dummyFocus = FocusNode();
+      addTearDown(dummyFocus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                CategoryDropdown(
+                  categories: [_naturaleza, _monumento],
+                  onChanged: (_) {},
+                  onCreate: (_, _) async =>
+                      const Category(id: 5, name: 'Playa'),
+                ),
+                TextField(focusNode: dummyFocus),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(CategoryDropdown));
+      await tester.pumpAndSettle();
+      await _startCreate(tester);
+      final createField = find.widgetWithText(
+        TextField,
+        'Nombre de la categoría',
+      );
+      expect(createField, findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      // Tab did not escape to the external dummy field.
+      expect(dummyFocus.hasFocus, isFalse);
+      // The create row is still visible.
+      expect(createField, findsOneWidget);
+    });
+
+    testWidgets('Tab stays within the inline rename row', (tester) async {
+      final dummyFocus = FocusNode();
+      addTearDown(dummyFocus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                CategoryDropdown(
+                  categories: [_naturaleza, _monumento],
+                  value: _naturaleza,
+                  onChanged: (_) {},
+                  onRename: (_, _, _) async => _naturaleza,
+                  onDelete: (_, _) async {},
+                ),
+                TextField(focusNode: dummyFocus),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(CategoryDropdown));
+      await tester.pumpAndSettle();
+      await _startRename(tester);
+      final renameField = find.widgetWithText(TextField, 'Nuevo nombre');
+      expect(renameField, findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      expect(dummyFocus.hasFocus, isFalse);
+      expect(renameField, findsOneWidget);
     });
   });
 }

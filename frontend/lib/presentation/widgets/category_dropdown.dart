@@ -30,6 +30,7 @@ class CategoryDropdown extends StatefulWidget {
     this.onCategoryAdded,
     this.onCategoryRenamed,
     this.onCategoryDeleted,
+    this.focusNode,
   });
 
   final List<Category> categories;
@@ -43,6 +44,7 @@ class CategoryDropdown extends StatefulWidget {
   final ValueChanged<Category>? onCategoryAdded;
   final ValueChanged<Category>? onCategoryRenamed;
   final ValueChanged<int>? onCategoryDeleted;
+  final FocusNode? focusNode;
 
   @override
   State<CategoryDropdown> createState() => _CategoryDropdownState();
@@ -53,9 +55,14 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   final GlobalKey _triggerKey = GlobalKey();
   final OverlayPortalController _overlayController = OverlayPortalController();
 
+  late final FocusNode _triggerFocus;
+  late final FocusScopeNode _panelScope = FocusScopeNode();
+  bool _suppressOpenOnFocus = false;
+
   int? _editingId;
   late final TextEditingController _editController;
   late final FocusNode _editFocus;
+  late final FocusNode _editInputFocus;
   String? _editError;
   String? _editIcon;
   bool _isSubmittingEdit = false;
@@ -63,6 +70,7 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   bool _isCreating = false;
   late final TextEditingController _createController;
   late final FocusNode _createFocus;
+  late final FocusNode _createInputFocus;
   String? _createError;
   String? _createIcon;
   bool _isSubmittingCreate = false;
@@ -70,18 +78,31 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   @override
   void initState() {
     super.initState();
+    _triggerFocus = widget.focusNode ?? FocusNode();
+    _triggerFocus.addListener(_handleDropdownFocusChange);
+    _panelScope.addListener(_handleDropdownFocusChange);
     _editController = TextEditingController();
     _editFocus = FocusNode();
+    _editInputFocus = FocusNode();
     _createController = TextEditingController();
     _createFocus = FocusNode();
+    _createInputFocus = FocusNode();
   }
 
   @override
   void dispose() {
+    _triggerFocus.removeListener(_handleDropdownFocusChange);
+    if (widget.focusNode == null) {
+      _triggerFocus.dispose();
+    }
+    _panelScope.removeListener(_handleDropdownFocusChange);
+    _panelScope.dispose();
     _editController.dispose();
     _editFocus.dispose();
+    _editInputFocus.dispose();
     _createController.dispose();
     _createFocus.dispose();
+    _createInputFocus.dispose();
     super.dispose();
   }
 
@@ -95,6 +116,33 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
         _overlayController.hide();
       }
     });
+  }
+
+  void _open() {
+    if (!widget.enabled || _isOpen) return;
+    setState(() {
+      _isOpen = true;
+      _overlayController.show();
+    });
+  }
+
+  void _handleDropdownFocusChange() {
+    if (!mounted) return;
+    if (_triggerFocus.hasFocus || _panelScope.hasFocus) {
+      if (widget.enabled && !_isOpen && !_suppressOpenOnFocus) _open();
+      _suppressOpenOnFocus = false;
+    } else {
+      _suppressOpenOnFocus = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final route = ModalRoute.of(context);
+        if (!_triggerFocus.hasFocus &&
+            !_panelScope.hasFocus &&
+            (route == null || route.isCurrent)) {
+          _close();
+        }
+      });
+    }
   }
 
   void _close() {
@@ -111,6 +159,87 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     });
   }
 
+  void _selectCategory(Category c) {
+    widget.onChanged(c);
+    _close();
+    _suppressOpenOnFocus = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _triggerFocus.requestFocus();
+    });
+  }
+
+  void _focusRowAt(int offset) {
+    final nodes = _panelScope.traversalDescendants.toList();
+    final current = FocusManager.instance.primaryFocus;
+    final index = current == null ? -1 : nodes.indexOf(current);
+    final target = index + offset;
+    if (target >= 0 && target < nodes.length) {
+      nodes[target].requestFocus();
+      return;
+    }
+    if (offset > 0) {
+      _exitPanelForward();
+    } else {
+      _triggerFocus.requestFocus();
+    }
+  }
+
+  void _exitPanelForward() {
+    _close();
+    _suppressOpenOnFocus = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _triggerFocus.requestFocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _triggerFocus.nextFocus();
+      });
+    });
+  }
+
+  KeyEventResult _handleTriggerKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.tab &&
+        !HardwareKeyboard.instance.isShiftPressed &&
+        _isOpen) {
+      _focusRowAt(1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handleRowKey(FocusNode node, KeyEvent event, Category c) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final logical = event.logicalKey;
+    if (logical == LogicalKeyboardKey.enter ||
+        logical == LogicalKeyboardKey.numpadEnter ||
+        logical == LogicalKeyboardKey.space) {
+      _selectCategory(c);
+      return KeyEventResult.handled;
+    }
+    if (logical == LogicalKeyboardKey.tab) {
+      _focusRowAt(HardwareKeyboard.instance.isShiftPressed ? -1 : 1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handleNewCategoryKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final logical = event.logicalKey;
+    if (logical == LogicalKeyboardKey.enter ||
+        logical == LogicalKeyboardKey.numpadEnter ||
+        logical == LogicalKeyboardKey.space) {
+      _startCreate();
+      return KeyEventResult.handled;
+    }
+    if (logical == LogicalKeyboardKey.tab) {
+      _focusRowAt(HardwareKeyboard.instance.isShiftPressed ? -1 : 1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   void _startEdit(Category c) {
     _editController.text = c.name;
     setState(() {
@@ -119,7 +248,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _editIcon = c.icon;
       _isSubmittingEdit = false;
     });
-    _editFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _editInputFocus.requestFocus();
+    });
   }
 
   void _cancelEdit() {
@@ -128,6 +259,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _editError = null;
       _editIcon = null;
       _isSubmittingEdit = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _isOpen) _triggerFocus.requestFocus();
     });
   }
 
@@ -156,6 +290,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
         _editError = null;
         _editIcon = null;
         _isSubmittingEdit = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isOpen) _triggerFocus.requestFocus();
       });
     } on DuplicateCategoryException {
       if (!mounted) return;
@@ -198,7 +335,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _createIcon = null;
       _isSubmittingCreate = false;
     });
-    _createFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _createInputFocus.requestFocus();
+    });
   }
 
   void _cancelCreate() {
@@ -207,6 +346,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
       _createError = null;
       _createIcon = null;
       _isSubmittingCreate = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _isOpen) _triggerFocus.requestFocus();
     });
   }
 
@@ -233,6 +375,9 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
         _createError = null;
         _createIcon = null;
         _isSubmittingCreate = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isOpen) _triggerFocus.requestFocus();
       });
     } on DuplicateCategoryException {
       if (!mounted) return;
@@ -408,30 +553,39 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   Widget build(BuildContext context) {
     final value = widget.value;
     final selectedName = value?.name ?? '';
-    return OverlayPortal(
-      controller: _overlayController,
-      overlayChildBuilder: (context) => _buildOverlay(context),
-      child: GestureDetector(
-        key: _triggerKey,
-        onTap: _toggle,
-        child: InputDecorator(
-          isEmpty: selectedName.isEmpty,
-          isFocused: _isOpen,
-          decoration: const InputDecoration(
-            labelText: 'Categoría',
-            suffixIcon: Icon(Icons.arrow_drop_down),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (value != null) ...[
-                Icon(categoryIconFor(value.icon), size: 20),
-                const SizedBox(width: 8),
-              ],
-              Flexible(
-                child: Text(selectedName, overflow: TextOverflow.ellipsis),
+    return FocusTraversalOrder(
+      order: const NumericFocusOrder(1),
+      child: OverlayPortal(
+        controller: _overlayController,
+        overlayChildBuilder: (context) => _buildOverlay(context),
+        child: Focus(
+          focusNode: _triggerFocus,
+          canRequestFocus: widget.enabled,
+          descendantsAreFocusable: false,
+          onKeyEvent: _handleTriggerKey,
+          child: GestureDetector(
+            key: _triggerKey,
+            onTap: _toggle,
+            child: InputDecorator(
+              isEmpty: selectedName.isEmpty,
+              isFocused: _isOpen,
+              decoration: const InputDecoration(
+                labelText: 'Categoría',
+                suffixIcon: Icon(Icons.arrow_drop_down),
               ),
-            ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (value != null) ...[
+                    Icon(categoryIconFor(value.icon), size: 20),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(selectedName, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -470,20 +624,23 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
         .clamp(margin, math.max(margin, screenHeight - 4))
         .toDouble();
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: _close,
+    return FocusScope(
+      node: _panelScope,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _close,
+            ),
           ),
-        ),
-        Positioned(
-          left: left,
-          top: top,
-          child: _buildPanel(context, panelWidth),
-        ),
-      ],
+          Positioned(
+            left: left,
+            top: top,
+            child: _buildPanel(context, panelWidth),
+          ),
+        ],
+      ),
     );
   }
 
@@ -503,10 +660,15 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
               if (_isCreating)
                 _buildCreateRow(context)
               else
-                ListTile(
-                  leading: const Icon(Icons.add),
-                  title: const Text('Nueva categoría'),
-                  onTap: _startCreate,
+                Focus(
+                  canRequestFocus: widget.enabled,
+                  descendantsAreFocusable: false,
+                  onKeyEvent: _handleNewCategoryKey,
+                  child: ListTile(
+                    leading: const Icon(Icons.add),
+                    title: const Text('Nueva categoría'),
+                    onTap: _startCreate,
+                  ),
                 ),
             ],
           ],
@@ -516,53 +678,56 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
   }
 
   Widget _buildCreateRow(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Focus(
-                  focusNode: _createFocus,
-                  onKeyEvent: _handleCreateKey,
-                  child: TextField(
-                    controller: _createController,
-                    onSubmitted: (_) => _confirmCreate(),
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre de la categoría',
+    return FocusTraversalGroup(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Focus(
+                    focusNode: _createFocus,
+                    onKeyEvent: _handleCreateKey,
+                    child: TextField(
+                      controller: _createController,
+                      focusNode: _createInputFocus,
+                      onSubmitted: (_) => _confirmCreate(),
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre de la categoría',
+                      ),
                     ),
                   ),
                 ),
-              ),
-              IconButton(
-                icon: Icon(categoryIconFor(_createIcon)),
-                tooltip: 'Elegir icono',
-                onPressed: () => _pickIcon(forCreate: true),
-              ),
-              IconButton(
-                icon: const Icon(Icons.check),
-                tooltip: 'Confirmar',
-                onPressed: _isSubmittingCreate ? null : _confirmCreate,
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Cancelar',
-                onPressed: _cancelCreate,
-              ),
-            ],
-          ),
-          if (_createError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                _createError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+                IconButton(
+                  icon: Icon(categoryIconFor(_createIcon)),
+                  tooltip: 'Elegir icono',
+                  onPressed: () => _pickIcon(forCreate: true),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.check),
+                  tooltip: 'Confirmar',
+                  onPressed: _isSubmittingCreate ? null : _confirmCreate,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Cancelar',
+                  onPressed: _cancelCreate,
+                ),
+              ],
             ),
-        ],
+            if (_createError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _createError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -573,83 +738,88 @@ class _CategoryDropdownState extends State<CategoryDropdown> {
     if (_editingId == c.id) {
       return _buildEditRow(context, c);
     }
-    return ListTile(
-      leading: Icon(categoryIconFor(c.icon)),
-      title: Text(c.name),
-      onTap: () {
-        widget.onChanged(c);
-        _close();
-      },
-      trailing: (showEdit || showDelete)
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showEdit)
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    tooltip: 'Renombrar categoría',
-                    onPressed: () => _startEdit(c),
-                  ),
-                if (showDelete)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: 'Eliminar categoría',
-                    onPressed: () => _handleDelete(c),
-                  ),
-              ],
-            )
-          : null,
+    return Focus(
+      canRequestFocus: widget.enabled,
+      descendantsAreFocusable: false,
+      onKeyEvent: (node, event) => _handleRowKey(node, event, c),
+      child: ListTile(
+        leading: Icon(categoryIconFor(c.icon)),
+        title: Text(c.name),
+        onTap: () => _selectCategory(c),
+        trailing: (showEdit || showDelete)
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showEdit)
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      tooltip: 'Renombrar categoría',
+                      onPressed: () => _startEdit(c),
+                    ),
+                  if (showDelete)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Eliminar categoría',
+                      onPressed: () => _handleDelete(c),
+                    ),
+                ],
+              )
+            : null,
+      ),
     );
   }
 
   Widget _buildEditRow(BuildContext context, Category c) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Focus(
-                  focusNode: _editFocus,
-                  onKeyEvent: _handleEditKey,
-                  child: TextField(
-                    controller: _editController,
-                    onSubmitted: (_) => _confirmEdit(),
-                    decoration: const InputDecoration(
-                      labelText: 'Nuevo nombre',
+    return FocusTraversalGroup(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Focus(
+                    focusNode: _editFocus,
+                    onKeyEvent: _handleEditKey,
+                    child: TextField(
+                      controller: _editController,
+                      focusNode: _editInputFocus,
+                      onSubmitted: (_) => _confirmEdit(),
+                      decoration: const InputDecoration(
+                        labelText: 'Nuevo nombre',
+                      ),
                     ),
                   ),
                 ),
-              ),
-              IconButton(
-                icon: Icon(categoryIconFor(_editIcon)),
-                tooltip: 'Elegir icono',
-                onPressed: () => _pickIcon(forCreate: false),
-              ),
-              IconButton(
-                icon: const Icon(Icons.check),
-                tooltip: 'Confirmar',
-                onPressed: _isSubmittingEdit ? null : _confirmEdit,
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Cancelar',
-                onPressed: _cancelEdit,
-              ),
-            ],
-          ),
-          if (_editError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                _editError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+                IconButton(
+                  icon: Icon(categoryIconFor(_editIcon)),
+                  tooltip: 'Elegir icono',
+                  onPressed: () => _pickIcon(forCreate: false),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.check),
+                  tooltip: 'Confirmar',
+                  onPressed: _isSubmittingEdit ? null : _confirmEdit,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Cancelar',
+                  onPressed: _cancelEdit,
+                ),
+              ],
             ),
-        ],
+            if (_editError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _editError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

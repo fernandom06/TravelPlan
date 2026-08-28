@@ -19,9 +19,7 @@ Future<List<IconPickerResult?>> _openPicker(
           builder: (context) => Center(
             child: ElevatedButton(
               onPressed: () async {
-                result.add(
-                  await pickCategoryIcon(context, current: current),
-                );
+                result.add(await pickCategoryIcon(context, current: current));
               },
               child: const Text('open'),
             ),

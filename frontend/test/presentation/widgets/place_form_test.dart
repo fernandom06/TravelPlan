@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
@@ -89,6 +90,287 @@ void main() {
     expect(find.text('Guardar'), findsOneWidget);
   });
 
+  testWidgets('autofocus on Nombre in create mode', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('autofocus on Nombre in edit mode', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          initialName: 'Mirador',
+          initialCategory: _naturaleza,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final nameField = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('PlaceDetails does not autofocus', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceDetails(categories: _categories, place: _place, onClose: () {}),
+      ),
+    );
+    await tester.pump();
+
+    for (final editable in tester.widgetList<EditableText>(
+      find.byType(EditableText),
+    )) {
+      expect(editable.focusNode.hasFocus, isFalse);
+    }
+  });
+
+  testWidgets('Tab from Nombre moves focus to Categoria and opens panel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+
+    // The category trigger took focus and opened its panel.
+    expect(find.byType(ListTile), findsWidgets);
+    final nameEditable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameEditable.focusNode.hasFocus, isFalse);
+  });
+
+  testWidgets(
+    'Tab recorre Nombre, trigger, filas y Descripcion y cierra el panel',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          PlaceForm(
+            categories: _categories,
+            onSave: (_, _, _) {},
+            onCancel: () {},
+            onCreateCategory: (_, _) async =>
+                const Category(id: 5, name: 'Playa'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // 1: Nombre -> Categoria trigger; the panel opens.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(find.byType(ListTile), findsWidgets);
+
+      // 2: trigger -> first row (Naturaleza).
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
+        ),
+        FocusManager.instance.primaryFocus,
+      );
+
+      // 3: Naturaleza -> Monumento.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Monumento')),
+        ),
+        FocusManager.instance.primaryFocus,
+      );
+
+      // 4: Monumento -> "Nueva categoría".
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(
+        Focus.maybeOf(
+          tester.element(find.widgetWithText(ListTile, 'Nueva categoría')),
+        ),
+        FocusManager.instance.primaryFocus,
+      );
+
+      // 5: "Nueva categoría" -> Descripcion; the panel closes.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      final descriptionField = tester.widget<EditableText>(
+        find.byType(EditableText).at(1),
+      );
+      expect(descriptionField.focusNode.hasFocus, isTrue);
+      expect(find.byType(ListTile), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Shift+Tab from Descripcion returns to the Categoria trigger and reopens the panel',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          PlaceForm(
+            categories: _categories,
+            onSave: (_, _, _) {},
+            onCancel: () {},
+            onCreateCategory: (_, _) async =>
+                const Category(id: 5, name: 'Playa'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Reach Descripcion via the tab sequence.
+      for (var i = 0; i < 5; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+      }
+      final descriptionField = tester.widget<EditableText>(
+        find.byType(EditableText).at(1),
+      );
+      expect(descriptionField.focusNode.hasFocus, isTrue);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+
+      // The category trigger regained focus and the panel reopened.
+      final triggerDecorator = find.descendant(
+        of: find.byType(CategoryDropdown),
+        matching: find.byType(InputDecorator),
+      );
+      expect(
+        Focus.maybeOf(tester.element(triggerDecorator)),
+        FocusManager.instance.primaryFocus,
+      );
+      expect(find.byType(ListTile), findsWidgets);
+    },
+  );
+
+  testWidgets('Tab from Categoria enters the first row', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+          onCreateCategory: (_, _) async =>
+              const Category(id: 5, name: 'Playa'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsWidgets);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+
+    // The second Tab leaves the focus on the first row, with the panel open.
+    expect(
+      Focus.maybeOf(
+        tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
+      ),
+      FocusManager.instance.primaryFocus,
+    );
+    expect(find.byType(ListTile), findsWidgets);
+  });
+
+  testWidgets('disabled Guardar is skipped by Tab', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+          onCreateCategory: (_, _) async =>
+              const Category(id: 5, name: 'Playa'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Name is empty so Guardar is disabled.
+    expect(_saveButton(tester).onPressed, isNull);
+
+    // Reach Descripcion via the full sequence: Nombre -> Categoria -> rows
+    // (Naturaleza, Monumento, Nueva categoria) -> Descripcion.
+    for (var i = 0; i < 5; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+    }
+    final descriptionField = tester.widget<EditableText>(
+      find.byType(EditableText).at(1),
+    );
+    expect(descriptionField.focusNode.hasFocus, isTrue);
+
+    // A Tab from Descripcion crosses the button row skipping the disabled
+    // Guardar, landing on Cancelar.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+
+    final primary = FocusManager.instance.primaryFocus;
+    // The focus landed on the Cancelar button.
+    final cancelFinder = find.widgetWithText(TextButton, 'Cancelar');
+    final onCancel =
+        primary != null &&
+        find
+            .descendant(
+              of: cancelFinder,
+              matching: find.byWidgetPredicate(
+                (w) => w == primary.context?.widget,
+              ),
+            )
+            .evaluate()
+            .isNotEmpty;
+    expect(onCancel, isTrue);
+
+    // The disabled Guardar never receives focus: the primary focus is not
+    // within the save button.
+    final saveFinder = find.widgetWithText(FilledButton, 'Guardar');
+    final onSave =
+        primary != null &&
+        find
+            .descendant(
+              of: saveFinder,
+              matching: find.byWidgetPredicate(
+                (w) => w == primary.context?.widget,
+              ),
+            )
+            .evaluate()
+            .isNotEmpty;
+    expect(onSave, isFalse);
+  });
+
   testWidgets('save is disabled when name is empty', (tester) async {
     await tester.pumpWidget(
       _wrap(
@@ -168,6 +450,125 @@ void main() {
     expect(savedDescription, 'Vistas');
   });
 
+  testWidgets('name field uses textInputAction next', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    final nameField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(nameField.textInputAction, TextInputAction.next);
+  });
+
+  testWidgets('pressing next on name moves focus to category without saving', (
+    tester,
+  ) async {
+    String? savedName;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (name, _, _) {
+            savedName = name;
+          },
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    await _selectCategory(tester, 'Monumento');
+    await _fillName(tester);
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pump();
+
+    expect(savedName, isNull);
+    // The category trigger took focus: the panel is open and name lost focus.
+    expect(find.byType(ListTile), findsWidgets);
+    final nameEditable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(nameEditable.focusNode.hasFocus, isFalse);
+  });
+
+  testWidgets('pressing next on the name does not save', (tester) async {
+    String? savedName;
+    int? savedCategoryId;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (name, categoryId, _) {
+            savedName = name;
+            savedCategoryId = categoryId;
+          },
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    await _selectCategory(tester, 'Monumento');
+    await _fillName(tester);
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pump();
+
+    expect(savedName, isNull);
+    expect(savedCategoryId, isNull);
+    // The category trigger took focus: the panel is open.
+    expect(find.byType(ListTile), findsWidgets);
+  });
+
+  testWidgets('pressing Enter on the description submits the form', (
+    tester,
+  ) async {
+    String? savedName;
+    int? savedCategoryId;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (name, categoryId, _) {
+            savedName = name;
+            savedCategoryId = categoryId;
+          },
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    await _selectCategory(tester, 'Monumento');
+    await _fillName(tester);
+    await tester.enterText(find.byType(TextField).last, 'Vistas');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(savedName, 'Mirador');
+    expect(savedCategoryId, 2);
+  });
+
+  testWidgets('pressing next on name never saves', (tester) async {
+    var submitted = false;
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) => submitted = true,
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    await _fillName(tester);
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pump();
+
+    expect(submitted, isFalse);
+  });
+
   testWidgets('read-only mode disables fields and shows Cerrar', (
     tester,
   ) async {
@@ -229,7 +630,8 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_, _) async => const Category(id: 5, name: 'Playa'),
+          onCreateCategory: (_, _) async =>
+              const Category(id: 5, name: 'Playa'),
         ),
       ),
     );
@@ -413,7 +815,8 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_, _) async => const Category(id: 5, name: 'Playa'),
+          onCreateCategory: (_, _) async =>
+              const Category(id: 5, name: 'Playa'),
         ),
       ),
     );

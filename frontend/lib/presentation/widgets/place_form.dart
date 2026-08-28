@@ -11,6 +11,11 @@ class _PlaceFields extends StatelessWidget {
     required this.categoryField,
     required this.onNameChanged,
     required this.enabled,
+    this.nameFocus,
+    this.descriptionFocus,
+    this.autofocus = false,
+    this.onNameNext,
+    this.onDescriptionSubmit,
   });
 
   final TextEditingController nameController;
@@ -18,6 +23,11 @@ class _PlaceFields extends StatelessWidget {
   final Widget categoryField;
   final ValueChanged<String>? onNameChanged;
   final bool enabled;
+  final FocusNode? nameFocus;
+  final FocusNode? descriptionFocus;
+  final bool autofocus;
+  final VoidCallback? onNameNext;
+  final VoidCallback? onDescriptionSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -25,20 +35,37 @@ class _PlaceFields extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: nameController,
-          enabled: enabled,
-          onChanged: onNameChanged,
-          decoration: const InputDecoration(labelText: 'Nombre'),
+        FocusTraversalOrder(
+          order: const NumericFocusOrder(0),
+          child: TextField(
+            controller: nameController,
+            focusNode: nameFocus,
+            autofocus: autofocus,
+            enabled: enabled,
+            onChanged: onNameChanged,
+            textInputAction: onNameNext == null ? null : TextInputAction.next,
+            onSubmitted: onNameNext == null ? null : (_) => onNameNext!(),
+            decoration: const InputDecoration(labelText: 'Nombre'),
+          ),
         ),
         const SizedBox(height: 8),
         categoryField,
         const SizedBox(height: 8),
-        TextField(
-          controller: descriptionController,
-          enabled: enabled,
-          maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Descripción'),
+        FocusTraversalOrder(
+          order: NumericFocusOrder((1 << 20).toDouble()),
+          child: TextField(
+            controller: descriptionController,
+            focusNode: descriptionFocus,
+            enabled: enabled,
+            maxLines: 3,
+            textInputAction: onDescriptionSubmit == null
+                ? null
+                : TextInputAction.done,
+            onSubmitted: onDescriptionSubmit == null
+                ? null
+                : (_) => onDescriptionSubmit!(),
+            decoration: const InputDecoration(labelText: 'Descripción'),
+          ),
         ),
         const SizedBox(height: 16),
       ],
@@ -68,7 +95,7 @@ class PlaceForm extends StatefulWidget {
   final Future<Category> Function(String name, String? icon)? onCreateCategory;
   final List<Place> places;
   final Future<Category> Function(int id, String name, String? icon)?
-      onRenameCategory;
+  onRenameCategory;
   final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final String? initialName;
   final String? initialDescription;
@@ -82,6 +109,9 @@ class PlaceForm extends StatefulWidget {
 class _PlaceFormState extends State<PlaceForm> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
+  late final FocusNode _nameFocus;
+  late final FocusNode _categoryFocus;
+  late final FocusNode _descriptionFocus;
   late List<Category> _categories;
   Category? _selectedCategory;
 
@@ -92,8 +122,17 @@ class _PlaceFormState extends State<PlaceForm> {
     _descriptionController = TextEditingController(
       text: widget.initialDescription ?? '',
     );
+    _nameFocus = FocusNode();
+    _categoryFocus = FocusNode();
+    _descriptionFocus = FocusNode();
     _categories = List.of(widget.categories);
     _selectedCategory = widget.initialCategory;
+    // autofocus on the TextField is discarded when the surrounding scope
+    // already holds focus (e.g. the map overlay), so also request focus after
+    // the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _nameFocus.requestFocus();
+    });
   }
 
   @override
@@ -112,6 +151,9 @@ class _PlaceFormState extends State<PlaceForm> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _nameFocus.dispose();
+    _categoryFocus.dispose();
+    _descriptionFocus.dispose();
     super.dispose();
   }
 
@@ -125,6 +167,11 @@ class _PlaceFormState extends State<PlaceForm> {
       _selectedCategory!.id,
       description.isEmpty ? null : description,
     );
+  }
+
+  void _submit() {
+    if (!_canSave) return;
+    _handleSave();
   }
 
   Future<void> _handleDeleteTap() async {
@@ -158,6 +205,7 @@ class _PlaceFormState extends State<PlaceForm> {
       categories: _categories,
       value: _selectedCategory,
       places: widget.places,
+      focusNode: _categoryFocus,
       onCreate: widget.onCreateCategory,
       onRename: widget.onRenameCategory,
       onDelete: widget.onDeleteCategory,
@@ -182,42 +230,50 @@ class _PlaceFormState extends State<PlaceForm> {
   Widget build(BuildContext context) {
     return Card(
       elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _PlaceFields(
-              nameController: _nameController,
-              descriptionController: _descriptionController,
-              categoryField: _buildCategoryField(),
-              onNameChanged: (_) => setState(() {}),
-              enabled: true,
-            ),
-            OverflowBar(
-              alignment: MainAxisAlignment.end,
-              spacing: 8,
-              children: [
-                if (widget.onDelete != null)
-                  TextButton(
-                    onPressed: _handleDeleteTap,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).colorScheme.error,
+      child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _PlaceFields(
+                nameController: _nameController,
+                descriptionController: _descriptionController,
+                categoryField: _buildCategoryField(),
+                onNameChanged: (_) => setState(() {}),
+                enabled: true,
+                nameFocus: _nameFocus,
+                descriptionFocus: _descriptionFocus,
+                autofocus: true,
+                onNameNext: () => _categoryFocus.requestFocus(),
+                onDescriptionSubmit: _submit,
+              ),
+              OverflowBar(
+                alignment: MainAxisAlignment.end,
+                spacing: 8,
+                children: [
+                  if (widget.onDelete != null)
+                    TextButton(
+                      onPressed: _handleDeleteTap,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                      child: const Text('Eliminar'),
                     ),
-                    child: const Text('Eliminar'),
+                  TextButton(
+                    onPressed: widget.onCancel,
+                    child: const Text('Cancelar'),
                   ),
-                TextButton(
-                  onPressed: widget.onCancel,
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: _canSave ? _handleSave : null,
-                  child: const Text('Guardar'),
-                ),
-              ],
-            ),
-          ],
+                  FilledButton(
+                    onPressed: _canSave ? _handleSave : null,
+                    child: const Text('Guardar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
