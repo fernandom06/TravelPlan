@@ -27,19 +27,23 @@ def test_trips_table_is_created():
     conn.close()
 
 
-def test_trip_places_junction_created():
+def test_trip_itinerary_items_created():
     conn = _connect()
     init_db(conn)
 
-    columns = conn.execute("PRAGMA table_info(trip_places)").fetchall()
+    columns = conn.execute("PRAGMA table_info(trip_itinerary_items)").fetchall()
     names = [row["name"] for row in columns]
 
+    assert "id" in names
     assert "trip_id" in names
     assert "place_id" in names
+    assert "day_date" in names
+    assert "slot" in names
+    assert "position" in names
     conn.close()
 
 
-def test_deleting_trip_cascades_trip_places_but_keeps_place():
+def test_trip_itinerary_allows_multiple_instances_of_same_place():
     conn = _connect()
     init_db(conn)
 
@@ -57,8 +61,47 @@ def test_deleting_trip_cascades_trip_places_but_keeps_place():
         (trip_id, "Viaje", "2026-01-01", "2026-01-10"),
     )
     conn.execute(
-        "INSERT INTO trip_places (trip_id, place_id) VALUES (?, ?)",
+        "INSERT INTO trip_itinerary_items (trip_id, place_id, position) "
+        "VALUES (?, ?, ?)",
+        (trip_id, place_id, 0),
+    )
+    conn.execute(
+        "INSERT INTO trip_itinerary_items (trip_id, place_id, position) "
+        "VALUES (?, ?, ?)",
+        (trip_id, place_id, 1),
+    )
+    conn.commit()
+
+    rows = conn.execute(
+        "SELECT COUNT(*) FROM trip_itinerary_items WHERE trip_id = ? AND place_id = ?",
         (trip_id, place_id),
+    ).fetchone()[0]
+
+    assert rows == 2
+    conn.close()
+
+
+def test_deleting_trip_cascades_itinerary_items_but_keeps_place():
+    conn = _connect()
+    init_db(conn)
+
+    category_id = conn.execute(
+        "INSERT INTO categories (name) VALUES (?)", ("Naturaleza",)
+    ).lastrowid
+    place_id = conn.execute(
+        "INSERT INTO places (name, latitude, longitude, category_id) "
+        "VALUES (?, ?, ?, ?)",
+        ("Mirador", 42.5, -3.1, category_id),
+    ).lastrowid
+    trip_id = "trip-uuid-1"
+    conn.execute(
+        "INSERT INTO trips (id, name, start_date, end_date) VALUES (?, ?, ?, ?)",
+        (trip_id, "Viaje", "2026-01-01", "2026-01-10"),
+    )
+    conn.execute(
+        "INSERT INTO trip_itinerary_items (trip_id, place_id, position) "
+        "VALUES (?, ?, ?)",
+        (trip_id, place_id, 0),
     )
     conn.commit()
 
@@ -66,7 +109,7 @@ def test_deleting_trip_cascades_trip_places_but_keeps_place():
     conn.commit()
 
     junction = conn.execute(
-        "SELECT COUNT(*) FROM trip_places WHERE trip_id = ?", (trip_id,)
+        "SELECT COUNT(*) FROM trip_itinerary_items WHERE trip_id = ?", (trip_id,)
     ).fetchone()[0]
     place = conn.execute(
         "SELECT id FROM places WHERE id = ?", (place_id,)
@@ -74,4 +117,43 @@ def test_deleting_trip_cascades_trip_places_but_keeps_place():
 
     assert junction == 0
     assert place is not None
+    conn.close()
+
+
+def test_deleting_place_cascades_itinerary_items_but_keeps_trip():
+    conn = _connect()
+    init_db(conn)
+
+    category_id = conn.execute(
+        "INSERT INTO categories (name) VALUES (?)", ("Naturaleza",)
+    ).lastrowid
+    place_id = conn.execute(
+        "INSERT INTO places (name, latitude, longitude, category_id) "
+        "VALUES (?, ?, ?, ?)",
+        ("Mirador", 42.5, -3.1, category_id),
+    ).lastrowid
+    trip_id = "trip-uuid-1"
+    conn.execute(
+        "INSERT INTO trips (id, name, start_date, end_date) VALUES (?, ?, ?, ?)",
+        (trip_id, "Viaje", "2026-01-01", "2026-01-10"),
+    )
+    conn.execute(
+        "INSERT INTO trip_itinerary_items (trip_id, place_id, position) "
+        "VALUES (?, ?, ?)",
+        (trip_id, place_id, 0),
+    )
+    conn.commit()
+
+    conn.execute("DELETE FROM places WHERE id = ?", (place_id,))
+    conn.commit()
+
+    junction = conn.execute(
+        "SELECT COUNT(*) FROM trip_itinerary_items WHERE trip_id = ?", (trip_id,)
+    ).fetchone()[0]
+    trip = conn.execute(
+        "SELECT id FROM trips WHERE id = ?", (trip_id,)
+    ).fetchone()
+
+    assert junction == 0
+    assert trip is not None
     conn.close()
