@@ -23,11 +23,13 @@ void main() {
     test('toJson includes zone points when set', () {
       final json = _draft(zone: _points).toJson();
 
-      expect(json['zone'], [
-        {'latitude': 42.0, 'longitude': -4.0},
-        {'latitude': 43.0, 'longitude': -3.0},
-        {'latitude': 42.5, 'longitude': -3.5},
-      ]);
+      expect(json['zone'], {
+        'points': [
+          {'latitude': 42.0, 'longitude': -4.0},
+          {'latitude': 43.0, 'longitude': -3.0},
+          {'latitude': 42.5, 'longitude': -3.5},
+        ],
+      });
     });
 
     test('toJson emits zone as null when omitted', () {

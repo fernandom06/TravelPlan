@@ -99,11 +99,13 @@ void main() {
         expect(request.method, 'POST');
         expect(request.url.path, '/trips');
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body['zone'], [
-          {'latitude': 42.0, 'longitude': -4.0},
-          {'latitude': 43.0, 'longitude': -3.0},
-          {'latitude': 42.5, 'longitude': -3.5},
-        ]);
+        expect(body['zone'], {
+          'points': [
+            {'latitude': 42.0, 'longitude': -4.0},
+            {'latitude': 43.0, 'longitude': -3.0},
+            {'latitude': 42.5, 'longitude': -3.5},
+          ],
+        });
         return http.Response(jsonEncode(_tripJson), 201);
       });
       final api = TripApi(baseUrl: 'http://localhost:8000', client: client);
