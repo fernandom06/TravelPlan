@@ -103,10 +103,7 @@ final _trip = Trip(
 void main() {
   group('computeMove', () {
     test('moves item from general list to a slot', () {
-      final items = [
-        _item(1, position: 0),
-        _item(2, position: 1),
-      ];
+      final items = [_item(1, position: 0), _item(2, position: 1)];
 
       final result = computeMove(items, 1, _day1, ItinerarySlot.morning, 0);
 
@@ -151,19 +148,22 @@ void main() {
       expect(result.firstWhere((i) => i.id == 2).position, 1);
     });
 
-    test('reorders within a slot adjusting index when origin precedes target', () {
-      final items = [
-        _item(1, position: 0, day: _day1, slot: ItinerarySlot.morning),
-        _item(2, position: 1, day: _day1, slot: ItinerarySlot.morning),
-        _item(3, position: 2, day: _day1, slot: ItinerarySlot.morning),
-      ];
+    test(
+      'reorders within a slot adjusting index when origin precedes target',
+      () {
+        final items = [
+          _item(1, position: 0, day: _day1, slot: ItinerarySlot.morning),
+          _item(2, position: 1, day: _day1, slot: ItinerarySlot.morning),
+          _item(3, position: 2, day: _day1, slot: ItinerarySlot.morning),
+        ];
 
-      // Mover 1 (primera) a la posición 2: acaba tras 2, antes de 3.
-      final result = computeMove(items, 1, _day1, ItinerarySlot.morning, 2);
+        // Mover 1 (primera) a la posición 2: acaba tras 2, antes de 3.
+        final result = computeMove(items, 1, _day1, ItinerarySlot.morning, 2);
 
-      expect(result.map((i) => i.id), [2, 1, 3]);
-      expect(result.map((i) => i.position), [0, 1, 2]);
-    });
+        expect(result.map((i) => i.id), [2, 1, 3]);
+        expect(result.map((i) => i.position), [0, 1, 2]);
+      },
+    );
 
     test('reorders within a slot when origin is after target', () {
       final items = [
@@ -180,10 +180,7 @@ void main() {
     });
 
     test('moves into an empty target container', () {
-      final items = [
-        _item(1, position: 0),
-        _item(2, position: 1),
-      ];
+      final items = [_item(1, position: 0), _item(2, position: 1)];
 
       final result = computeMove(items, 1, _day1, ItinerarySlot.afternoon, 3);
 
@@ -258,7 +255,10 @@ void main() {
       final controller = ItineraryController(api);
       addTearDown(controller.dispose);
 
-      await expectLater(controller.loadItinerary(_trip), throwsA(isA<Exception>()));
+      await expectLater(
+        controller.loadItinerary(_trip),
+        throwsA(isA<Exception>()),
+      );
 
       expect(controller.value.isLoading, isFalse);
       expect(controller.value.items, isEmpty);
@@ -288,26 +288,23 @@ void main() {
       addTearDown(controller.dispose);
       await controller.loadItinerary(_trip);
 
-      await expectLater(controller.addPlace(_place(1)), throwsA(isA<Exception>()));
+      await expectLater(
+        controller.addPlace(_place(1)),
+        throwsA(isA<Exception>()),
+      );
 
       expect(controller.value.items, isEmpty);
     });
 
     test('moveItem applies the pure function and PATCHes', () async {
-      final api = _FakeItineraryApi(items: [
-        _item(1, position: 0),
-        _item(2, position: 1),
-      ]);
+      final api = _FakeItineraryApi(
+        items: [_item(1, position: 0), _item(2, position: 1)],
+      );
       final controller = ItineraryController(api);
       addTearDown(controller.dispose);
       await controller.loadItinerary(_trip);
 
-      final future = controller.moveItem(
-        1,
-        _day1,
-        ItinerarySlot.morning,
-        0,
-      );
+      final future = controller.moveItem(1, _day1, ItinerarySlot.morning, 0);
       final optimistic = controller.value.items;
 
       await future;
@@ -341,10 +338,9 @@ void main() {
     });
 
     test('removeItem removes optimistically and DELETEs', () async {
-      final api = _FakeItineraryApi(items: [
-        _item(1, position: 0),
-        _item(2, position: 1),
-      ]);
+      final api = _FakeItineraryApi(
+        items: [_item(1, position: 0), _item(2, position: 1)],
+      );
       final controller = ItineraryController(api);
       addTearDown(controller.dispose);
       await controller.loadItinerary(_trip);

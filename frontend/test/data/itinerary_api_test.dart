@@ -31,7 +31,10 @@ void main() {
         expect(request.url.path, '/trips/abc/itinerary');
         return http.Response(jsonEncode([_itemJson]), 200);
       });
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       final items = await api.fetchItinerary('abc');
 
@@ -42,7 +45,10 @@ void main() {
 
     test('fetchItinerary throws on non-200', () async {
       final client = MockClient((request) async => http.Response('err', 500));
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       await expectLater(
         api.fetchItinerary('abc'),
@@ -58,7 +64,10 @@ void main() {
         expect(jsonDecode(request.body), {'place_id': 1});
         return http.Response(jsonEncode(_itemJson), 201);
       });
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       final item = await api.addPlace('abc', 1);
 
@@ -67,7 +76,10 @@ void main() {
 
     test('addPlace throws on non-201', () async {
       final client = MockClient((request) async => http.Response('err', 404));
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       await expectLater(
         api.addPlace('abc', 1),
@@ -80,10 +92,17 @@ void main() {
         expect(request.method, 'PATCH');
         expect(request.url.path, '/trips/abc/itinerary/7');
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body, {'day_date': '2026-06-02', 'slot': 'night', 'position': 3});
+        expect(body, {
+          'day_date': '2026-06-02',
+          'slot': 'night',
+          'position': 3,
+        });
         return http.Response(jsonEncode(_itemJson), 200);
       });
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       final item = await api.moveItem(
         'abc',
@@ -106,7 +125,10 @@ void main() {
         expect(body, {'day_date': null, 'slot': null, 'position': 0});
         return http.Response(jsonEncode(_itemJson), 200);
       });
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       final item = await api.moveItem(
         'abc',
@@ -119,7 +141,10 @@ void main() {
 
     test('moveItem throws on non-200', () async {
       final client = MockClient((request) async => http.Response('err', 422));
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       await expectLater(
         api.moveItem(
@@ -137,14 +162,20 @@ void main() {
         expect(request.url.path, '/trips/abc/itinerary/7');
         return http.Response('', 204);
       });
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       await api.removeItem('abc', 7);
     });
 
     test('removeItem throws on non-204', () async {
       final client = MockClient((request) async => http.Response('err', 404));
-      final api = ItineraryApi(baseUrl: 'http://localhost:8000', client: client);
+      final api = ItineraryApi(
+        baseUrl: 'http://localhost:8000',
+        client: client,
+      );
 
       await expectLater(
         api.removeItem('abc', 7),

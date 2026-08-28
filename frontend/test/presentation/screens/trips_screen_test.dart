@@ -5,11 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/data/itinerary_api.dart';
+import 'package:frontend/data/models/category.dart';
+import 'package:frontend/data/models/itinerary_item.dart';
+import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/trip.dart';
 import 'package:frontend/data/models/trip_draft.dart';
 import 'package:frontend/data/models/trip_update.dart';
+import 'package:frontend/data/place_api.dart';
 import 'package:frontend/data/trip_api.dart';
+import 'package:frontend/presentation/controllers/places_controller.dart';
 import 'package:frontend/presentation/controllers/trips_controller.dart';
+import 'package:frontend/presentation/screens/itinerary_screen.dart';
 import 'package:frontend/presentation/screens/trips_screen.dart';
 import 'package:frontend/presentation/screens/zone_map_screen.dart';
 import 'package:frontend/presentation/widgets/trip_card.dart';
@@ -93,12 +100,36 @@ final _trip2 = Trip(
   createdAt: '2026-01-02',
 );
 
-Widget _wrap(TripsController controller, {bool online = true}) {
+class _EmptyPlaceApi extends PlaceApi {
+  _EmptyPlaceApi() : super(baseUrl: 'http://fake');
+
+  @override
+  Future<List<Category>> fetchCategories() async => const [];
+
+  @override
+  Future<List<Place>> fetchPlaces() async => const [];
+}
+
+class _FakeItineraryApi extends ItineraryApi {
+  _FakeItineraryApi() : super(baseUrl: 'http://fake');
+
+  @override
+  Future<List<ItineraryItem>> fetchItinerary(String tripId) async => const [];
+}
+
+Widget _wrap(
+  TripsController controller, {
+  bool online = true,
+  ItineraryApi? itineraryApi,
+  PlacesController? placesController,
+}) {
   final onlineNotifier = ValueNotifier<bool>(online);
   addTearDown(onlineNotifier.dispose);
   return MaterialApp(
     home: TripsScreen(
       tripsController: controller,
+      itineraryApi: itineraryApi ?? ItineraryApi(baseUrl: 'http://fake'),
+      placesController: placesController ?? PlacesController(_EmptyPlaceApi()),
       online: onlineNotifier,
       baseUrl: 'http://localhost:8000',
     ),
@@ -140,6 +171,34 @@ void main() {
     expect(find.byType(TripCard), findsNWidgets(2));
     expect(find.text('Viaje a Galicia'), findsOneWidget);
     expect(find.text('Viaje a Madrid'), findsOneWidget);
+  });
+
+  testWidgets('tapping a trip card opens the itinerary screen', (tester) async {
+    final controller = TripsController(_FakeTripApi(trips: [_trip]));
+    addTearDown(controller.dispose);
+    final places = PlacesController(_EmptyPlaceApi());
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(
+        controller,
+        itineraryApi: _FakeItineraryApi(),
+        placesController: places,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Viaje a Galicia'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ItineraryScreen), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Viaje a Galicia'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('floating action button is present', (tester) async {

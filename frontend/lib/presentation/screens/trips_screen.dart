@@ -1,24 +1,32 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../data/itinerary_api.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_draft.dart';
 import '../../data/models/trip_update.dart';
+import '../controllers/itinerary_controller.dart';
+import '../controllers/places_controller.dart';
 import '../controllers/trips_controller.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/trip_card.dart';
 import '../widgets/trip_form.dart';
+import 'itinerary_screen.dart';
 import 'zone_map_screen.dart';
 
 class TripsScreen extends StatefulWidget {
   const TripsScreen({
     super.key,
     required this.tripsController,
+    required this.itineraryApi,
+    required this.placesController,
     required this.online,
     required this.baseUrl,
   });
 
   final TripsController tripsController;
+  final ItineraryApi itineraryApi;
+  final PlacesController placesController;
   final ValueNotifier<bool> online;
   final String baseUrl;
 
@@ -27,10 +35,19 @@ class TripsScreen extends StatefulWidget {
 }
 
 class _TripsScreenState extends State<TripsScreen> {
+  late final ItineraryController _itineraryController;
+
   @override
   void initState() {
     super.initState();
+    _itineraryController = ItineraryController(widget.itineraryApi);
     _loadTrips();
+  }
+
+  @override
+  void dispose() {
+    _itineraryController.dispose();
+    super.dispose();
   }
 
   void _showError(Object error, String action) {
@@ -160,6 +177,21 @@ class _TripsScreenState extends State<TripsScreen> {
     );
   }
 
+  void _openTrip(Trip trip) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ItineraryScreen(
+          trip: trip,
+          itineraryController: _itineraryController,
+          placesController: widget.placesController,
+          online: widget.online,
+          baseUrl: widget.baseUrl,
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmAndDelete(Trip trip) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -241,6 +273,7 @@ class _TripsScreenState extends State<TripsScreen> {
           baseUrl: widget.baseUrl,
           onEdit: () => _openEditForm(trip),
           onDelete: () => _confirmAndDelete(trip),
+          onOpen: () => _openTrip(trip),
         );
       },
     );

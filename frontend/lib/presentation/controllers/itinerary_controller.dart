@@ -83,11 +83,12 @@ List<ItineraryItem> computeMove(
     place: moving.place,
   );
 
-  final combined = [...gapped, moved]..sort((a, b) {
-    final container = _containerCompare(a, b);
-    if (container != 0) return container;
-    return a.position.compareTo(b.position);
-  });
+  final combined = [...gapped, moved]
+    ..sort((a, b) {
+      final container = _containerCompare(a, b);
+      if (container != 0) return container;
+      return a.position.compareTo(b.position);
+    });
   return combined;
 }
 
@@ -114,20 +115,12 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
   int _nextTempId() => -(_tempIdCounter++ + 1);
 
   Future<void> loadItinerary(Trip trip) async {
-    value = ItineraryState(
-      trip: trip,
-      items: value.items,
-      isLoading: true,
-    );
+    value = ItineraryState(trip: trip, items: value.items, isLoading: true);
     try {
       final items = await _api.fetchItinerary(trip.id);
       value = ItineraryState(trip: trip, items: items, isLoading: false);
     } catch (_) {
-      value = ItineraryState(
-        trip: trip,
-        items: value.items,
-        isLoading: false,
-      );
+      value = ItineraryState(trip: trip, items: value.items, isLoading: false);
       rethrow;
     }
   }
@@ -135,9 +128,7 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
   /// Añade un lugar al final de la lista general de forma optimista:
   /// aparece al instante y, si el POST falla, se revierte el cambio.
   Future<void> addPlace(Place place) async {
-    final generalCount = value.items
-        .where((item) => item.isUnassigned)
-        .length;
+    final generalCount = value.items.where((item) => item.isUnassigned).length;
     final tempId = _nextTempId();
     final tempItem = ItineraryItem(
       id: tempId,
@@ -157,8 +148,7 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
       value = ItineraryState(
         trip: previous.trip,
         items: [
-          for (final item in value.items)
-            item.id == tempId ? created : item,
+          for (final item in value.items) item.id == tempId ? created : item,
         ],
         isLoading: previous.isLoading,
       );

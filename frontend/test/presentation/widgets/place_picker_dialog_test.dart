@@ -28,10 +28,8 @@ void main() {
           builder: (context) => TextButton(
             onPressed: () => showDialog<void>(
               context: context,
-              builder: (_) => PlacePickerDialog(
-                places: places,
-                onPlaceSelected: onSelect,
-              ),
+              builder: (_) =>
+                  PlacePickerDialog(places: places, onPlaceSelected: onSelect),
             ),
             child: const Text('Abrir'),
           ),
@@ -63,23 +61,24 @@ void main() {
     expect(find.text('Casco Viejo'), findsNothing);
   });
 
-  testWidgets('tapping a place calls onPlaceSelected and keeps the dialog open', (
-    tester,
-  ) async {
-    final selected = <int>[];
-    await tester.pumpWidget(wrap(_places, selected.add));
-    await tester.tap(find.text('Abrir'));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'tapping a place calls onPlaceSelected and keeps the dialog open',
+    (tester) async {
+      final selected = <int>[];
+      await tester.pumpWidget(wrap(_places, selected.add));
+      await tester.tap(find.text('Abrir'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Playa de la Concha'));
-    await tester.pump();
-    await tester.tap(find.text('Playa de la Concha'));
-    await tester.pump();
+      await tester.tap(find.text('Playa de la Concha'));
+      await tester.pump();
+      await tester.tap(find.text('Playa de la Concha'));
+      await tester.pump();
 
-    expect(selected, [2, 2]);
-    expect(find.byType(PlacePickerDialog), findsOneWidget);
-    expect(find.text('2 añadidos'), findsOneWidget);
-  });
+      expect(selected, [2, 2]);
+      expect(find.byType(PlacePickerDialog), findsOneWidget);
+      expect(find.text('2 añadidos'), findsOneWidget);
+    },
+  );
 
   testWidgets('close button dismisses the dialog', (tester) async {
     await tester.pumpWidget(wrap(_places, (_) {}));

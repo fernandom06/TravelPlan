@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'core/connectivity/connectivity_controller.dart';
+import 'data/itinerary_api.dart';
 import 'data/place_api.dart';
 import 'data/trip_api.dart';
 import 'presentation/controllers/places_controller.dart';
@@ -22,11 +23,13 @@ void main() {
   final online = ConnectivityController.live();
   final placesController = PlacesController(PlaceApi(baseUrl: kApiBaseUrl));
   final tripsController = TripsController(TripApi(baseUrl: kApiBaseUrl));
+  final itineraryApi = ItineraryApi(baseUrl: kApiBaseUrl);
   runApp(
     TravelPlanApp(
       online: online,
       placesController: placesController,
       tripsController: tripsController,
+      itineraryApi: itineraryApi,
       apiBaseUrl: kApiBaseUrl,
     ),
   );
@@ -38,12 +41,14 @@ class TravelPlanApp extends StatelessWidget {
     required this.online,
     required this.placesController,
     required this.tripsController,
+    required this.itineraryApi,
     required this.apiBaseUrl,
   });
 
   final ValueNotifier<bool> online;
   final PlacesController placesController;
   final TripsController tripsController;
+  final ItineraryApi itineraryApi;
   final String apiBaseUrl;
 
   @override
@@ -57,6 +62,7 @@ class TravelPlanApp extends StatelessWidget {
         online: online,
         placesController: placesController,
         tripsController: tripsController,
+        itineraryApi: itineraryApi,
         apiBaseUrl: apiBaseUrl,
       ),
     );

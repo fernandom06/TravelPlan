@@ -37,10 +37,7 @@ class ItinerarySlotSection extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              child: Text(title, style: Theme.of(context).textTheme.titleSmall),
             ),
             AnimatedContainer(
               duration: const Duration(milliseconds: 120),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/data/itinerary_api.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/trip.dart';
@@ -41,6 +42,7 @@ void main() {
         online: online,
         placesController: controller,
         tripsController: tripsController,
+        itineraryApi: ItineraryApi(baseUrl: 'http://fake'),
         apiBaseUrl: 'http://fake',
       ),
     );

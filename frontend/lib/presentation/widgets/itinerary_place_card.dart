@@ -21,11 +21,7 @@ class ItineraryPlaceCard extends StatelessWidget {
       child: ListTile(
         dense: true,
         leading: Icon(categoryIconFor(place.category.icon)),
-        title: Text(
-          place.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(place.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline),
           tooltip: 'Quitar del itinerario',

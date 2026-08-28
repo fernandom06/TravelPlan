@@ -51,12 +51,7 @@ void main() {
   testWidgets('delete button calls onDelete', (tester) async {
     var deleted = false;
     await tester.pumpWidget(
-      _wrap(
-        ItineraryPlaceCard(
-          item: _item(),
-          onDelete: () => deleted = true,
-        ),
-      ),
+      _wrap(ItineraryPlaceCard(item: _item(), onDelete: () => deleted = true)),
     );
 
     await tester.tap(find.byIcon(Icons.delete_outline));

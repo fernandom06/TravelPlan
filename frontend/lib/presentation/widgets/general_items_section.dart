@@ -40,7 +40,9 @@ class GeneralItemsSection extends StatelessWidget {
                   const SizedBox(width: 8),
                   CircleAvatar(
                     radius: 10,
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
                     child: Text(
                       '${items.length}',
                       style: Theme.of(context).textTheme.labelSmall,
@@ -55,7 +57,7 @@ class GeneralItemsSection extends StatelessWidget {
                 color: highlighted
                     ? Theme.of(context).colorScheme.primaryContainer
                     : Theme.of(context).colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.4),
+                          .withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(8),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),

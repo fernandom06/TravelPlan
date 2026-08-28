@@ -31,6 +31,7 @@ void main() {
           baseUrl: 'http://localhost:8000',
           onEdit: () {},
           onDelete: () {},
+          onOpen: () {},
         ),
       ),
     );
@@ -49,6 +50,7 @@ void main() {
           baseUrl: 'http://localhost:8000',
           onEdit: () {},
           onDelete: () {},
+          onOpen: () {},
         ),
       ),
     );
@@ -68,6 +70,7 @@ void main() {
           baseUrl: 'http://localhost:8000',
           onEdit: () {},
           onDelete: () {},
+          onOpen: () {},
         ),
       ),
     );
@@ -84,6 +87,7 @@ void main() {
           baseUrl: 'http://localhost:8000',
           onEdit: () {},
           onDelete: () {},
+          onOpen: () {},
         ),
       ),
     );
@@ -101,6 +105,7 @@ void main() {
           baseUrl: 'http://localhost:8000',
           onEdit: () {},
           onDelete: () {},
+          onOpen: () {},
         ),
       ),
     );
@@ -117,12 +122,31 @@ void main() {
           baseUrl: 'http://localhost:8000',
           onEdit: () => edited = true,
           onDelete: () {},
+          onOpen: () {},
         ),
       ),
     );
 
     await tester.tap(find.byIcon(Icons.edit));
     expect(edited, isTrue);
+  });
+
+  testWidgets('tapping the card calls onOpen', (tester) async {
+    var opened = false;
+    await tester.pumpWidget(
+      wrap(
+        TripCard(
+          trip: _trip(),
+          baseUrl: 'http://localhost:8000',
+          onEdit: () {},
+          onDelete: () {},
+          onOpen: () => opened = true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Viaje a Galicia'));
+    expect(opened, isTrue);
   });
 
   testWidgets('tapping delete calls onDelete', (tester) async {
@@ -134,6 +158,7 @@ void main() {
           baseUrl: 'http://localhost:8000',
           onEdit: () {},
           onDelete: () => deleted = true,
+          onOpen: () {},
         ),
       ),
     );

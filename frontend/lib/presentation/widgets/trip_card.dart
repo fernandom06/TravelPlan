@@ -35,12 +35,14 @@ class TripCard extends StatelessWidget {
     required this.baseUrl,
     required this.onEdit,
     required this.onDelete,
+    required this.onOpen,
   });
 
   final Trip trip;
   final String baseUrl;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onOpen;
 
   String get _dates =>
       '${_formatDate(trip.startDate)} - ${_formatDate(trip.endDate)}';
@@ -77,45 +79,51 @@ class TripCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildImage(context),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(trip.name, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(_dates, style: Theme.of(context).textTheme.bodySmall),
-                if (trip.description != null) ...[
-                  const SizedBox(height: 4),
+      child: InkWell(
+        onTap: onOpen,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildImage(context),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    trip.description!,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    trip.name,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: onEdit,
-                      tooltip: 'Editar',
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: onDelete,
-                      tooltip: 'Eliminar',
+                  const SizedBox(height: 4),
+                  Text(_dates, style: Theme.of(context).textTheme.bodySmall),
+                  if (trip.description != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      trip.description!,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: onEdit,
+                        tooltip: 'Editar',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: onDelete,
+                        tooltip: 'Eliminar',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
