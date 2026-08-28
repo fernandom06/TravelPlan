@@ -8,6 +8,7 @@ import '../controllers/trips_controller.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/trip_card.dart';
 import '../widgets/trip_form.dart';
+import 'zone_map_screen.dart';
 
 class TripsScreen extends StatefulWidget {
   const TripsScreen({
@@ -93,22 +94,38 @@ class _TripsScreenState extends State<TripsScreen> {
     return 'image/jpeg';
   }
 
-  Future<void> _openCreateForm() async {
-    await showDialog<void>(
+  Future<TripDraft?> _showTripForm({TripDraft? initialDraft}) {
+    return showDialog<TripDraft>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           content: TripForm(
-            onSave: (draft) {
-              Navigator.pop(dialogContext);
-              _createTrip(draft);
-            },
+            initialDraft: initialDraft,
+            onSave: (draft) => Navigator.pop(dialogContext, draft),
             onCancel: () => Navigator.pop(dialogContext),
             onPickImage: _pickAndUploadImage,
           ),
         );
       },
     );
+  }
+
+  Future<void> _openCreateForm() async {
+    TripDraft? saved;
+    while (true) {
+      saved = await _showTripForm(initialDraft: saved);
+      if (saved == null || !mounted) return;
+      final draft = saved;
+      final result = await Navigator.push<TripDraft>(
+        context,
+        MaterialPageRoute(builder: (_) => ZoneMapScreen(draft: draft)),
+      );
+      if (result != null) {
+        _createTrip(result);
+        return;
+      }
+      if (!mounted) return;
+    }
   }
 
   Future<void> _openEditForm(Trip trip) async {
