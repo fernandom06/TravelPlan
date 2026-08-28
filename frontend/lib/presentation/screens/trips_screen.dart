@@ -203,6 +203,7 @@ class _TripsScreenState extends State<TripsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openCreateForm,
+        heroTag: 'trips-create-fab',
         child: const Icon(Icons.add),
       ),
     );

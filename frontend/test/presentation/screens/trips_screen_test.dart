@@ -150,6 +150,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(FloatingActionButton), findsOneWidget);
+    final fab = tester.widget<FloatingActionButton>(
+      find.byType(FloatingActionButton),
+    );
+    expect(fab.heroTag, 'trips-create-fab');
   });
 
   testWidgets('tapping FAB opens the trip form', (tester) async {
