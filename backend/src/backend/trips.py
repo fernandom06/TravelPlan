@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from . import config
 from .database import get_db
 from .schemas import ImageUploadResponse, TripCreate, TripResponse, TripUpdate
+from .zones import link_places_in_zone
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -31,6 +32,26 @@ def _row_to_response(row: sqlite3.Row) -> TripResponse:
 
 def _fetch_trip(conn: sqlite3.Connection, trip_id: str) -> sqlite3.Row | None:
     return conn.execute(_TRIP_SELECT + "WHERE id = ?", (trip_id,)).fetchone()
+
+
+def _reset_itinerary_placements(conn: sqlite3.Connection, trip_id: str) -> None:
+    """Devuelve todos los items del viaje a la lista general.
+
+    Se conserva el orden relativo previo: lista general primero (por
+    ``position``) y después los colocados (por día, franja y posición),
+    compactando posiciones de forma correlativa.
+    """
+    rows = conn.execute(
+        "SELECT id FROM trip_itinerary_items WHERE trip_id = ? "
+        "ORDER BY day_date IS NOT NULL, day_date, slot, position",
+        (trip_id,),
+    ).fetchall()
+    for position, row in enumerate(rows):
+        conn.execute(
+            "UPDATE trip_itinerary_items SET day_date = NULL, slot = NULL, "
+            "position = ? WHERE id = ?",
+            (position, row["id"]),
+        )
 
 
 @router.get("", response_model=list[TripResponse])
@@ -61,6 +82,8 @@ def create_trip(
             payload.image_url,
         ),
     )
+    if payload.zone is not None:
+        link_places_in_zone(conn, trip_id, payload.zone.points)
     conn.commit()
     return _row_to_response(_fetch_trip(conn, trip_id))
 
@@ -105,6 +128,14 @@ def update_trip(
             trip_id,
         ),
     )
+
+    dates_changed = (
+        payload.start_date.isoformat() != existing["start_date"]
+        or payload.end_date.isoformat() != existing["end_date"]
+    )
+    if dates_changed:
+        _reset_itinerary_placements(conn, trip_id)
+
     conn.commit()
     return _row_to_response(_fetch_trip(conn, trip_id))
 

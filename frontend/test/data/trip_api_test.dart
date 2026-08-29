@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 
 import 'package:frontend/data/models/trip_draft.dart';
 import 'package:frontend/data/models/trip_update.dart';
+import 'package:frontend/data/models/zone_point.dart';
 import 'package:frontend/data/trip_api.dart';
 
 const _tripJson = {
@@ -70,6 +71,7 @@ void main() {
           'end_date': '2026-06-10',
           'description': 'Costas',
           'image_url': null,
+          'zone': null,
         });
         return http.Response(jsonEncode(_tripJson), 201);
       });
@@ -81,6 +83,72 @@ void main() {
           startDate: DateTime(2026, 6, 1),
           endDate: DateTime(2026, 6, 10),
           description: 'Costas',
+        ),
+      );
+
+      expect(trip.id, 'abc');
+    });
+
+    test('createTrip sends zone points in body when draft has them', () async {
+      const points = [
+        ZonePoint(latitude: 42.0, longitude: -4.0),
+        ZonePoint(latitude: 43.0, longitude: -3.0),
+        ZonePoint(latitude: 42.5, longitude: -3.5),
+      ];
+      final client = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/trips');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['zone'], {
+          'points': [
+            {'latitude': 42.0, 'longitude': -4.0},
+            {'latitude': 43.0, 'longitude': -3.0},
+            {'latitude': 42.5, 'longitude': -3.5},
+          ],
+        });
+        return http.Response(jsonEncode(_tripJson), 201);
+      });
+      final api = TripApi(baseUrl: 'http://localhost:8000', client: client);
+
+      final trip = await api.createTrip(
+        TripDraft(
+          name: 'Viaje a Galicia',
+          startDate: DateTime(2026, 6, 1),
+          endDate: DateTime(2026, 6, 10),
+          zone: points,
+        ),
+      );
+
+      expect(trip.id, 'abc');
+    });
+
+    test('createTrip sends collinear 3-point zone unchanged', () async {
+      const points = [
+        ZonePoint(latitude: 42.0, longitude: -4.0),
+        ZonePoint(latitude: 42.0, longitude: -3.0),
+        ZonePoint(latitude: 42.0, longitude: -2.0),
+      ];
+      final client = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/trips');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['zone'], {
+          'points': [
+            {'latitude': 42.0, 'longitude': -4.0},
+            {'latitude': 42.0, 'longitude': -3.0},
+            {'latitude': 42.0, 'longitude': -2.0},
+          ],
+        });
+        return http.Response(jsonEncode(_tripJson), 201);
+      });
+      final api = TripApi(baseUrl: 'http://localhost:8000', client: client);
+
+      final trip = await api.createTrip(
+        TripDraft(
+          name: 'Viaje a Galicia',
+          startDate: DateTime(2026, 6, 1),
+          endDate: DateTime(2026, 6, 10),
+          zone: points,
         ),
       );
 

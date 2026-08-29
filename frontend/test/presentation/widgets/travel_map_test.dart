@@ -602,6 +602,10 @@ void main() {
       );
 
       expect(find.byIcon(Icons.link), findsOneWidget);
+      final fab = tester.widget<FloatingActionButton>(
+        find.byType(FloatingActionButton),
+      );
+      expect(fab.heroTag, 'map-import-fab');
     });
 
     testWidgets('offline tap shows SnackBar and does not open the dialog', (

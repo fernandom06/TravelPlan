@@ -49,10 +49,13 @@ def init_db(conn: sqlite3.Connection) -> None:
     )
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS trip_places (
+        CREATE TABLE IF NOT EXISTS trip_itinerary_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
             place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
-            PRIMARY KEY (trip_id, place_id)
+            day_date TEXT,
+            slot TEXT,
+            position INTEGER NOT NULL
         )
         """
     )

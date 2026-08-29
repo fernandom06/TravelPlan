@@ -1,23 +1,32 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../data/itinerary_api.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_draft.dart';
 import '../../data/models/trip_update.dart';
+import '../controllers/itinerary_controller.dart';
+import '../controllers/places_controller.dart';
 import '../controllers/trips_controller.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/trip_card.dart';
 import '../widgets/trip_form.dart';
+import 'itinerary_screen.dart';
+import 'zone_map_screen.dart';
 
 class TripsScreen extends StatefulWidget {
   const TripsScreen({
     super.key,
     required this.tripsController,
+    required this.itineraryApi,
+    required this.placesController,
     required this.online,
     required this.baseUrl,
   });
 
   final TripsController tripsController;
+  final ItineraryApi itineraryApi;
+  final PlacesController placesController;
   final ValueNotifier<bool> online;
   final String baseUrl;
 
@@ -26,10 +35,19 @@ class TripsScreen extends StatefulWidget {
 }
 
 class _TripsScreenState extends State<TripsScreen> {
+  late final ItineraryController _itineraryController;
+
   @override
   void initState() {
     super.initState();
+    _itineraryController = ItineraryController(widget.itineraryApi);
     _loadTrips();
+  }
+
+  @override
+  void dispose() {
+    _itineraryController.dispose();
+    super.dispose();
   }
 
   void _showError(Object error, String action) {
@@ -93,22 +111,38 @@ class _TripsScreenState extends State<TripsScreen> {
     return 'image/jpeg';
   }
 
-  Future<void> _openCreateForm() async {
-    await showDialog<void>(
+  Future<TripDraft?> _showTripForm({TripDraft? initialDraft}) {
+    return showDialog<TripDraft>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           content: TripForm(
-            onSave: (draft) {
-              Navigator.pop(dialogContext);
-              _createTrip(draft);
-            },
+            initialDraft: initialDraft,
+            onSave: (draft) => Navigator.pop(dialogContext, draft),
             onCancel: () => Navigator.pop(dialogContext),
             onPickImage: _pickAndUploadImage,
           ),
         );
       },
     );
+  }
+
+  Future<void> _openCreateForm() async {
+    TripDraft? saved;
+    while (true) {
+      saved = await _showTripForm(initialDraft: saved);
+      if (saved == null || !mounted) return;
+      final draft = saved;
+      final result = await Navigator.push<TripDraft>(
+        context,
+        MaterialPageRoute(builder: (_) => ZoneMapScreen(draft: draft)),
+      );
+      if (result != null) {
+        _createTrip(result);
+        return;
+      }
+      if (!mounted) return;
+    }
   }
 
   Future<void> _openEditForm(Trip trip) async {
@@ -140,6 +174,21 @@ class _TripsScreenState extends State<TripsScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _openTrip(Trip trip) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ItineraryScreen(
+          trip: trip,
+          itineraryController: _itineraryController,
+          placesController: widget.placesController,
+          online: widget.online,
+          baseUrl: widget.baseUrl,
+        ),
+      ),
     );
   }
 
@@ -186,6 +235,7 @@ class _TripsScreenState extends State<TripsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openCreateForm,
+        heroTag: 'trips-create-fab',
         child: const Icon(Icons.add),
       ),
     );
@@ -223,6 +273,7 @@ class _TripsScreenState extends State<TripsScreen> {
           baseUrl: widget.baseUrl,
           onEdit: () => _openEditForm(trip),
           onDelete: () => _confirmAndDelete(trip),
+          onOpen: () => _openTrip(trip),
         );
       },
     );

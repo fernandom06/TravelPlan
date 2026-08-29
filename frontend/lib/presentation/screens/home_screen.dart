@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/itinerary_api.dart';
 import '../../data/models/category_draft.dart';
 import '../controllers/places_controller.dart';
 import '../controllers/trips_controller.dart';
@@ -13,12 +14,14 @@ class HomeScreen extends StatefulWidget {
     required this.online,
     required this.placesController,
     required this.tripsController,
+    required this.itineraryApi,
     required this.apiBaseUrl,
   });
 
   final ValueNotifier<bool> online;
   final PlacesController placesController;
   final TripsController tripsController;
+  final ItineraryApi itineraryApi;
   final String apiBaseUrl;
 
   @override
@@ -113,6 +116,8 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildTripsContent() {
     return TripsScreen(
       tripsController: widget.tripsController,
+      itineraryApi: widget.itineraryApi,
+      placesController: widget.placesController,
       online: widget.online,
       baseUrl: widget.apiBaseUrl,
     );

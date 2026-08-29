@@ -333,6 +333,7 @@ class _TravelMapState extends State<TravelMap> {
             bottom: 16,
             child: FloatingActionButton(
               onPressed: _handleImportPressed,
+              heroTag: 'map-import-fab',
               tooltip: 'Importar desde Google Maps',
               child: const Icon(Icons.link),
             ),

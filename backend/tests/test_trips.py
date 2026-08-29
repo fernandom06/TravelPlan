@@ -182,3 +182,81 @@ def test_duplicate_names_allowed(test_client):
     assert first["name"] == second["name"]
     assert first["id"] != second["id"]
     assert len(test_client.get("/trips").json()) == 2
+
+
+def _create_category(client, name="Naturaleza"):
+    return client.post("/categories", json={"name": name}).json()
+
+
+def _create_place(client, category_id, name="Mirador"):
+    response = client.post(
+        "/places",
+        json={
+            "name": name,
+            "category_id": category_id,
+            "latitude": 42.5,
+            "longitude": -3.5,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def _add_item(client, trip_id, place_id):
+    response = client.post(
+        f"/trips/{trip_id}/itinerary", json={"place_id": place_id}
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def _move_item(client, trip_id, item_id, day_date, slot, position):
+    response = client.patch(
+        f"/trips/{trip_id}/itinerary/{item_id}",
+        json={"day_date": day_date, "slot": slot, "position": position},
+    )
+    assert response.status_code == 200
+
+
+def test_updating_trip_dates_resets_itinerary_to_general_list(test_client):
+    category = _create_category(test_client)
+    place_a = _create_place(test_client, category["id"], "A")
+    place_b = _create_place(test_client, category["id"], "B")
+    trip = _create_trip(test_client)
+    item_a = _add_item(test_client, trip["id"], place_a["id"])
+    _add_item(test_client, trip["id"], place_b["id"])
+    _move_item(test_client, trip["id"], item_a["id"], "2026-06-01", "morning", 0)
+
+    response = test_client.patch(
+        f"/trips/{trip['id']}",
+        json=_valid_trip(start_date="2026-07-01", end_date="2026-07-05"),
+    )
+
+    assert response.status_code == 200
+    itinerary = test_client.get(f"/trips/{trip['id']}/itinerary").json()
+    assert len(itinerary) == 2
+    assert all(item["day_date"] is None and item["slot"] is None for item in itinerary)
+    # General primero (B), luego el que estaba colocado (A), compactado.
+    assert [item["place"]["id"] for item in itinerary] == [
+        place_b["id"],
+        place_a["id"],
+    ]
+    assert [item["position"] for item in itinerary] == [0, 1]
+
+
+def test_updating_only_name_keeps_itinerary_placements(test_client):
+    category = _create_category(test_client)
+    place = _create_place(test_client, category["id"], "A")
+    trip = _create_trip(test_client)
+    item = _add_item(test_client, trip["id"], place["id"])
+    _move_item(test_client, trip["id"], item["id"], "2026-06-01", "morning", 0)
+
+    response = test_client.patch(
+        f"/trips/{trip['id']}", json=_valid_trip(name="Renombrado")
+    )
+
+    assert response.status_code == 200
+    itinerary = test_client.get(f"/trips/{trip['id']}/itinerary").json()
+    assert len(itinerary) == 1
+    assert itinerary[0]["day_date"] == "2026-06-01"
+    assert itinerary[0]["slot"] == "morning"

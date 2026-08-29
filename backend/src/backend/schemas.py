@@ -1,4 +1,5 @@
 from datetime import date
+from enum import Enum
 from typing import Annotated
 from urllib.parse import urlparse
 
@@ -60,12 +61,54 @@ class TripResponse(BaseModel):
     created_at: str
 
 
+class ItinerarySlot(str, Enum):
+    morning = "morning"
+    afternoon = "afternoon"
+    night = "night"
+
+
+class ItineraryItemResponse(BaseModel):
+    id: int
+    day_date: date | None
+    slot: ItinerarySlot | None
+    position: int
+    place: PlaceResponse
+
+
+class ItineraryItemCreate(BaseModel):
+    place_id: int
+
+
+class ItineraryItemMove(BaseModel):
+    day_date: date | None = None
+    slot: ItinerarySlot | None = None
+    position: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _validate_placement(self):
+        if (self.day_date is None) != (self.slot is None):
+            raise ValueError(
+                "day_date and slot must be both set or both null"
+            )
+        return self
+
+
+class ZonePoint(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class ZoneCreate(BaseModel):
+    points: list[ZonePoint] = Field(min_length=3, max_length=200)
+
+
 class TripCreate(BaseModel):
     name: str = Field(min_length=1)
     start_date: date
     end_date: date
     description: str | None = None
     image_url: str | None = None
+    zone: ZoneCreate | None = None
 
     @model_validator(mode="after")
     def _validate_dates(self):

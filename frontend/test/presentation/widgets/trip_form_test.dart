@@ -123,6 +123,34 @@ void main() {
     expect(find.text('Costas'), findsOneWidget);
   });
 
+  testWidgets('create mode seeds fields from initialDraft', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        TripForm(
+          onSave: (_) {},
+          onCancel: () {},
+          initialDraft: TripDraft(
+            name: 'Viaje a Galicia',
+            startDate: DateTime(2026, 6, 1),
+            endDate: DateTime(2026, 6, 10),
+            description: 'Costas',
+            imageUrl: '/uploads/x.jpg',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Viaje a Galicia'), findsOneWidget);
+    expect(find.text('Costas'), findsOneWidget);
+    expect(find.text('/uploads/x.jpg'), findsOneWidget);
+    expect(
+      tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Guardar'),
+      ).onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets('delete button opens confirm and confirms calls onDelete', (
     tester,
   ) async {
