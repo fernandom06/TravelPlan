@@ -10,7 +10,7 @@ import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/data/models/place_update.dart';
-import 'package:frontend/presentation/widgets/category_dropdown.dart';
+import 'package:frontend/presentation/widgets/category_chip_strip.dart';
 import 'package:frontend/presentation/widgets/import_url_dialog.dart';
 import 'package:frontend/presentation/widgets/map_constants.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
@@ -314,9 +314,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.byType(PlaceForm), findsOneWidget);
 
-    await tester.tap(find.byType(CategoryDropdown));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Nueva categoría'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(CategoryChipStrip),
+        matching: find.byIcon(Icons.add),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
@@ -326,8 +329,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(createdName, 'Playa');
-    // 'Playa' is autoselected and appears in the open menu.
-    expect(find.text('Playa'), findsNWidgets(2));
+    // 'Playa' is autoselected and appears as a chip.
+    expect(find.text('Playa'), findsOneWidget);
   });
 
   testWidgets('wires rename and delete callbacks to the form on the map', (
@@ -353,17 +356,11 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'Mirador');
     await tester.pump();
-    await tester.tap(find.byType(CategoryDropdown));
+    await tester.longPress(find.text('Naturaleza'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Editar'));
     await tester.pumpAndSettle();
 
-    final row = find.ancestor(
-      of: find.text('Naturaleza'),
-      matching: find.byType(ListTile),
-    );
-    await tester.tap(
-      find.descendant(of: row, matching: find.byIcon(Icons.edit)),
-    );
-    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Nuevo nombre'),
       'Costa',

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
-import 'category_dropdown.dart';
+import 'category_chip_strip.dart';
 
 class _PlaceFields extends StatelessWidget {
   const _PlaceFields({
@@ -201,7 +201,7 @@ class _PlaceFormState extends State<PlaceForm> {
   }
 
   Widget _buildCategoryField() {
-    return CategoryDropdown(
+    return CategoryChipStrip(
       categories: _categories,
       value: _selectedCategory,
       places: widget.places,
@@ -331,7 +331,7 @@ class _PlaceDetailsState extends State<PlaceDetails> {
             _PlaceFields(
               nameController: _nameController,
               descriptionController: _descriptionController,
-              categoryField: CategoryDropdown(
+              categoryField: CategoryChipStrip(
                 categories: widget.categories,
                 value: widget.place.category,
                 enabled: false,
