@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/itinerary_api.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_draft.dart';
@@ -8,6 +9,7 @@ import '../../data/models/trip_update.dart';
 import '../controllers/itinerary_controller.dart';
 import '../controllers/places_controller.dart';
 import '../controllers/trips_controller.dart';
+import '../widgets/dashed_border_container.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/trip_card.dart';
 import '../widgets/trip_form.dart';
@@ -224,10 +226,27 @@ class _TripsScreenState extends State<TripsScreen> {
         builder: (_, isOnline, _) => Column(
           children: [
             if (!isOnline) const OfflineBanner(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Tus Aventuras',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: ValueListenableBuilder<TripsState>(
                 valueListenable: widget.tripsController,
-                builder: (_, state, _) => _buildBody(state),
+                builder: (_, state, _) => _buildBody(context, state),
               ),
             ),
           ],
@@ -241,41 +260,91 @@ class _TripsScreenState extends State<TripsScreen> {
     );
   }
 
-  Widget _buildBody(TripsState state) {
+  int _columnsFor(double width) {
+    if (width < 800) return 1;
+    if (width < 1280) return 2;
+    return 3;
+  }
+
+  Widget _buildBody(BuildContext context, TripsState state) {
     if (state.isLoading && state.trips.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (state.trips.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.flight, size: 64),
-            SizedBox(height: 16),
-            Text('No hay viajes'),
-          ],
-        ),
-      );
-    }
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: state.trips.length,
-      itemBuilder: (_, index) {
-        final trip = state.trips[index];
-        return TripCard(
-          trip: trip,
-          baseUrl: widget.baseUrl,
-          onEdit: () => _openEditForm(trip),
-          onDelete: () => _confirmAndDelete(trip),
-          onOpen: () => _openTrip(trip),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final columns = _columnsFor(width);
+        final itemCount = state.trips.length + 1;
+        if (state.trips.isEmpty) {
+          // The dashed card doubles as the centered empty state.
+          return Center(
+            child: SizedBox(
+              width: (width * 0.6).clamp(220.0, 320.0),
+              height: 280,
+              child: _CreateTripCard(onTap: _openCreateForm),
+            ),
+          );
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(12),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: 0.75,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: itemCount,
+          itemBuilder: (_, index) {
+            if (index == state.trips.length) {
+              return _CreateTripCard(onTap: _openCreateForm);
+            }
+            final trip = state.trips[index];
+            return TripCard(
+              trip: trip,
+              baseUrl: widget.baseUrl,
+              onEdit: () => _openEditForm(trip),
+              onDelete: () => _confirmAndDelete(trip),
+              onOpen: () => _openTrip(trip),
+            );
+          },
         );
       },
+    );
+  }
+}
+
+/// Dashed "¿A dónde vamos?" card that opens the trip creation form; it is the
+/// last grid cell when trips exist and the centered empty state otherwise.
+class _CreateTripCard extends StatelessWidget {
+  const _CreateTripCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return DashedBorderContainer(
+      color: AppColors.muted,
+      radius: 16,
+      backgroundColor: AppColors.background.withValues(alpha: 0.4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add, size: 40, color: AppColors.muted),
+            const SizedBox(height: 12),
+            Text(
+              '¿A dónde vamos?',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.text,
+                fontFamily: 'Fraunces',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

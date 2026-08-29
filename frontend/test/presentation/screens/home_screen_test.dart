@@ -206,7 +206,7 @@ void main() {
 
     expect(find.byType(TripsScreen).hitTestable(), findsOneWidget);
     expect(find.byType(TravelMap).hitTestable(), findsNothing);
-    expect(find.text('No hay viajes'), findsOneWidget);
+    expect(find.text('¿A dónde vamos?'), findsOneWidget);
   });
 
   testWidgets('tapping Viajes in the desktop top bar shows trips content', (

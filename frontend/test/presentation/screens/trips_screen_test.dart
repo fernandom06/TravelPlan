@@ -137,6 +137,26 @@ Widget _wrap(
 }
 
 void main() {
+  Future<void> pump(
+    WidgetTester tester,
+    TripsController controller, {
+    Size size = const Size(800, 600),
+    ItineraryApi? itineraryApi,
+    PlacesController? placesController,
+  }) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _wrap(
+        controller,
+        itineraryApi: itineraryApi,
+        placesController: placesController,
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('shows loader while loading', (tester) async {
     final api = _FakeTripApi(trips: [_trip])..loadGate = Completer<void>();
     final controller = TripsController(api);
@@ -151,26 +171,87 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('shows empty message when no trips', (tester) async {
+  testWidgets('shows the dashed empty card when no trips', (tester) async {
     final controller = TripsController(_FakeTripApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(_wrap(controller));
-    await tester.pumpAndSettle();
+    await pump(tester, controller);
 
-    expect(find.text('No hay viajes'), findsOneWidget);
+    expect(find.text('¿A dónde vamos?'), findsOneWidget);
+    expect(find.text('No hay viajes'), findsNothing);
   });
 
-  testWidgets('shows a TripCard per trip', (tester) async {
+  testWidgets('shows the Tus Aventuras header without icons', (tester) async {
+    final controller = TripsController(_FakeTripApi(trips: [_trip]));
+    addTearDown(controller.dispose);
+
+    await pump(tester, controller);
+
+    expect(find.text('Tus Aventuras'), findsOneWidget);
+  });
+
+  testWidgets('shows a TripCard per trip and the dashed create card', (
+    tester,
+  ) async {
     final controller = TripsController(_FakeTripApi(trips: [_trip, _trip2]));
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(_wrap(controller));
-    await tester.pumpAndSettle();
+    await pump(tester, controller);
 
     expect(find.byType(TripCard), findsNWidgets(2));
     expect(find.text('Viaje a Galicia'), findsOneWidget);
     expect(find.text('Viaje a Madrid'), findsOneWidget);
+    expect(find.text('¿A dónde vamos?'), findsOneWidget);
+  });
+
+  testWidgets('grid uses 1 column below 800 dp', (tester) async {
+    final controller = TripsController(_FakeTripApi(trips: [_trip, _trip2]));
+    addTearDown(controller.dispose);
+
+    await pump(tester, controller, size: const Size(700, 844));
+
+    final grid = tester.widget<GridView>(find.byType(GridView));
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 1);
+  });
+
+  testWidgets('grid uses 2 columns between 800 and 1279 dp', (tester) async {
+    final controller = TripsController(_FakeTripApi(trips: [_trip, _trip2]));
+    addTearDown(controller.dispose);
+
+    await pump(tester, controller, size: const Size(1000, 800));
+
+    final grid = tester.widget<GridView>(find.byType(GridView));
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2);
+  });
+
+  testWidgets('grid uses 3 columns at 1280 dp and wider', (tester) async {
+    final controller = TripsController(_FakeTripApi(trips: [_trip, _trip2]));
+    addTearDown(controller.dispose);
+
+    await pump(tester, controller, size: const Size(1280, 800));
+
+    final grid = tester.widget<GridView>(find.byType(GridView));
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 3);
+  });
+
+  testWidgets('tapping the dashed create card opens the trip form', (
+    tester,
+  ) async {
+    final controller = TripsController(_FakeTripApi(trips: [_trip]));
+    addTearDown(controller.dispose);
+
+    await pump(tester, controller);
+
+    await tester.tap(find.text('¿A dónde vamos?'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TripForm), findsOneWidget);
   });
 
   testWidgets('tapping a trip card opens the itinerary screen', (tester) async {
