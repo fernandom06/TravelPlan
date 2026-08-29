@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/presentation/controllers/zone_controller.dart';
+import 'package:frontend/presentation/widgets/map_constants.dart';
 import 'package:frontend/presentation/widgets/zone_map.dart';
 
 Widget _map(ZoneController controller) => MaterialApp(
@@ -29,6 +30,28 @@ void main() {
     expect(find.byType(FlutterMap), findsOneWidget);
     expect(find.byType(PolygonLayer), findsNothing);
     expect(_markers(tester), isEmpty);
+  });
+
+  testWidgets('uses CartoDB Positron tiles with attribution', (tester) async {
+    final controller = ZoneController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(_map(controller));
+
+    final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer).first);
+    expect(tileLayer.urlTemplate, kCartoTileUrlTemplate);
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is RichAttributionWidget &&
+            w.attributions.any(
+              (a) =>
+                  a is TextSourceAttribution &&
+                  a.text.contains('OpenStreetMap contributors'),
+            ),
+      ),
+      findsWidgets,
+    );
   });
 
   testWidgets('three taps add a polygon with three vertices and markers', (

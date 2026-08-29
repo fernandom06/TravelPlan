@@ -316,8 +316,16 @@ class _TravelMapState extends State<TravelMap> {
           ),
           children: [
             TileLayer(
-              urlTemplate: kOsmTileUrlTemplate,
+              urlTemplate: kCartoTileUrlTemplate,
               userAgentPackageName: 'dev.travelplan.frontend',
+            ),
+            RichAttributionWidget(
+              attributions: const [
+                TextSourceAttribution(
+                  'OpenStreetMap contributors © CARTO',
+                  prependCopyright: false,
+                ),
+              ],
             ),
             MarkerLayer(markers: markers),
             PlaceLabelsLayer(

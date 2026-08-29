@@ -102,6 +102,28 @@ void main() {
     expect(_markers(tester), isEmpty);
   });
 
+  testWidgets('uses CartoDB Positron tiles with visible attribution', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_map());
+
+    final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer).first);
+    expect(tileLayer.urlTemplate, kCartoTileUrlTemplate);
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is RichAttributionWidget &&
+            w.attributions.any(
+              (a) =>
+                  a is TextSourceAttribution &&
+                  a.text.contains('OpenStreetMap contributors') &&
+                  a.text.contains('CARTO'),
+            ),
+      ),
+      findsWidgets,
+    );
+  });
+
   testWidgets('renders a blue marker per place', (tester) async {
     await tester.pumpWidget(_map(places: [_place]));
 

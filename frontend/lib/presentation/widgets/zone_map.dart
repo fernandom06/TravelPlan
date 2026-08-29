@@ -69,8 +69,16 @@ class _ZoneMapState extends State<ZoneMap> {
           ),
           children: [
             TileLayer(
-              urlTemplate: kOsmTileUrlTemplate,
+              urlTemplate: kCartoTileUrlTemplate,
               userAgentPackageName: 'dev.travelplan.frontend',
+            ),
+            RichAttributionWidget(
+              attributions: const [
+                TextSourceAttribution(
+                  'OpenStreetMap contributors © CARTO',
+                  prependCopyright: false,
+                ),
+              ],
             ),
             if (vertices.length >= 3)
               PolygonLayer(
