@@ -4,6 +4,7 @@ import '../../data/itinerary_api.dart';
 import '../../data/models/category_draft.dart';
 import '../controllers/places_controller.dart';
 import '../controllers/trips_controller.dart';
+import '../widgets/app_shell.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/travel_map.dart';
 import 'trips_screen.dart';
@@ -28,17 +29,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController = TabController(
-    length: 2,
-    vsync: this,
-  );
-
+class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _tabController.addListener(_onTabChanged);
     widget.placesController.loadAll().catchError((Object error) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -49,36 +43,10 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  void _onTabChanged() {
-    if (!_tabController.indexIsChanging) {
-      setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('TravelPlan'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.map_outlined), text: 'Mapa'),
-            Tab(icon: Icon(Icons.flight), text: 'Viajes'),
-          ],
-        ),
-      ),
-      body: IndexedStack(
-        index: _tabController.index,
-        children: [_buildMapContent(), _buildTripsContent()],
-      ),
+    return AppShell(
+      children: [_buildMapContent(), _buildTripsContent()],
     );
   }
 

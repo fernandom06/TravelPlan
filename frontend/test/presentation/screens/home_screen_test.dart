@@ -14,6 +14,7 @@ import 'package:frontend/presentation/controllers/trips_controller.dart';
 import 'package:frontend/presentation/screens/home_screen.dart';
 import 'package:frontend/presentation/screens/trips_screen.dart';
 import 'package:frontend/presentation/screens/zone_map_screen.dart';
+import 'package:frontend/presentation/widgets/app_shell.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
 class _FakePlaceApi extends PlaceApi {
@@ -57,32 +58,67 @@ class _FakeTripApi extends TripApi {
   }
 }
 
+const _mobileSize = Size(700, 844);
+const _desktopSize = Size(1200, 800);
+
 HomeScreen _homeScreen(
   ValueNotifier<bool> online,
-  PlacesController placesController,
-) {
+  PlacesController placesController, {
+  TripsController? tripsController,
+}) {
   return HomeScreen(
     online: online,
     placesController: placesController,
-    tripsController: TripsController(_FakeTripApi()),
+    tripsController: tripsController ?? TripsController(_FakeTripApi()),
     itineraryApi: ItineraryApi(baseUrl: 'http://fake'),
     apiBaseUrl: 'http://fake',
   );
 }
 
+Future<void> _pumpHome(
+  WidgetTester tester,
+  ValueNotifier<bool> online,
+  PlacesController controller, {
+  Size size = _mobileSize,
+  TripsController? tripsController,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    MaterialApp(home: _homeScreen(online, controller, tripsController: tripsController)),
+  );
+  await tester.pump();
+}
+
 void main() {
-  testWidgets('shows AppBar, map and no banner when online', (tester) async {
+  testWidgets('shows map and no banner when online (mobile)', (tester) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
+
+    expect(find.byType(TravelMap), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('Sin conexión con el servidor'), findsNothing);
+  });
+
+  testWidgets('desktop layout shows the top bar with the app title', (
+    tester,
+  ) async {
+    final online = ValueNotifier<bool>(true);
+    addTearDown(online.dispose);
+    final controller = PlacesController(_FakePlaceApi());
+    addTearDown(controller.dispose);
+
+    await _pumpHome(tester, online, controller, size: _desktopSize);
 
     expect(find.text('TravelPlan'), findsOneWidget);
-    expect(find.byType(TravelMap), findsOneWidget);
-    expect(find.text('Sin conexión con el servidor'), findsNothing);
+    expect(find.byKey(const Key('app-shell-desktop-top-bar')), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(TravelMap).hitTestable(), findsOneWidget);
   });
 
   testWidgets('shows offline banner and map when offline', (tester) async {
@@ -91,8 +127,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
 
     expect(find.text('Sin conexión con el servidor'), findsOneWidget);
     expect(find.byType(TravelMap), findsOneWidget);
@@ -104,8 +139,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
     expect(find.text('Sin conexión con el servidor'), findsNothing);
 
     online.value = false;
@@ -125,28 +159,27 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
     await tester.pump();
 
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.textContaining('boom'), findsOneWidget);
   });
 
-  testWidgets('shows Mapa and Viajes tabs with icons', (tester) async {
+  testWidgets('shows Mapa and Viajes navigation destinations with icons', (
+    tester,
+  ) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
 
-    expect(find.text('TravelPlan'), findsOneWidget);
     expect(find.text('Mapa'), findsOneWidget);
     expect(find.text('Viajes'), findsOneWidget);
-    expect(find.byIcon(Icons.map_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.flight), findsOneWidget);
+    expect(find.byIcon(Icons.map), findsOneWidget);
+    expect(find.byIcon(Icons.flight_outlined), findsOneWidget);
   });
 
   testWidgets('shows the map by default in the Mapa tab', (tester) async {
@@ -155,21 +188,19 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
 
     expect(find.byType(TravelMap).hitTestable(), findsOneWidget);
     expect(find.byType(TripsScreen).hitTestable(), findsNothing);
   });
 
-  testWidgets('tapping Viajes shows the trips content', (tester) async {
+  testWidgets('tapping Viajes shows the trips content (mobile)', (tester) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
 
     await tester.tap(find.text('Viajes'));
     await tester.pumpAndSettle();
@@ -177,6 +208,23 @@ void main() {
     expect(find.byType(TripsScreen).hitTestable(), findsOneWidget);
     expect(find.byType(TravelMap).hitTestable(), findsNothing);
     expect(find.text('No hay viajes'), findsOneWidget);
+  });
+
+  testWidgets('tapping Viajes in the desktop top bar shows trips content', (
+    tester,
+  ) async {
+    final online = ValueNotifier<bool>(true);
+    addTearDown(online.dispose);
+    final controller = PlacesController(_FakePlaceApi());
+    addTearDown(controller.dispose);
+
+    await _pumpHome(tester, online, controller, size: _desktopSize);
+
+    await tester.tap(find.text('Viajes'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TripsScreen).hitTestable(), findsOneWidget);
+    expect(find.byType(TravelMap).hitTestable(), findsNothing);
   });
 
   testWidgets('shows offline banner in Viajes tab when offline', (
@@ -187,8 +235,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
 
     await tester.tap(find.text('Viajes'));
     await tester.pumpAndSettle();
@@ -204,8 +251,7 @@ void main() {
     final controller = PlacesController(_FakePlaceApi());
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(MaterialApp(home: _homeScreen(online, controller)));
-    await tester.pump();
+    await _pumpHome(tester, online, controller);
 
     await tester.tap(find.text('Viajes'));
     await tester.pumpAndSettle();
@@ -229,16 +275,11 @@ void main() {
       final tripsController = TripsController(tripsApi);
       addTearDown(tripsController.dispose);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: HomeScreen(
-            online: online,
-            placesController: placesController,
-            tripsController: tripsController,
-            itineraryApi: ItineraryApi(baseUrl: 'http://fake'),
-            apiBaseUrl: 'http://fake',
-          ),
-        ),
+      await _pumpHome(
+        tester,
+        online,
+        placesController,
+        tripsController: tripsController,
       );
       await tester.pump();
 
