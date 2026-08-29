@@ -58,4 +58,41 @@ void main() {
       expect(AppSpacing.lg, 24);
     });
   });
+
+  group('AppTheme.light', () {
+    late ThemeData theme;
+
+    setUp(() {
+      theme = AppTheme.light();
+    });
+
+    test('color scheme uses Artisanal Wanderer primary and surface', () {
+      expect(theme.colorScheme.primary, AppColors.primary);
+      expect(theme.colorScheme.surface, AppColors.surface);
+    });
+
+    test('scaffold background is paper', () {
+      expect(theme.scaffoldBackgroundColor, AppColors.background);
+    });
+
+    test('text theme uses Fraunces for headings and Lora for body', () {
+      expect(theme.textTheme.headlineLarge?.fontFamily, 'Fraunces');
+      expect(theme.textTheme.titleLarge?.fontFamily, 'Fraunces');
+      expect(theme.textTheme.bodyLarge?.fontFamily, 'Lora');
+      expect(theme.textTheme.bodySmall?.fontFamily, 'Lora');
+      expect(theme.textTheme.labelLarge?.fontFamily, 'Fraunces');
+    });
+
+    test('component themes are wired up', () {
+      expect(theme.appBarTheme.centerTitle, isTrue);
+      expect(theme.appBarTheme.elevation, 0);
+      expect(theme.appBarTheme.titleTextStyle?.fontFamily, 'Fraunces');
+      expect(theme.cardTheme?.elevation, 0);
+      expect(theme.floatingActionButtonTheme.backgroundColor,
+          AppColors.primary);
+      expect(theme.navigationBarTheme.indicatorColor, AppColors.primary);
+      expect(theme.dialogTheme?.shape, isNotNull);
+      expect(theme.bottomSheetTheme.shape, isNotNull);
+    });
+  });
 }
