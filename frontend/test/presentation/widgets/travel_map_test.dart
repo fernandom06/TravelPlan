@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,9 +79,10 @@ List<Marker> _markers(WidgetTester tester) =>
     tester.widget<MarkerLayer>(find.byType(MarkerLayer).first).markers;
 
 PlacePin _pinOf(Marker marker) {
-  final child = marker.child;
-  if (child is PlacePin) return child;
-  return (child as GestureDetector).child as PlacePin;
+  var child = marker.child;
+  if (child is GestureDetector && child.child != null) child = child.child!;
+  if (child is PinHoverTooltip) child = child.child;
+  return child as PlacePin;
 }
 
 double _labelOpacity(WidgetTester tester, int id) {
@@ -137,6 +139,37 @@ void main() {
     expect(pin.color, AppColors.primary);
     expect(pin.icon, categoryIconFor(_place.category.icon));
     expect(pin.halo, isFalse);
+  });
+
+  testWidgets('hovering a saved pin shows a name tooltip on desktop', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    expect(find.byKey(const Key('place-pin-tooltip')), findsNothing);
+
+    final gesture = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.addPointer(location: const Offset(10, 10));
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(find.byType(PlacePin).first));
+    await tester.pump();
+
+    expect(find.byKey(const Key('place-pin-tooltip')), findsOneWidget);
+
+    await gesture.removePointer();
+    await tester.pump();
+    expect(find.byKey(const Key('place-pin-tooltip')), findsNothing);
+  });
+
+  testWidgets('tapping a wrapped pin still opens the details', (tester) async {
+    await tester.pumpWidget(_map(places: [_place]));
+
+    await tester.tap(find.byType(PlacePin).first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceDetails), findsOneWidget);
   });
 
   testWidgets('tap on empty map shows a red marker and opens the form', (

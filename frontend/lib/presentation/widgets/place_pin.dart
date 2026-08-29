@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -59,6 +60,77 @@ class PlacePin extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Wraps a map pin so hovering it (desktop with a mouse) reveals a small
+/// sketchbook-style label with the place name. Taps pass through to [child].
+class PinHoverTooltip extends StatefulWidget {
+  const PinHoverTooltip({
+    super.key,
+    required this.label,
+    required this.child,
+  });
+
+  final String label;
+  final Widget child;
+
+  @override
+  State<PinHoverTooltip> createState() => _PinHoverTooltipState();
+}
+
+class _PinHoverTooltipState extends State<PinHoverTooltip> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          widget.child,
+          if (_hovering)
+            Positioned(
+              top: -34,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Container(
+                  key: const Key('place-pin-tooltip'),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface.withValues(alpha: 0.8),
+                    borderRadius: AppRadii.pill,
+                    boxShadow: const [AppShadows.soft],
+                  ),
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                      child: Text(
+                        widget.label,
+                        style: const TextStyle(
+                          fontFamily: 'Lora',
+                          fontSize: 13,
+                          color: AppColors.text,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

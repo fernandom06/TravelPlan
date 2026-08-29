@@ -280,8 +280,11 @@ class _TravelMapState extends State<TravelMap> {
           alignment: Alignment.topCenter,
           child: GestureDetector(
             onTap: () => _handleMarkerTap(place),
-            child: PlacePin(
-              icon: categoryIconFor(place.category.icon),
+            child: PinHoverTooltip(
+              label: place.name,
+              child: PlacePin(
+                icon: categoryIconFor(place.category.icon),
+              ),
             ),
           ),
         ),
