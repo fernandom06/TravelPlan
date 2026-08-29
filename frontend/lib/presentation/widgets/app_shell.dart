@@ -39,6 +39,12 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _index = 0;
 
+  /// Keeps the tab contents alive when the layout switches between mobile and
+  /// desktop: the [IndexedStack] moves to a different position in the element
+  /// tree, and a [GlobalKey] makes Flutter reparent it instead of recreating
+  /// it (preserving the State of TravelMap/TripsScreen and their controllers).
+  final GlobalKey _stackKey = GlobalKey();
+
   void _select(int index) {
     if (index == _index) return;
     setState(() => _index = index);
@@ -76,6 +82,7 @@ class _AppShellState extends State<AppShell> {
 
   Widget _buildIndexedStack() {
     return IndexedStack(
+      key: _stackKey,
       index: _index,
       children: widget.children,
     );

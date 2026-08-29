@@ -4,6 +4,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/presentation/widgets/app_shell.dart';
 
+class _StateTracker extends StatefulWidget {
+  const _StateTracker({required this.label, required this.counters});
+
+  final String label;
+  final Map<String, int> counters;
+
+  @override
+  State<_StateTracker> createState() => _StateTrackerState();
+}
+
+class _StateTrackerState extends State<_StateTracker> {
+  @override
+  void initState() {
+    super.initState();
+    widget.counters['${widget.label}-init'] =
+        (widget.counters['${widget.label}-init'] ?? 0) + 1;
+  }
+
+  @override
+  void dispose() {
+    widget.counters['${widget.label}-dispose'] =
+        (widget.counters['${widget.label}-dispose'] ?? 0) + 1;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text('${widget.label}_CONTENT'));
+  }
+}
+
 void main() {
   Future<void> pumpShell(
     WidgetTester tester, {
@@ -78,5 +109,51 @@ void main() {
     expect(changedTo, 1);
     expect(find.text('TRIPS_CONTENT').hitTestable(), findsOneWidget);
     expect(find.text('MAPA_CONTENT').hitTestable(), findsNothing);
+  });
+
+  testWidgets('crossing the breakpoint preserves tab and child state', (
+    tester,
+  ) async {
+    final counters = <String, int>{};
+    tester.view.physicalSize = const Size(700, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: AppShell(
+          children: [
+            _StateTracker(label: 'A', counters: counters),
+            _StateTracker(label: 'B', counters: counters),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(counters['A-init'], 1);
+    expect(counters['B-init'], 1); // IndexedStack builds children eagerly
+
+    // Switch to the trips tab, then cross into desktop layout.
+    await tester.tap(find.text('Viajes'));
+    await tester.pumpAndSettle();
+    expect(counters['B-init'], 1);
+
+    tester.view.physicalSize = const Size(1200, 800);
+    await tester.pumpAndSettle();
+
+    expect(counters['B-init'], 1, reason: 'child must not be recreated');
+    expect(find.text('B_CONTENT').hitTestable(), findsOneWidget,
+        reason: 'active tab preserved across the breakpoint');
+    expect(find.byType(NavigationBar), findsNothing);
+
+    // Cross back into mobile layout.
+    tester.view.physicalSize = const Size(700, 844);
+    await tester.pumpAndSettle();
+
+    expect(counters['A-init'], 1, reason: 'children survive both crossings');
+    expect(counters['B-init'], 1);
+    expect(find.text('B_CONTENT').hitTestable(), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
   });
 }
