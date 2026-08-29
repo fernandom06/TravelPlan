@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'core/connectivity/connectivity_controller.dart';
+import 'core/theme/app_theme.dart';
 import 'data/itinerary_api.dart';
 import 'data/place_api.dart';
 import 'data/trip_api.dart';
@@ -55,9 +56,7 @@ class TravelPlanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'TravelPlan',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-      ),
+      theme: AppTheme.light(),
       home: HomeScreen(
         online: online,
         placesController: placesController,
