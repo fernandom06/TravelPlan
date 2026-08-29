@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/category_icon_catalog.dart';
 import '../../data/models/place.dart';
 
@@ -37,7 +38,14 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Añadir lugares'),
+      title: const Text(
+        'Añadir lugares',
+        style: TextStyle(
+          fontFamily: 'Fraunces',
+          fontWeight: FontWeight.w700,
+          color: AppColors.text,
+        ),
+      ),
       content: SizedBox(
         width: 320,
         height: 360,
@@ -53,10 +61,13 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
             const SizedBox(height: 8),
             Expanded(
               child: _filtered.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Text(
                         'No hay lugares',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: TextStyle(
+                          fontFamily: 'Lora',
+                          color: AppColors.muted,
+                        ),
                       ),
                     )
                   : ListView.builder(
@@ -64,17 +75,45 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
                       itemBuilder: (context, index) {
                         final place = _filtered[index];
                         return ListTile(
-                          leading: Icon(categoryIconFor(place.category.icon)),
-                          title: Text(place.name),
+                          leading: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: AppColors.primary.withValues(
+                              alpha: 0.15,
+                            ),
+                            child: Icon(
+                              categoryIconFor(place.category.icon),
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          title: Text(
+                            place.name,
+                            style: const TextStyle(
+                              fontFamily: 'Lora',
+                              color: AppColors.text,
+                            ),
+                          ),
                           onTap: () => _select(place),
                         );
                       },
                     ),
             ),
             const SizedBox(height: 8),
-            Text(
-              '$_addedCount añadidos',
-              style: Theme.of(context).textTheme.bodySmall,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.2),
+                borderRadius: AppRadii.pill,
+              ),
+              child: Text(
+                '$_addedCount añadidos',
+                style: const TextStyle(
+                  fontFamily: 'Lora',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
             ),
           ],
         ),

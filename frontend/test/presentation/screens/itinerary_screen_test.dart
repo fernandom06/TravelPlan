@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/itinerary_api.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/itinerary_item.dart';
@@ -125,6 +126,7 @@ Widget _wrap({
   final onlineNotifier = ValueNotifier<bool>(online);
   addTearDown(onlineNotifier.dispose);
   return MaterialApp(
+    theme: AppTheme.light(),
     home: ItineraryScreen(
       trip: trip,
       itineraryController: controller,
@@ -164,6 +166,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Viaje a Galicia'), findsOneWidget);
+    final theme = Theme.of(tester.element(find.byType(AppBar)));
+    expect(theme.appBarTheme.centerTitle, isTrue);
+    expect(theme.appBarTheme.titleTextStyle?.fontFamily, 'Fraunces');
   });
 
   testWidgets('shows one tab per day with date labels', (tester) async {

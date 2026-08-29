@@ -90,4 +90,16 @@ void main() {
 
     expect(find.byType(PlacePickerDialog), findsNothing);
   });
+
+  testWidgets('renders the title in Fraunces with an added-counter pill', (
+    tester,
+  ) async {
+    await tester.pumpWidget(wrap(_places, (_) {}));
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    final title = tester.widget<Text>(find.text('Añadir lugares'));
+    expect(title.style?.fontFamily, 'Fraunces');
+    expect(find.text('0 añadidos'), findsOneWidget);
+  });
 }
