@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/itinerary_item.dart';
 import '../../data/models/itinerary_slot.dart';
 import '../../data/models/place.dart';
@@ -213,8 +214,8 @@ class _ItineraryScreenState extends State<ItineraryScreen>
 
   Widget _dayTab(int index) {
     final day = _days[index];
-    final label =
-        'Día ${index + 1} · ${_twoDigits(day.day)}/${_twoDigits(day.month)}';
+    final active = _tabController.index == index;
+    final label = 'Día ${index + 1} · ${_dayMonthLabel(day)}';
     return DragTarget<ItineraryItem>(
       onMove: (details) => _scheduleDayOpen(index),
       onLeave: (data) => _cancelDayOpen(),
@@ -222,9 +223,50 @@ class _ItineraryScreenState extends State<ItineraryScreen>
         _cancelDayOpen();
         _dropOnDay(details.data, day);
       },
-      builder: (context, candidateData, rejectedData) => Tab(text: label),
+      builder: (context, candidateData, rejectedData) {
+        final highlighted = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primary : AppColors.background,
+            borderRadius: AppRadii.pill,
+            border: highlighted
+                ? Border.all(color: AppColors.accent, width: 2)
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Lora',
+              fontSize: 13,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+              color: active ? Colors.white : AppColors.text,
+            ),
+          ),
+        );
+      },
     );
   }
+
+  static const _months = [
+    'Ene',
+    'Feb',
+    'Mar',
+    'Abr',
+    'May',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dic',
+  ];
+
+  static String _dayMonthLabel(DateTime day) =>
+      '${_twoDigits(day.day)} ${_months[day.month - 1]}';
 
   Widget _daySections(DateTime day, List<ItineraryItem> items) {
     Widget section(ItinerarySlot slot) {

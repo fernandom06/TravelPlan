@@ -178,9 +178,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Día 1 · 01/06'), findsOneWidget);
-    expect(find.text('Día 10 · 10/06'), findsOneWidget);
-    expect(find.text('Día 5 · 05/06'), findsOneWidget);
+    expect(find.text('Día 1 · 01 Jun'), findsOneWidget);
+    expect(find.text('Día 10 · 10 Jun'), findsOneWidget);
+    expect(find.text('Día 5 · 05 Jun'), findsOneWidget);
     final tabBar = tester.widget<TabBar>(find.byType(TabBar));
     expect(tabBar.tabs, hasLength(10));
   });
@@ -200,7 +200,7 @@ void main() {
 
     final tabBar = tester.widget<TabBar>(find.byType(TabBar));
     expect(tabBar.tabs, hasLength(1));
-    expect(find.text('Día 1 · 01/06'), findsOneWidget);
+    expect(find.text('Día 1 · 01 Jun'), findsOneWidget);
   });
 
   testWidgets('shows empty states for general list and slots', (tester) async {
@@ -276,7 +276,7 @@ void main() {
     await _dragCard(
       tester,
       find.text('Lugar 1'),
-      tester.getCenter(find.text('Día 3 · 03/06')),
+      tester.getCenter(find.text('Día 3 · 03 Jun')),
     );
 
     expect(api.moveCalls, [1]);
@@ -302,7 +302,7 @@ void main() {
       tester.getCenter(find.text('Lugar 1')),
     );
     await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
-    await gesture.moveTo(tester.getCenter(find.text('Día 3 · 03/06')));
+    await gesture.moveTo(tester.getCenter(find.text('Día 3 · 03 Jun')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
     expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
@@ -331,7 +331,7 @@ void main() {
     final origin = tester.getCenter(find.text('Lugar 1'));
     final gesture = await tester.startGesture(origin);
     await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
-    await gesture.moveTo(tester.getCenter(find.text('Día 5 · 05/06')));
+    await gesture.moveTo(tester.getCenter(find.text('Día 5 · 05 Jun')));
     await tester.pump();
     await gesture.moveTo(origin);
     await tester.pump(const Duration(milliseconds: 700));
