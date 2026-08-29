@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/data/category_icon_catalog.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/place_draft.dart';
@@ -11,6 +13,7 @@ import 'package:frontend/presentation/widgets/category_dropdown.dart';
 import 'package:frontend/presentation/widgets/import_url_dialog.dart';
 import 'package:frontend/presentation/widgets/map_constants.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
+import 'package:frontend/presentation/widgets/place_pin.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
 const _naturaleza = Category(id: 1, name: 'Naturaleza');
@@ -74,10 +77,10 @@ Widget _map({
 List<Marker> _markers(WidgetTester tester) =>
     tester.widget<MarkerLayer>(find.byType(MarkerLayer).first).markers;
 
-Icon _markerIcon(Marker marker) {
+PlacePin _pinOf(Marker marker) {
   final child = marker.child;
-  if (child is Icon) return child;
-  return (child as GestureDetector).child as Icon;
+  if (child is PlacePin) return child;
+  return (child as GestureDetector).child as PlacePin;
 }
 
 double _labelOpacity(WidgetTester tester, int id) {
@@ -124,11 +127,16 @@ void main() {
     );
   });
 
-  testWidgets('renders a blue marker per place', (tester) async {
+  testWidgets('renders a teardrop pin per place with its category icon', (
+    tester,
+  ) async {
     await tester.pumpWidget(_map(places: [_place]));
 
     expect(_markers(tester), hasLength(1));
-    expect(_markerIcon(_markers(tester).first).color, Colors.blue);
+    final pin = _pinOf(_markers(tester).first);
+    expect(pin.color, AppColors.primary);
+    expect(pin.icon, categoryIconFor(_place.category.icon));
+    expect(pin.halo, isFalse);
   });
 
   testWidgets('tap on empty map shows a red marker and opens the form', (
@@ -140,7 +148,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(_markers(tester), hasLength(1));
-    expect(_markerIcon(_markers(tester).first).color, Colors.red);
+    final pin = _pinOf(_markers(tester).first);
+    expect(pin.color, AppColors.accent);
+    expect(pin.icon, Icons.add);
+    expect(pin.halo, isTrue);
     expect(find.byType(PlaceForm), findsOneWidget);
   });
 
@@ -161,7 +172,7 @@ void main() {
   testWidgets('autofocus on Nombre when editing', (tester) async {
     await tester.pumpWidget(_map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -219,7 +230,7 @@ void main() {
   testWidgets('tapping a blue marker opens a read-only form', (tester) async {
     await tester.pumpWidget(_map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(PlaceDetails), findsOneWidget);
@@ -331,7 +342,7 @@ void main() {
   ) async {
     await tester.pumpWidget(_map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(PlaceDetails), findsOneWidget);
@@ -345,7 +356,7 @@ void main() {
   ) async {
     await tester.pumpWidget(_map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -377,7 +388,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -404,7 +415,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -429,7 +440,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -455,7 +466,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -487,7 +498,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.tap(find.text('Editar'));
       await tester.pump(const Duration(milliseconds: 350));
@@ -516,7 +527,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.tap(find.text('Editar'));
       await tester.pump(const Duration(milliseconds: 350));
@@ -534,7 +545,7 @@ void main() {
   testWidgets('tapping the map closes the edit panel', (tester) async {
     await tester.pumpWidget(_map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -560,13 +571,13 @@ void main() {
     );
     await tester.pumpWidget(_map(places: [_place, other]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.byType(PlaceForm), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.location_on).last);
+    await tester.tap(find.byType(PlacePin).last);
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(PlaceForm), findsNothing);
@@ -576,7 +587,7 @@ void main() {
   testWidgets('dragging the map closes the edit panel', (tester) async {
     await tester.pumpWidget(_map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -593,7 +604,7 @@ void main() {
     (tester) async {
       await tester.pumpWidget(_map(places: [_place]));
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
 
       final positioned = tester.widget<Positioned>(
@@ -671,7 +682,9 @@ void main() {
         expect(find.byType(ImportUrlDialog), findsNothing);
         expect(find.byType(PlaceForm), findsOneWidget);
         expect(_markers(tester), hasLength(1));
-        expect(_markerIcon(_markers(tester).first).color, Colors.red);
+        final pin = _pinOf(_markers(tester).first);
+        expect(pin.color, AppColors.accent);
+        expect(pin.icon, Icons.add);
       },
     );
 
@@ -792,7 +805,7 @@ void main() {
       );
       await tester.pumpWidget(_map(places: [_place, other]));
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
 
       expect(find.byType(PlaceDetails), findsOneWidget);
@@ -811,7 +824,7 @@ void main() {
       );
       await tester.pumpWidget(_map(places: [_place, other]));
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.tap(find.text('Editar'));
       await tester.pump(const Duration(milliseconds: 350));
@@ -831,7 +844,7 @@ void main() {
       );
       await tester.pumpWidget(_map(places: [_place, other]));
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.tap(find.text('Cerrar'));
       await tester.pump(const Duration(milliseconds: 350));

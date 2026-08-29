@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/theme/app_theme.dart';
+import '../../data/category_icon_catalog.dart';
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
 import '../../data/models/place_draft.dart';
@@ -10,6 +12,7 @@ import 'import_url_dialog.dart';
 import 'map_constants.dart';
 import 'place_form.dart';
 import 'place_label_layer.dart';
+import 'place_pin.dart';
 
 class TravelMap extends StatefulWidget {
   const TravelMap({
@@ -277,10 +280,8 @@ class _TravelMapState extends State<TravelMap> {
           alignment: Alignment.topCenter,
           child: GestureDetector(
             onTap: () => _handleMarkerTap(place),
-            child: const Icon(
-              Icons.location_on,
-              color: kSavedMarkerColor,
-              size: 40,
+            child: PlacePin(
+              icon: categoryIconFor(place.category.icon),
             ),
           ),
         ),
@@ -290,10 +291,10 @@ class _TravelMapState extends State<TravelMap> {
           width: 40,
           height: 40,
           alignment: Alignment.topCenter,
-          child: const Icon(
-            Icons.location_on,
-            color: kNewMarkerColor,
-            size: 40,
+          child: const PlacePin(
+            icon: Icons.add,
+            color: AppColors.accent,
+            halo: true,
           ),
         ),
     ];
