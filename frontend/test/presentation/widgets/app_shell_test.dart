@@ -48,7 +48,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
-        home: AppShell(children: children, onTabChanged: onTabChanged),
+        home: AppShell(onTabChanged: onTabChanged, children: children),
       ),
     );
     await tester.pump();

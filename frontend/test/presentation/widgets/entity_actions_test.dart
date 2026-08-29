@@ -57,15 +57,13 @@ void main() {
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-    var edited = false;
-    var deleted = false;
 
     await tester.pumpWidget(
       _wrap(
         EntityActions(
           child: const Center(child: Text('card')),
-          onEdit: () => edited = true,
-          onDelete: () => deleted = true,
+          onEdit: () {},
+          onDelete: () {},
         ),
       ),
     );
@@ -93,14 +91,13 @@ void main() {
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     var edited = false;
-    var deleted = false;
 
     await tester.pumpWidget(
       _wrap(
         EntityActions(
           child: const Center(child: Text('card')),
           onEdit: () => edited = true,
-          onDelete: () => deleted = true,
+          onDelete: () {},
         ),
       ),
     );
@@ -147,6 +144,10 @@ void main() {
 
     expect(find.text('Borrar'), findsOneWidget);
     expect(find.text('Editar'), findsNothing);
+
+    await tester.tap(find.text('Borrar'));
+    await tester.pumpAndSettle();
+    expect(deleted, isTrue);
 
     debugDefaultTargetPlatformOverride = null;
   });

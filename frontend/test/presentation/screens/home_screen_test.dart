@@ -14,7 +14,6 @@ import 'package:frontend/presentation/controllers/trips_controller.dart';
 import 'package:frontend/presentation/screens/home_screen.dart';
 import 'package:frontend/presentation/screens/trips_screen.dart';
 import 'package:frontend/presentation/screens/zone_map_screen.dart';
-import 'package:frontend/presentation/widgets/app_shell.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
 class _FakePlaceApi extends PlaceApi {
