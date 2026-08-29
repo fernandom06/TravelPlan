@@ -275,7 +275,7 @@ void main() {
 
     expect(find.byType(PlaceDetails), findsOneWidget);
     expect(find.text('Cerrar'), findsOneWidget);
-    expect(find.text('Guardar'), findsNothing);
+    expect(find.text('Guardar Lugar'), findsNothing);
   });
 
   testWidgets('tapping outside the form closes and discards it', (
@@ -383,7 +383,7 @@ void main() {
     expect(find.byType(PlaceDetails), findsOneWidget);
     expect(find.text('Editar'), findsOneWidget);
     expect(find.text('Cerrar'), findsOneWidget);
-    expect(find.text('Guardar'), findsNothing);
+    expect(find.text('Guardar Lugar'), findsNothing);
   });
 
   testWidgets('Editar opens a prefilled PlaceForm with Eliminar', (
@@ -405,7 +405,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Eliminar'), findsOneWidget);
-    expect(find.text('Guardar'), findsOneWidget);
+    expect(find.text('Guardar Lugar'), findsOneWidget);
   });
 
   testWidgets('Guardar in edit calls onUpdatePlace and closes the panel', (
@@ -426,7 +426,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
-    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(updatedId, 1);
@@ -533,7 +533,7 @@ void main() {
       await tester.tap(find.text('Editar'));
       await tester.pump(const Duration(milliseconds: 350));
       await tester.enterText(find.byType(TextField).first, 'Nuevo nombre');
-      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
       await tester.pump(const Duration(milliseconds: 350));
 
       expect(find.text('Sin conexión'), findsOneWidget);

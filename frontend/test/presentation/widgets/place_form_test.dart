@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/place_api.dart';
@@ -28,7 +29,7 @@ Widget _wrap(Widget child) => MaterialApp(
 );
 
 FilledButton _saveButton(WidgetTester tester) =>
-    tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Guardar'));
+    tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Guardar Lugar'));
 
 Future<void> _fillName(WidgetTester tester) async {
   await tester.enterText(find.byType(TextField).first, 'Mirador');
@@ -65,6 +66,62 @@ Future<void> _confirmInline(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('name field is a wireframe-style Fraunces input', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Nombra este rincón...'), findsOneWidget);
+    final nameField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(nameField.style?.fontFamily, 'Fraunces');
+    expect(nameField.style?.fontWeight, FontWeight.w600);
+    expect(nameField.style?.fontSize, 24);
+  });
+
+  testWidgets('description textarea sits on a paper tone', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    final descriptionField = tester.widget<TextField>(
+      find.byType(TextField).last,
+    );
+    expect(descriptionField.decoration?.filled, isTrue);
+  });
+
+  testWidgets('footer shows a terracotta Guardar Lugar button', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Guardar Lugar'),
+    );
+    expect(button.style?.backgroundColor?.resolve({}), AppColors.primary);
+    final size = tester.getSize(
+      find.widgetWithText(FilledButton, 'Guardar Lugar'),
+    );
+    expect(size.height, greaterThanOrEqualTo(48));
+  });
+
   testWidgets('renders name, category, description and save button', (
     tester,
   ) async {
@@ -80,7 +137,7 @@ void main() {
 
     expect(find.byType(TextField), findsNWidgets(2));
     expect(find.byType(CategoryChipStrip), findsOneWidget);
-    expect(find.text('Guardar'), findsOneWidget);
+    expect(find.text('Guardar Lugar'), findsOneWidget);
   });
 
   testWidgets('autofocus on Nombre in create mode', (tester) async {
@@ -298,7 +355,7 @@ void main() {
             .isNotEmpty;
     expect(onCancel, isTrue);
 
-    final saveFinder = find.widgetWithText(FilledButton, 'Guardar');
+    final saveFinder = find.widgetWithText(FilledButton, 'Guardar Lugar');
     final onSave =
         primary != null &&
         find
@@ -384,7 +441,7 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'Vistas');
     await _selectCategory(tester, 'Monumento');
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
 
     expect(savedName, 'Mirador');
     expect(savedCategoryId, 2);
