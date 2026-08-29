@@ -19,7 +19,6 @@ class ItineraryPlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final place = item.place;
     final content = _MiniCard(
       item: item,
       onDelete: onDelete,
