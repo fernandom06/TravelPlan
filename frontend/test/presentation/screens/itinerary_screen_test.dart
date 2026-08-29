@@ -204,6 +204,9 @@ void main() {
   });
 
   testWidgets('shows empty states for general list and slots', (tester) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     final api = _FakeItineraryApi();
     final controller = await _controllerWith(api, _trip());
     addTearDown(controller.dispose);
@@ -216,7 +219,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Añade lugares al viaje'), findsOneWidget);
-    expect(find.text('Arrastra un lugar aquí'), findsNWidgets(3));
+    expect(find.text('Arrastra lugares aquí'), findsNWidgets(3));
   });
 
   testWidgets('dragging a general card to a slot moves it (no copy)', (

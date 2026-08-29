@@ -59,6 +59,26 @@ void main() {
     expect(find.text('Lugar 2'), findsOneWidget);
   });
 
+  testWidgets('renders the slot header with its timeline icon', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: const [],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.light_mode), findsOneWidget);
+    expect(find.byIcon(Icons.wb_sunny), findsNothing);
+    expect(find.byIcon(Icons.dark_mode), findsNothing);
+  });
+
   testWidgets('shows the empty hint when there are no items', (tester) async {
     await tester.pumpWidget(
       wrap(
@@ -72,7 +92,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Arrastra un lugar aquí'), findsOneWidget);
+    expect(find.text('Arrastra lugares aquí'), findsOneWidget);
   });
 
   testWidgets('dropping a card on the empty section appends to the end', (
