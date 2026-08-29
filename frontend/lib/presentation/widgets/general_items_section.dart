@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/itinerary_item.dart';
 import 'itinerary_place_card.dart';
 
+/// Horizontal carousel of unassigned places.
+///
+/// Header "LUGARES POR ASIGNAR" (uppercase, tracked) with a counter; a
+/// white/50 rounded container with a sand border holds a horizontally
+/// scrollable row of [ItineraryPlaceCard] mini-cards. Dropping anywhere on the
+/// container appends; dropping on a card inserts before that card's index.
 class GeneralItemsSection extends StatelessWidget {
   const GeneralItemsSection({
     super.key,
@@ -13,8 +20,8 @@ class GeneralItemsSection extends StatelessWidget {
 
   final List<ItineraryItem> items;
 
-  /// Llamado al soltar un item sobre la lista general (franja destino null)
-  /// con el índice de inserción ("insertar antes") ya calculado.
+  /// Called when an item is dropped on the general list (null destination)
+  /// with the horizontal insert index already computed.
   final void Function(ItineraryItem item, int index) onAcceptItem;
   final void Function(int itemId) onDeleteItem;
 
@@ -30,53 +37,73 @@ class GeneralItemsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
                 children: [
                   Text(
-                    'Lugares sin colocar',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    'LUGARES POR ASIGNAR',
+                    style: const TextStyle(
+                      fontFamily: 'Lora',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: Color(0xB33D405B), // navy/70
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const Spacer(),
                   CircleAvatar(
                     radius: 10,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer,
+                    backgroundColor: AppColors.muted.withValues(alpha: 0.6),
                     child: Text(
                       '${items.length}',
-                      style: Theme.of(context).textTheme.labelSmall,
+                      style: const TextStyle(
+                        fontFamily: 'Lora',
+                        fontSize: 11,
+                        color: AppColors.text,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              decoration: BoxDecoration(
-                color: highlighted
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : Theme.of(context).colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: items.isEmpty
-                  ? _emptyState(context)
-                  : Column(
-                      children: [
-                        for (var i = 0; i < items.length; i++)
-                          DragTarget<ItineraryItem>(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                height: 158,
+                decoration: BoxDecoration(
+                  color: highlighted
+                      ? AppColors.surface
+                      : AppColors.surface.withValues(alpha: 0.5),
+                  borderRadius: AppRadii.organic,
+                  border: Border.all(
+                    color: AppColors.muted.withValues(alpha: 0.5),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 8,
+                ),
+                child: items.isEmpty
+                    ? _emptyState(context)
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: items.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) {
+                          final item = items[i];
+                          return DragTarget<ItineraryItem>(
                             onAcceptWithDetails: (details) {
                               onAcceptItem(details.data, i);
                             },
                             builder: (context, _, _) => ItineraryPlaceCard(
-                              item: items[i],
-                              onDelete: () => onDeleteItem(items[i].id),
+                              item: item,
+                              onDelete: () => onDeleteItem(item.id),
                             ),
-                          ),
-                      ],
-                    ),
+                          );
+                        },
+                      ),
+              ),
             ),
           ],
         );
@@ -86,12 +113,13 @@ class GeneralItemsSection extends StatelessWidget {
 
   Widget _emptyState(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
       alignment: Alignment.center,
-      child: Text(
+      child: const Text(
         'Añade lugares al viaje',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.outline,
+        style: TextStyle(
+          fontFamily: 'Lora',
+          fontSize: 13,
+          color: AppColors.muted,
         ),
       ),
     );

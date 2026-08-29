@@ -48,9 +48,33 @@ void main() {
       ),
     );
 
-    expect(find.textContaining('Lugares sin colocar'), findsOneWidget);
+    expect(find.text('LUGARES POR ASIGNAR'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(find.byType(ItineraryPlaceCard), findsNWidgets(2));
+  });
+
+  testWidgets('renders the carousel as a horizontal scrollable list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        GeneralItemsSection(
+          items: [_item(1, position: 0), _item(2, position: 1)],
+          onAcceptItem: (_, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    final scrollable = find.descendant(
+      of: find.byType(GeneralItemsSection),
+      matching: find.byType(Scrollable),
+    );
+    expect(scrollable, findsOneWidget);
+    final axis = tester
+        .widget<Scrollable>(scrollable)
+        .axisDirection;
+    expect(axis, AxisDirection.right);
   });
 
   testWidgets('shows the empty hint when there are no items', (tester) async {
