@@ -11,6 +11,7 @@ import '../../data/models/place_update.dart';
 import 'import_url_dialog.dart';
 import 'map_constants.dart';
 import 'place_form.dart';
+import 'place_form_container.dart';
 import 'place_label_layer.dart';
 import 'place_pin.dart';
 
@@ -56,24 +57,21 @@ class _Idle extends _MapFormState {
 }
 
 class _Creating extends _MapFormState {
-  const _Creating({required this.point, required this.screenPos});
+  const _Creating({required this.point});
 
   final LatLng point;
-  final Offset screenPos;
 }
 
 class _Viewing extends _MapFormState {
-  const _Viewing({required this.place, required this.screenPos});
+  const _Viewing({required this.place});
 
   final Place place;
-  final Offset screenPos;
 }
 
 class _Editing extends _MapFormState {
-  const _Editing({required this.place, required this.screenPos});
+  const _Editing({required this.place});
 
   final Place place;
-  final Offset screenPos;
 }
 
 class _TravelMapState extends State<TravelMap> {
@@ -81,6 +79,10 @@ class _TravelMapState extends State<TravelMap> {
   late final bool _ownsMapController;
 
   _MapFormState _state = const _Idle();
+
+  /// Keeps the form subtree alive when the layout crosses the breakpoint
+  /// (bottom sheet ↔ right panel), preserving text controllers.
+  final GlobalKey _formKey = GlobalKey();
 
   @override
   void initState() {
@@ -114,8 +116,7 @@ class _TravelMapState extends State<TravelMap> {
   void _handleTap(TapPosition tapPosition, LatLng point) {
     switch (_state) {
       case _Idle():
-        final offset = _mapController.camera.latLngToScreenOffset(point);
-        setState(() => _state = _Creating(point: point, screenPos: offset));
+        setState(() => _state = _Creating(point: point));
       case _Creating():
       case _Viewing():
       case _Editing():
@@ -125,8 +126,7 @@ class _TravelMapState extends State<TravelMap> {
 
   void _handleImportedPoint(LatLng point) {
     _mapController.move(point, kDefaultZoom);
-    final offset = _mapController.camera.latLngToScreenOffset(point);
-    setState(() => _state = _Creating(point: point, screenPos: offset));
+    setState(() => _state = _Creating(point: point));
   }
 
   Future<void> _handleImportPressed() async {
@@ -160,10 +160,7 @@ class _TravelMapState extends State<TravelMap> {
   void _handleMarkerTap(Place place) {
     switch (_state) {
       case _Idle():
-        final screenPos = _mapController.camera.latLngToScreenOffset(
-          place.latLng,
-        );
-        setState(() => _state = _Viewing(place: place, screenPos: screenPos));
+        setState(() => _state = _Viewing(place: place));
       case _Creating():
       case _Viewing():
       case _Editing():
@@ -171,8 +168,8 @@ class _TravelMapState extends State<TravelMap> {
     }
   }
 
-  void _handleEdit(Place place, Offset screenPos) {
-    setState(() => _state = _Editing(place: place, screenPos: screenPos));
+  void _handleEdit(Place place) {
+    setState(() => _state = _Editing(place: place));
   }
 
   Future<void> _handleUpdate(
@@ -229,8 +226,8 @@ class _TravelMapState extends State<TravelMap> {
   }
 
   void _handleCancelEdit() {
-    if (_state case _Editing(:final place, :final screenPos)) {
-      setState(() => _state = _Viewing(place: place, screenPos: screenPos));
+    if (_state case _Editing(:final place)) {
+      setState(() => _state = _Viewing(place: place));
     }
   }
 
@@ -338,7 +335,13 @@ class _TravelMapState extends State<TravelMap> {
             ),
           ],
         ),
-        if (_state is! _Idle) _buildFormOverlay(),
+        if (_state is! _Idle)
+          PlaceFormContainer(
+            child: KeyedSubtree(
+              key: _formKey,
+              child: _buildFormContent(),
+            ),
+          ),
         if (widget.onResolveMapUrl != null)
           Positioned(
             right: 16,
@@ -354,58 +357,38 @@ class _TravelMapState extends State<TravelMap> {
     );
   }
 
-  Widget _positionedOverlay(Offset position, Widget child) {
-    return Positioned(
-      left: position.dx - 130,
-      top: position.dy - 40,
-      child: FractionalTranslation(
-        translation: const Offset(0, -1),
-        child: SizedBox(width: 260, child: child),
-      ),
-    );
-  }
-
-  Widget _buildFormOverlay() {
+  Widget _buildFormContent() {
     switch (_state) {
-      case _Creating(:final screenPos):
-        return _positionedOverlay(
-          screenPos,
-          PlaceForm(
-            categories: widget.categories,
-            places: widget.places,
-            onSave: _handleSave,
-            onCancel: _closeForm,
-            onCreateCategory: widget.onCreateCategory,
-            onRenameCategory: widget.onRenameCategory,
-            onDeleteCategory: widget.onDeleteCategory,
-          ),
+      case _Creating():
+        return PlaceForm(
+          categories: widget.categories,
+          places: widget.places,
+          onSave: _handleSave,
+          onCancel: _closeForm,
+          onCreateCategory: widget.onCreateCategory,
+          onRenameCategory: widget.onRenameCategory,
+          onDeleteCategory: widget.onDeleteCategory,
         );
-      case _Viewing(:final place, :final screenPos):
-        return _positionedOverlay(
-          screenPos,
-          PlaceDetails(
-            categories: widget.categories,
-            place: place,
-            onEdit: () => _handleEdit(place, screenPos),
-            onClose: _closeForm,
-          ),
+      case _Viewing(:final place):
+        return PlaceDetails(
+          categories: widget.categories,
+          place: place,
+          onEdit: () => _handleEdit(place),
+          onClose: _closeForm,
         );
-      case _Editing(:final place, :final screenPos):
-        return _positionedOverlay(
-          screenPos,
-          PlaceForm(
-            categories: widget.categories,
-            places: widget.places,
-            initialName: place.name,
-            initialDescription: place.description,
-            initialCategory: place.category,
-            onSave: _handleUpdate,
-            onCancel: _handleCancelEdit,
-            onDelete: _handleDelete,
-            onCreateCategory: widget.onCreateCategory,
-            onRenameCategory: widget.onRenameCategory,
-            onDeleteCategory: widget.onDeleteCategory,
-          ),
+      case _Editing(:final place):
+        return PlaceForm(
+          categories: widget.categories,
+          places: widget.places,
+          initialName: place.name,
+          initialDescription: place.description,
+          initialCategory: place.category,
+          onSave: _handleUpdate,
+          onCancel: _handleCancelEdit,
+          onDelete: _handleDelete,
+          onCreateCategory: widget.onCreateCategory,
+          onRenameCategory: widget.onRenameCategory,
+          onDeleteCategory: widget.onDeleteCategory,
         );
       case _Idle():
         return const SizedBox.shrink();
