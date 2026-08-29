@@ -391,7 +391,9 @@ void main() {
       await tester.pumpWidget(_wrap(controller));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.edit));
+      await tester.longPress(find.text('Viaje a Galicia'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Editar'));
       await tester.pumpAndSettle();
       expect(find.byType(TripForm), findsOneWidget);
 

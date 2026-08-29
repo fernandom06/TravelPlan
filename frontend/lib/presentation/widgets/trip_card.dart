@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/trip.dart';
+import '../../data/models/trip_status.dart';
+import 'app_badge.dart';
+import 'entity_actions.dart';
 
 class TripImageError extends StatelessWidget {
   const TripImageError({super.key});
@@ -8,15 +12,12 @@ class TripImageError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: AppColors.background,
       alignment: Alignment.center,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.broken_image,
-            color: Theme.of(context).colorScheme.outline,
-          ),
+          const Icon(Icons.broken_image, color: AppColors.muted),
           const SizedBox(height: 4),
           Text(
             'Imagen no disponible',
@@ -28,6 +29,10 @@ class TripImageError extends StatelessWidget {
   }
 }
 
+/// Polaroid-style trip card: white frame, full-bleed image with a status
+/// [AppBadge], Fraunces title and Lora-italic terracotta dates. Edit/delete
+/// live behind an [EntityActions] overflow (long-press on touch, hover ⋮ on
+/// desktop) and tapping the card opens the trip.
 class TripCard extends StatelessWidget {
   const TripCard({
     super.key,
@@ -36,6 +41,7 @@ class TripCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onOpen,
+    this.today,
   });
 
   final Trip trip;
@@ -44,27 +50,50 @@ class TripCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onOpen;
 
-  String get _dates =>
-      '${_formatDate(trip.startDate)} - ${_formatDate(trip.endDate)}';
+  /// Reference date for status derivation; defaults to [DateTime.now].
+  final DateTime? today;
 
-  static String _formatDate(DateTime d) {
-    final day = d.day.toString().padLeft(2, '0');
-    final month = d.month.toString().padLeft(2, '0');
-    return '$day/$month/${d.year}';
+  TripStatus get _status =>
+      TripStatus.fromDates(trip.startDate, trip.endDate, today ?? DateTime.now());
+
+  (String, Color, Color) get _badge {
+    return switch (_status) {
+      TripStatus.upcoming => ('PRÓXIMAMENTE', AppColors.primary, Colors.white),
+      TripStatus.ongoing => ('EN CURSO', AppColors.accent, Colors.white),
+      TripStatus.past => ('PASADO', AppColors.muted, AppColors.text),
+    };
   }
+
+  String get _dates =>
+      '${_formatDayMonth(trip.startDate)} - ${_formatDayMonth(trip.endDate)}, '
+      '${trip.endDate.year}';
+
+  static const _months = [
+    'Ene',
+    'Feb',
+    'Mar',
+    'Abr',
+    'May',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dic',
+  ];
+
+  static String _formatDayMonth(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')} ${_months[d.month - 1]}';
 
   Widget _buildImage(BuildContext context) {
     final imageUrl = trip.imageUrl;
     if (imageUrl == null) {
       return Container(
         height: 140,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: AppColors.background,
         alignment: Alignment.center,
-        child: Icon(
-          Icons.image,
-          size: 48,
-          color: Theme.of(context).colorScheme.outline,
-        ),
+        child: const Icon(Icons.image, size: 48, color: AppColors.muted),
       );
     }
     return Image.network(
@@ -77,52 +106,64 @@ class TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+    final (label, badgeColor, badgeTextColor) = _badge;
+    return EntityActions(
+      onEdit: onEdit,
+      onDelete: onDelete,
+      child: GestureDetector(
         onTap: onOpen,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildImage(context),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: AppRadii.organic,
+            boxShadow: const [AppShadows.soft],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
                 children: [
-                  Text(
-                    trip.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(_dates, style: Theme.of(context).textTheme.bodySmall),
-                  if (trip.description != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      trip.description!,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                  _buildImage(context),
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: AppBadge(
+                      label: label,
+                      color: badgeColor,
+                      textColor: badgeTextColor,
                     ),
-                  ],
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: onEdit,
-                        tooltip: 'Editar',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: onDelete,
-                        tooltip: 'Eliminar',
-                      ),
-                    ],
                   ),
                 ],
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      trip.name,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.text,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _dates,
+                      style: const TextStyle(
+                        fontFamily: 'Lora',
+                        fontStyle: FontStyle.italic,
+                        fontSize: 13,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
