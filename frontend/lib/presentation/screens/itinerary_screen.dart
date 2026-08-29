@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../data/models/itinerary_item.dart';
@@ -33,8 +35,11 @@ class ItineraryScreen extends StatefulWidget {
 
 class _ItineraryScreenState extends State<ItineraryScreen>
     with SingleTickerProviderStateMixin {
+  static const _dayHoverDelay = Duration(milliseconds: 500);
+
   late final TabController _tabController;
   late List<DateTime> _days;
+  Timer? _dayHoverTimer;
 
   @override
   void initState() {
@@ -59,6 +64,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
 
   @override
   void dispose() {
+    _dayHoverTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -90,6 +96,20 @@ class _ItineraryScreenState extends State<ItineraryScreen>
         .where((i) => i.dayDate == day && i.slot == ItinerarySlot.morning)
         .length;
     _moveItem(item.id, day, ItinerarySlot.morning, morningCount);
+  }
+
+  void _scheduleDayOpen(int index) {
+    _dayHoverTimer?.cancel();
+    _dayHoverTimer = Timer(_dayHoverDelay, () {
+      if (mounted && _tabController.index != index) {
+        _tabController.animateTo(index);
+      }
+    });
+  }
+
+  void _cancelDayOpen() {
+    _dayHoverTimer?.cancel();
+    _dayHoverTimer = null;
   }
 
   void _removeItem(int itemId) {
@@ -196,7 +216,12 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     final label =
         'Día ${index + 1} · ${_twoDigits(day.day)}/${_twoDigits(day.month)}';
     return DragTarget<ItineraryItem>(
-      onAcceptWithDetails: (details) => _dropOnDay(details.data, day),
+      onMove: (details) => _scheduleDayOpen(index),
+      onLeave: (data) => _cancelDayOpen(),
+      onAcceptWithDetails: (details) {
+        _cancelDayOpen();
+        _dropOnDay(details.data, day);
+      },
       builder: (context, candidateData, rejectedData) => Tab(text: label),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -46,6 +47,28 @@ void main() {
       find.byType(LongPressDraggable<ItineraryItem>),
     );
     expect(draggable.data, _item());
+  });
+
+  testWidgets('shows a drag handle indicator', (tester) async {
+    await tester.pumpWidget(
+      _wrap(ItineraryPlaceCard(item: _item(), onDelete: () {})),
+    );
+
+    expect(find.byIcon(Icons.drag_indicator), findsOneWidget);
+  });
+
+  testWidgets('uses immediate Draggable on desktop platforms', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      await tester.pumpWidget(
+        _wrap(ItineraryPlaceCard(item: _item(), onDelete: () {})),
+      );
+
+      expect(find.byType(Draggable<ItineraryItem>), findsOneWidget);
+      expect(find.byType(LongPressDraggable<ItineraryItem>), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('delete button calls onDelete', (tester) async {

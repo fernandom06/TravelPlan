@@ -284,6 +284,63 @@ void main() {
     expect(api.movePayloads.single.slot, ItinerarySlot.morning);
   });
 
+  testWidgets('hovering a day tab while dragging opens that day', (
+    tester,
+  ) async {
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Lugar 1')),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await gesture.moveTo(tester.getCenter(find.text('Día 3 · 03/06')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 2);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('crossing a day tab quickly does not switch days', (
+    tester,
+  ) async {
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final origin = tester.getCenter(find.text('Lugar 1'));
+    final gesture = await tester.startGesture(origin);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await gesture.moveTo(tester.getCenter(find.text('Día 5 · 05/06')));
+    await tester.pump();
+    await gesture.moveTo(origin);
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('trash button removes the item', (tester) async {
     final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
     final controller = await _controllerWith(api, _trip());

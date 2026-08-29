@@ -20,7 +20,18 @@ class ItineraryPlaceCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 2),
       child: ListTile(
         dense: true,
-        leading: Icon(categoryIconFor(place.category.icon)),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.drag_indicator,
+              size: 20,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+            const SizedBox(width: 4),
+            Icon(categoryIconFor(place.category.icon)),
+          ],
+        ),
         title: Text(place.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline),
@@ -29,25 +40,39 @@ class ItineraryPlaceCard extends StatelessWidget {
         ),
       ),
     );
-    return LongPressDraggable<ItineraryItem>(
-      data: item,
-      feedback: Material(
-        elevation: 4,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(categoryIconFor(place.category.icon)),
-              const SizedBox(width: 8),
-              Text(place.name),
-            ],
-          ),
+    final isDesktop = switch (Theme.of(context).platform) {
+      TargetPlatform.linux ||
+      TargetPlatform.macOS ||
+      TargetPlatform.windows => true,
+      _ => false,
+    };
+    final feedback = Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(categoryIconFor(place.category.icon)),
+            const SizedBox(width: 8),
+            Text(place.name),
+          ],
         ),
       ),
-      childWhenDragging: Opacity(opacity: 0.4, child: content),
-      child: content,
     );
+    return isDesktop
+        ? Draggable<ItineraryItem>(
+            data: item,
+            feedback: feedback,
+            childWhenDragging: Opacity(opacity: 0.4, child: content),
+            child: content,
+          )
+        : LongPressDraggable<ItineraryItem>(
+            data: item,
+            feedback: feedback,
+            childWhenDragging: Opacity(opacity: 0.4, child: content),
+            child: content,
+          );
   }
 }
