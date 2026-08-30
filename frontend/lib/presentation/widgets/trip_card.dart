@@ -53,8 +53,11 @@ class TripCard extends StatelessWidget {
   /// Reference date for status derivation; defaults to [DateTime.now].
   final DateTime? today;
 
-  TripStatus get _status =>
-      TripStatus.fromDates(trip.startDate, trip.endDate, today ?? DateTime.now());
+  TripStatus get _status => TripStatus.fromDates(
+    trip.startDate,
+    trip.endDate,
+    today ?? DateTime.now(),
+  );
 
   (String, Color, Color) get _badge {
     return switch (_status) {
@@ -143,9 +146,9 @@ class TripCard extends StatelessWidget {
                   children: [
                     Text(
                       trip.name,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.text,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleLarge?.copyWith(color: AppColors.text),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

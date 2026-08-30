@@ -58,11 +58,7 @@ void main() {
 
     test('comparison ignores the time-of-day component', () {
       expect(
-        TripStatus.fromDates(
-          start,
-          end,
-          DateTime(2026, 7, 15, 23, 59),
-        ),
+        TripStatus.fromDates(start, end, DateTime(2026, 7, 15, 23, 59)),
         TripStatus.ongoing,
       );
     });

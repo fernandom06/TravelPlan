@@ -237,9 +237,9 @@ class _TripsScreenState extends State<TripsScreen> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Tus Aventuras',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.text,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(color: AppColors.text),
                 ),
               ),
             ),

@@ -37,11 +37,7 @@ Future<void> _pump(WidgetTester tester, Size size) async {
     MaterialApp(
       theme: AppTheme.light(),
       home: Material(
-        child: Stack(
-          children: const [
-            PlaceFormContainer(child: _FormProbe()),
-          ],
-        ),
+        child: Stack(children: const [PlaceFormContainer(child: _FormProbe())]),
       ),
     ),
   );
@@ -100,9 +96,7 @@ void main() {
         theme: AppTheme.light(),
         home: Material(
           child: Stack(
-            children: const [
-              PlaceFormContainer(child: _FormProbe()),
-            ],
+            children: const [PlaceFormContainer(child: _FormProbe())],
           ),
         ),
       ),

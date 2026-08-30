@@ -39,9 +39,7 @@ class _TripFormState extends State<TripForm> {
     final trip = widget.initialTrip;
     final draft = widget.initialDraft;
     final now = DateTime.now();
-    _nameController = TextEditingController(
-      text: trip?.name ?? draft?.name,
-    );
+    _nameController = TextEditingController(text: trip?.name ?? draft?.name);
     _descriptionController = TextEditingController(
       text: trip?.description ?? draft?.description ?? '',
     );
@@ -49,9 +47,13 @@ class _TripFormState extends State<TripForm> {
       text: trip?.imageUrl ?? draft?.imageUrl ?? '',
     );
     _startDate =
-        trip?.startDate ?? draft?.startDate ?? DateTime(now.year, now.month, now.day);
+        trip?.startDate ??
+        draft?.startDate ??
+        DateTime(now.year, now.month, now.day);
     _endDate =
-        trip?.endDate ?? draft?.endDate ?? _startDate.add(const Duration(days: 1));
+        trip?.endDate ??
+        draft?.endDate ??
+        _startDate.add(const Duration(days: 1));
     _imageUrl = trip?.imageUrl ?? draft?.imageUrl;
   }
 

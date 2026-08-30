@@ -75,7 +75,6 @@ Widget _map({
   );
 }
 
-
 Future<void> _pump(WidgetTester tester, Widget widget) async {
   tester.view.physicalSize = const Size(1200, 800);
   tester.view.devicePixelRatio = 1.0;
@@ -156,9 +155,7 @@ void main() {
 
     expect(find.byKey(const Key('place-pin-tooltip')), findsNothing);
 
-    final gesture = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-    );
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: const Offset(10, 10));
     await tester.pump();
     await gesture.moveTo(tester.getCenter(find.byType(PlacePin).first));
@@ -227,7 +224,9 @@ void main() {
   });
 
   testWidgets('autofocus on Nombre when importing', (tester) async {
-    await _pump(tester, _map(
+    await _pump(
+      tester,
+      _map(
         onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
       ),
     );
@@ -300,7 +299,9 @@ void main() {
     tester,
   ) async {
     String? createdName;
-    await _pump(tester, _map(
+    await _pump(
+      tester,
+      _map(
         onCreateCategory: (name, icon) async {
           createdName = name;
           return const Category(id: 5, name: 'Playa');
@@ -338,7 +339,9 @@ void main() {
   ) async {
     String? renamedId;
     String? renamedName;
-    await _pump(tester, _map(
+    await _pump(
+      tester,
+      _map(
         onRenameCategory: (id, name, icon) async {
           renamedId = '$id';
           renamedName = name;
@@ -413,7 +416,9 @@ void main() {
   ) async {
     int? updatedId;
     PlaceUpdate? sentUpdate;
-    await _pump(tester, _map(
+    await _pump(
+      tester,
+      _map(
         places: [_place],
         onUpdatePlace: (id, update) async {
           updatedId = id;
@@ -440,7 +445,9 @@ void main() {
     tester,
   ) async {
     var updated = false;
-    await _pump(tester, _map(
+    await _pump(
+      tester,
+      _map(
         places: [_place],
         onUpdatePlace: (_, _) async {
           updated = true;
@@ -464,7 +471,9 @@ void main() {
     tester,
   ) async {
     int? deletedId;
-    await _pump(tester, _map(
+    await _pump(
+      tester,
+      _map(
         places: [_place],
         onDeletePlace: (id) async {
           deletedId = id;
@@ -489,7 +498,9 @@ void main() {
     tester,
   ) async {
     var deleted = false;
-    await _pump(tester, _map(
+    await _pump(
+      tester,
+      _map(
         places: [_place],
         onDeletePlace: (_) async {
           deleted = true;
@@ -519,7 +530,9 @@ void main() {
     'offline Guardar in edit shows SnackBar and keeps the panel open',
     (tester) async {
       var updated = false;
-      await _pump(tester, _map(
+      await _pump(
+        tester,
+        _map(
           places: [_place],
           isOnline: false,
           onUpdatePlace: (_, _) async {
@@ -547,7 +560,9 @@ void main() {
     'offline Eliminar keeps the panel open after the confirmation dialog',
     (tester) async {
       var deleted = false;
-      await _pump(tester, _map(
+      await _pump(
+        tester,
+        _map(
           places: [_place],
           isOnline: false,
           onDeletePlace: (_) async {
@@ -628,23 +643,22 @@ void main() {
     expect(find.byType(PlaceForm), findsNothing);
   });
 
-  testWidgets(
-    'PlaceDetails is shown inside the right panel on desktop',
-    (tester) async {
-      await _pump(tester, _map(places: [_place]));
+  testWidgets('PlaceDetails is shown inside the right panel on desktop', (
+    tester,
+  ) async {
+    await _pump(tester, _map(places: [_place]));
 
-      await tester.tap(find.byType(PlacePin).first);
-      await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.byType(PlacePin).first);
+    await tester.pump(const Duration(milliseconds: 350));
 
-      expect(
-        find.ancestor(
-          of: find.byType(PlaceDetails),
-          matching: find.byKey(const Key('place-form-panel')),
-        ),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(
+      find.ancestor(
+        of: find.byType(PlaceDetails),
+        matching: find.byKey(const Key('place-form-panel')),
+      ),
+      findsOneWidget,
+    );
+  });
 
   group('import from Google Maps', () {
     testWidgets('no FAB when onResolveMapUrl is not provided', (tester) async {
@@ -656,7 +670,9 @@ void main() {
     testWidgets('shows the FAB when onResolveMapUrl is provided', (
       tester,
     ) async {
-      await _pump(tester, _map(
+      await _pump(
+        tester,
+        _map(
           onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
         ),
       );
@@ -671,7 +687,9 @@ void main() {
     testWidgets('offline tap shows SnackBar and does not open the dialog', (
       tester,
     ) async {
-      await _pump(tester, _map(
+      await _pump(
+        tester,
+        _map(
           isOnline: false,
           onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
         ),
@@ -687,7 +705,9 @@ void main() {
     testWidgets(
       'resolved URL centers the map and opens the create form with red marker',
       (tester) async {
-        await _pump(tester, _map(
+        await _pump(
+          tester,
+          _map(
             onResolveMapUrl: (url) async =>
                 const LatLng(41.6474339, -0.8861451),
           ),
@@ -716,7 +736,9 @@ void main() {
     testWidgets('resolve error shows SnackBar and does not open the form', (
       tester,
     ) async {
-      await _pump(tester, _map(
+      await _pump(
+        tester,
+        _map(
           onResolveMapUrl: (url) async =>
               throw MapUrlResolveTestException('No se pudo resolver el enlace'),
         ),
@@ -741,7 +763,9 @@ void main() {
     testWidgets('Cancelar after import closes the form without creating', (
       tester,
     ) async {
-      await _pump(tester, _map(
+      await _pump(
+        tester,
+        _map(
           onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
         ),
       );
@@ -776,8 +800,7 @@ void main() {
 
     testWidgets('label is hidden below zoom 9', (tester) async {
       final controller = MapController();
-      await _pump(tester, _map(places: [_place], mapController: controller),
-      );
+      await _pump(tester, _map(places: [_place], mapController: controller));
       await tester.pumpAndSettle();
 
       controller.move(kDefaultCenter, 8.0);
@@ -788,8 +811,7 @@ void main() {
 
     testWidgets('label fades at intermediate zoom', (tester) async {
       final controller = MapController();
-      await _pump(tester, _map(places: [_place], mapController: controller),
-      );
+      await _pump(tester, _map(places: [_place], mapController: controller));
       await tester.pumpAndSettle();
 
       controller.move(kDefaultCenter, 10.0);

@@ -45,9 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      children: [_buildMapContent(), _buildTripsContent()],
-    );
+    return AppShell(children: [_buildMapContent(), _buildTripsContent()]);
   }
 
   Widget _buildMapContent() {

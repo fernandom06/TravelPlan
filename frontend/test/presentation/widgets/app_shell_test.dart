@@ -71,7 +71,9 @@ void main() {
     expect(find.text('MAPA_CONTENT'), findsOneWidget);
   });
 
-  testWidgets('wide layout shows top bar instead of bottom nav', (tester) async {
+  testWidgets('wide layout shows top bar instead of bottom nav', (
+    tester,
+  ) async {
     await pumpShell(tester, size: const Size(1200, 800));
 
     expect(find.byType(NavigationBar), findsNothing);
@@ -143,8 +145,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(counters['B-init'], 1, reason: 'child must not be recreated');
-    expect(find.text('B_CONTENT').hitTestable(), findsOneWidget,
-        reason: 'active tab preserved across the breakpoint');
+    expect(
+      find.text('B_CONTENT').hitTestable(),
+      findsOneWidget,
+      reason: 'active tab preserved across the breakpoint',
+    );
     expect(find.byType(NavigationBar), findsNothing);
 
     // Cross back into mobile layout.

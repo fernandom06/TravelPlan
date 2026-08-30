@@ -68,11 +68,7 @@ class PlacePin extends StatelessWidget {
 /// Wraps a map pin so hovering it (desktop with a mouse) reveals a small
 /// sketchbook-style label with the place name. Taps pass through to [child].
 class PinHoverTooltip extends StatefulWidget {
-  const PinHoverTooltip({
-    super.key,
-    required this.label,
-    required this.child,
-  });
+  const PinHoverTooltip({super.key, required this.label, required this.child});
 
   final String label;
   final Widget child;

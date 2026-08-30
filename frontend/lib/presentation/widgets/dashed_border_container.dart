@@ -94,11 +94,7 @@ class DashedBorderPainter extends CustomPainter {
 
   /// Emits dash segments [dash] long separated by [space]-long gaps along a
   /// polyline.
-  static Path _buildDashedPath(
-    List<Offset> points,
-    double dash,
-    double space,
-  ) {
+  static Path _buildDashedPath(List<Offset> points, double dash, double space) {
     final path = Path();
     if (points.isEmpty) return path;
     var drawing = true;

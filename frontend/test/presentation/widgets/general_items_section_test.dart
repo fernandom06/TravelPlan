@@ -71,9 +71,7 @@ void main() {
       matching: find.byType(Scrollable),
     );
     expect(scrollable, findsOneWidget);
-    final axis = tester
-        .widget<Scrollable>(scrollable)
-        .axisDirection;
+    final axis = tester.widget<Scrollable>(scrollable).axisDirection;
     expect(axis, AxisDirection.right);
   });
 

@@ -39,9 +39,7 @@ void main() {
     expect(find.text('drop zone'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
-        (w) =>
-            w is CustomPaint &&
-            w.painter is DashedBorderPainter,
+        (w) => w is CustomPaint && w.painter is DashedBorderPainter,
       ),
       findsOneWidget,
     );

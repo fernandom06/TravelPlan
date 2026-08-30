@@ -10,13 +10,7 @@ Widget _wrap(Widget child) {
   return MaterialApp(
     theme: AppTheme.light(),
     home: Scaffold(
-      body: Center(
-        child: SizedBox(
-          width: 220,
-          height: 120,
-          child: child,
-        ),
-      ),
+      body: Center(child: SizedBox(width: 220, height: 120, child: child)),
     ),
   );
 }
@@ -70,9 +64,7 @@ void main() {
 
     expect(find.byIcon(Icons.more_vert), findsNothing);
 
-    final gesture = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-    );
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: const Offset(10, 10));
     await tester.pump();
     await gesture.moveTo(tester.getCenter(find.text('card')));
@@ -102,9 +94,7 @@ void main() {
       ),
     );
 
-    final gesture = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-    );
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: const Offset(10, 10));
     await tester.pump();
     await gesture.moveTo(tester.getCenter(find.text('card')));

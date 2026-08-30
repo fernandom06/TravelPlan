@@ -91,16 +91,12 @@ class _ZoneMapScreenState extends State<ZoneMapScreen> {
           Expanded(
             child: Stack(
               children: [
-                Positioned.fill(
-                  child: ZoneMap(controller: _controller),
-                ),
+                Positioned.fill(child: ZoneMap(controller: _controller)),
                 const Positioned(
                   top: 16,
                   left: 0,
                   right: 0,
-                  child: IgnorePointer(
-                    child: Center(child: _ZonePill()),
-                  ),
+                  child: IgnorePointer(child: Center(child: _ZonePill())),
                 ),
               ],
             ),

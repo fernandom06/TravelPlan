@@ -279,9 +279,7 @@ class _TravelMapState extends State<TravelMap> {
             onTap: () => _handleMarkerTap(place),
             child: PinHoverTooltip(
               label: place.name,
-              child: PlacePin(
-                icon: categoryIconFor(place.category.icon),
-              ),
+              child: PlacePin(icon: categoryIconFor(place.category.icon)),
             ),
           ),
         ),
@@ -337,10 +335,7 @@ class _TravelMapState extends State<TravelMap> {
         ),
         if (_state is! _Idle)
           PlaceFormContainer(
-            child: KeyedSubtree(
-              key: _formKey,
-              child: _buildFormContent(),
-            ),
+            child: KeyedSubtree(key: _formKey, child: _buildFormContent()),
           ),
         if (widget.onResolveMapUrl != null)
           Positioned(

@@ -366,7 +366,8 @@ void main() {
       await tester.pumpWidget(
         _Harness(
           categories: [_naturaleza],
-          onCreate: (_, _) async => throw const DuplicateCategoryException('dup'),
+          onCreate: (_, _) async =>
+              throw const DuplicateCategoryException('dup'),
         ),
       );
 
@@ -374,7 +375,10 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Playa');
       await _confirm(tester);
 
-      expect(find.text('Ya existe una categoría con ese nombre'), findsOneWidget);
+      expect(
+        find.text('Ya existe una categoría con ese nombre'),
+        findsOneWidget,
+      );
       expect(find.byType(TextField), findsOneWidget);
     });
 
@@ -560,7 +564,10 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Monumento');
       await _confirm(tester);
 
-      expect(find.text('Ya existe una categoría con ese nombre'), findsOneWidget);
+      expect(
+        find.text('Ya existe una categoría con ese nombre'),
+        findsOneWidget,
+      );
       expect(find.byType(TextField), findsOneWidget);
     });
 
@@ -879,9 +886,7 @@ void main() {
 
       final scrollable = stripScrollable();
       expect(scrollable, findsOneWidget);
-      final position = tester
-          .state<ScrollableState>(scrollable)
-          .position;
+      final position = tester.state<ScrollableState>(scrollable).position;
       expect(position.maxScrollExtent, greaterThan(0));
     });
 

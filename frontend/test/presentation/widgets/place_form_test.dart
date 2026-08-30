@@ -28,8 +28,9 @@ Widget _wrap(Widget child) => MaterialApp(
   home: Scaffold(body: SingleChildScrollView(child: child)),
 );
 
-FilledButton _saveButton(WidgetTester tester) =>
-    tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Guardar Lugar'));
+FilledButton _saveButton(WidgetTester tester) => tester.widget<FilledButton>(
+  find.widgetWithText(FilledButton, 'Guardar Lugar'),
+);
 
 Future<void> _fillName(WidgetTester tester) async {
   await tester.enterText(find.byType(TextField).first, 'Mirador');
@@ -181,11 +182,7 @@ void main() {
   testWidgets('PlaceDetails does not autofocus', (tester) async {
     await tester.pumpWidget(
       _wrap(
-        PlaceDetails(
-          categories: _categories,
-          place: _place,
-          onClose: () {},
-        ),
+        PlaceDetails(categories: _categories, place: _place, onClose: () {}),
       ),
     );
     await tester.pump();
@@ -213,9 +210,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
 
-    final chipFocus = Focus.maybeOf(
-      tester.element(find.text('Naturaleza')),
-    );
+    final chipFocus = Focus.maybeOf(tester.element(find.text('Naturaleza')));
     expect(chipFocus, isNotNull);
     expect(chipFocus!.hasPrimaryFocus, isTrue);
   });
@@ -238,8 +233,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
     expect(
-      Focus.maybeOf(tester.element(find.text('Naturaleza')))!
-          .hasPrimaryFocus,
+      Focus.maybeOf(tester.element(find.text('Naturaleza')))!.hasPrimaryFocus,
       isTrue,
     );
 
@@ -247,8 +241,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
     expect(
-      Focus.maybeOf(tester.element(find.text('Monumento')))!
-          .hasPrimaryFocus,
+      Focus.maybeOf(tester.element(find.text('Monumento')))!.hasPrimaryFocus,
       isTrue,
     );
 
@@ -302,8 +295,7 @@ void main() {
 
     // Focus returned to the add chip (last focusable of the strip).
     expect(
-      Focus.maybeOf(tester.element(find.byIcon(Icons.add)))!
-          .hasPrimaryFocus,
+      Focus.maybeOf(tester.element(find.byIcon(Icons.add)))!.hasPrimaryFocus,
       isTrue,
     );
   });
@@ -480,9 +472,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
 
-    final chipFocus = Focus.maybeOf(
-      tester.element(find.text('Naturaleza')),
-    );
+    final chipFocus = Focus.maybeOf(tester.element(find.text('Naturaleza')));
     expect(chipFocus!.hasPrimaryFocus, isTrue);
     expect(saved, isFalse);
   });
@@ -530,14 +520,12 @@ void main() {
     expect(savedName, 'Mirador');
   });
 
-  testWidgets('read-only mode disables fields and shows Cerrar', (tester) async {
+  testWidgets('read-only mode disables fields and shows Cerrar', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
-        PlaceDetails(
-          categories: _categories,
-          place: _place,
-          onClose: () {},
-        ),
+        PlaceDetails(categories: _categories, place: _place, onClose: () {}),
       ),
     );
 
@@ -551,11 +539,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _wrap(
-        PlaceDetails(
-          categories: _categories,
-          place: _place,
-          onClose: () {},
-        ),
+        PlaceDetails(categories: _categories, place: _place, onClose: () {}),
       ),
     );
 
@@ -1024,12 +1008,8 @@ void main() {
       },
     );
 
-    testWidgets('deleting the selected category disables save', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrap(form(onDeleteCategory: (_, _) async {})),
-      );
+    testWidgets('deleting the selected category disables save', (tester) async {
+      await tester.pumpWidget(_wrap(form(onDeleteCategory: (_, _) async {})));
 
       await _fillName(tester);
       await _selectCategory(tester, 'Monumento');

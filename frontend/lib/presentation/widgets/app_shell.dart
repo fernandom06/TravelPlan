@@ -20,11 +20,7 @@ bool isDesktopLayout(double width) => width >= kDesktopBreakpoint;
 /// Both layouts share a single [IndexedStack] so switching tabs never
 /// recreates the children and crossing the breakpoint preserves state.
 class AppShell extends StatefulWidget {
-  const AppShell({
-    super.key,
-    required this.children,
-    this.onTabChanged,
-  });
+  const AppShell({super.key, required this.children, this.onTabChanged});
 
   /// The tab contents (Mapa first, Viajes second).
   final List<Widget> children;
@@ -67,10 +63,7 @@ class _AppShellState extends State<AppShell> {
   Widget _buildDesktop(BuildContext context) {
     return Column(
       children: [
-        _DesktopTopBar(
-          index: _index,
-          onSelect: _select,
-        ),
+        _DesktopTopBar(index: _index, onSelect: _select),
         Expanded(child: _buildIndexedStack()),
       ],
     );
@@ -127,9 +120,7 @@ class _DesktopTopBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.8),
         border: Border(
-          bottom: BorderSide(
-            color: AppColors.muted.withValues(alpha: 0.5),
-          ),
+          bottom: BorderSide(color: AppColors.muted.withValues(alpha: 0.5)),
         ),
       ),
       child: ClipRect(

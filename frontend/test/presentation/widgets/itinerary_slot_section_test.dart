@@ -59,9 +59,7 @@ void main() {
     expect(find.text('Lugar 2'), findsOneWidget);
   });
 
-  testWidgets('renders the slot header with its timeline icon', (
-    tester,
-  ) async {
+  testWidgets('renders the slot header with its timeline icon', (tester) async {
     await tester.pumpWidget(
       wrap(
         ItinerarySlotSection(

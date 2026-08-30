@@ -88,8 +88,10 @@ void main() {
       expect(theme.appBarTheme.elevation, 0);
       expect(theme.appBarTheme.titleTextStyle?.fontFamily, 'Fraunces');
       expect(theme.cardTheme.elevation, 0);
-      expect(theme.floatingActionButtonTheme.backgroundColor,
-          AppColors.primary);
+      expect(
+        theme.floatingActionButtonTheme.backgroundColor,
+        AppColors.primary,
+      );
       expect(theme.navigationBarTheme.indicatorColor, AppColors.primary);
       expect(theme.dialogTheme.shape, isNotNull);
       expect(theme.bottomSheetTheme.shape, isNotNull);

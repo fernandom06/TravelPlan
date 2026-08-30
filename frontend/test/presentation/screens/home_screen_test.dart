@@ -87,7 +87,9 @@ Future<void> _pumpHome(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    MaterialApp(home: _homeScreen(online, controller, tripsController: tripsController)),
+    MaterialApp(
+      home: _homeScreen(online, controller, tripsController: tripsController),
+    ),
   );
   await tester.pump();
 }
@@ -132,17 +134,11 @@ void main() {
 
     await _pumpHome(tester, online, controller);
 
-    final banner = tester.widget<OfflineBanner>(
-      find.byType(OfflineBanner),
-    );
+    final banner = tester.widget<OfflineBanner>(find.byType(OfflineBanner));
     expect(banner, isNotNull);
-    final wifiIcon = tester.widget<Icon>(
-      find.byIcon(Icons.wifi_off),
-    );
+    final wifiIcon = tester.widget<Icon>(find.byIcon(Icons.wifi_off));
     expect(wifiIcon.color, AppColors.primary);
-    final text = tester.widget<Text>(
-      find.text('Sin conexión con el servidor'),
-    );
+    final text = tester.widget<Text>(find.text('Sin conexión con el servidor'));
     expect(text.style?.color, AppColors.text);
     expect(text.style?.fontFamily, 'Lora');
   });
@@ -220,7 +216,9 @@ void main() {
     expect(find.byType(TripsScreen).hitTestable(), findsNothing);
   });
 
-  testWidgets('tapping Viajes shows the trips content (mobile)', (tester) async {
+  testWidgets('tapping Viajes shows the trips content (mobile)', (
+    tester,
+  ) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
     final controller = PlacesController(_FakePlaceApi());

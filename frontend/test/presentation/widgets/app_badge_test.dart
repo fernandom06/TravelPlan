@@ -44,7 +44,10 @@ void main() {
     );
 
     final container = tester.widget<Container>(
-      find.ancestor(of: find.text('EN CURSO'), matching: find.byType(Container)),
+      find.ancestor(
+        of: find.text('EN CURSO'),
+        matching: find.byType(Container),
+      ),
     );
     final decoration = container.decoration! as BoxDecoration;
     expect(decoration.color, AppColors.accent);

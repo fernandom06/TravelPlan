@@ -80,10 +80,7 @@ class GeneralItemsSection extends StatelessWidget {
                     color: AppColors.muted.withValues(alpha: 0.5),
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 child: items.isEmpty
                     ? _emptyState(context)
                     : ListView.separated(

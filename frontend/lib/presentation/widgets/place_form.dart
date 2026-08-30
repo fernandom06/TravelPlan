@@ -66,10 +66,7 @@ class _PlaceFields extends StatelessWidget {
                 : (_) => onDescriptionSubmit!(),
             decoration: const InputDecoration(
               labelText: 'Descripción',
-              labelStyle: TextStyle(
-                fontFamily: 'Lora',
-                color: AppColors.text,
-              ),
+              labelStyle: TextStyle(fontFamily: 'Lora', color: AppColors.text),
               filled: true,
               fillColor: Color(0x80F4F1DE), // paper tone
             ),
@@ -468,7 +465,10 @@ class _PlaceDetailsState extends State<PlaceDetails> {
                   onPressed: widget.onEdit,
                   child: const Text('Editar'),
                 ),
-              TextButton(onPressed: widget.onClose, child: const Text('Cerrar')),
+              TextButton(
+                onPressed: widget.onClose,
+                child: const Text('Cerrar'),
+              ),
             ],
           ),
         ),

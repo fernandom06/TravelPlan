@@ -8,11 +8,7 @@ import '../controllers/zone_controller.dart';
 import 'map_constants.dart';
 
 class ZoneMap extends StatefulWidget {
-  const ZoneMap({
-    super.key,
-    required this.controller,
-    this.mapController,
-  });
+  const ZoneMap({super.key, required this.controller, this.mapController});
 
   final ZoneController controller;
   final MapController? mapController;

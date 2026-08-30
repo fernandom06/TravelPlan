@@ -353,7 +353,9 @@ class _CategoryChipStripState extends State<CategoryChipStrip> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('La categoría tiene $count lugar(es). Elige el destino:'),
+                  Text(
+                    'La categoría tiene $count lugar(es). Elige el destino:',
+                  ),
                   DropdownButtonFormField<Category>(
                     initialValue: destination,
                     items: [
@@ -439,10 +441,7 @@ class _CategoryChipStripState extends State<CategoryChipStrip> {
           children: [
             const SizedBox(width: 4),
             for (final c in widget.categories)
-              if (_editingId == c.id)
-                _buildEditEditor(c)
-              else
-                _buildChip(c),
+              if (_editingId == c.id) _buildEditEditor(c) else _buildChip(c),
             if (_isCreating) _buildCreateEditor(),
             if (widget.enabled && widget.onCreate != null) _buildAddChip(),
             const SizedBox(width: 4),

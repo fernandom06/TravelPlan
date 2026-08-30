@@ -68,10 +68,7 @@ class _EntityActionsState extends State<EntityActions> {
     await showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: items,
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: items),
       ),
     );
   }
@@ -83,10 +80,7 @@ class _EntityActionsState extends State<EntityActions> {
   @override
   Widget build(BuildContext context) {
     if (_isTouch) {
-      return GestureDetector(
-        onLongPress: _openMenu,
-        child: widget.child,
-      );
+      return GestureDetector(onLongPress: _openMenu, child: widget.child);
     }
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
@@ -123,11 +117,7 @@ class _MoreButton extends StatelessWidget {
         onTap: onPressed,
         child: const Padding(
           padding: EdgeInsets.all(4),
-          child: Icon(
-            Icons.more_vert,
-            size: 18,
-            color: AppColors.primary,
-          ),
+          child: Icon(Icons.more_vert, size: 18, color: AppColors.primary),
         ),
       ),
     );
