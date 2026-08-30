@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/itinerary_api.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
@@ -14,6 +15,7 @@ import 'package:frontend/presentation/controllers/trips_controller.dart';
 import 'package:frontend/presentation/screens/home_screen.dart';
 import 'package:frontend/presentation/screens/trips_screen.dart';
 import 'package:frontend/presentation/screens/zone_map_screen.dart';
+import 'package:frontend/presentation/widgets/offline_banner.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
 class _FakePlaceApi extends PlaceApi {
@@ -118,6 +120,31 @@ void main() {
     expect(find.byKey(const Key('app-shell-desktop-top-bar')), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
     expect(find.byType(TravelMap).hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('offline banner uses design tokens, not error colors', (
+    tester,
+  ) async {
+    final online = ValueNotifier<bool>(false);
+    addTearDown(online.dispose);
+    final controller = PlacesController(_FakePlaceApi());
+    addTearDown(controller.dispose);
+
+    await _pumpHome(tester, online, controller);
+
+    final banner = tester.widget<OfflineBanner>(
+      find.byType(OfflineBanner),
+    );
+    expect(banner, isNotNull);
+    final wifiIcon = tester.widget<Icon>(
+      find.byIcon(Icons.wifi_off),
+    );
+    expect(wifiIcon.color, AppColors.primary);
+    final text = tester.widget<Text>(
+      find.text('Sin conexión con el servidor'),
+    );
+    expect(text.style?.color, AppColors.text);
+    expect(text.style?.fontFamily, 'Lora');
   });
 
   testWidgets('shows offline banner and map when offline', (tester) async {
