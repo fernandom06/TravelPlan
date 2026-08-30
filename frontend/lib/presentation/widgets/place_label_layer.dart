@@ -14,6 +14,10 @@ const kLabelHeight = 18.0;
 
 const kLabelHPadding = 4.0;
 
+const kLabelMaxChars = 20;
+
+const kLabelTruncatedChars = 17;
+
 const kLabelMaxWidth = 120.0;
 
 const kLabelEdgeMargin = 8.0;
@@ -39,6 +43,11 @@ double placeLabelOpacity(double zoom) {
   final progress =
       (zoom - kLabelFadeStartZoom) / (kLabelFadeEndZoom - kLabelFadeStartZoom);
   return progress.clamp(0.0, 1.0);
+}
+
+String truncatePlaceLabel(String name) {
+  if (name.length <= kLabelMaxChars) return name;
+  return '${name.substring(0, kLabelTruncatedChars)}…';
 }
 
 Set<int> hiddenLabelIndexes(List<Rect> rects) {
