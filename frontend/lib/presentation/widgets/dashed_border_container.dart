@@ -169,7 +169,7 @@ class DashedBorderPainter extends CustomPainter {
     d -= rightLen;
     if (d < quarter) {
       final a = d / quarter * (math.pi / 2);
-      return Offset(right - r + r * math.cos(a), top + r + r * math.sin(a));
+      return Offset(right - r + r * math.cos(a), bottom - r + r * math.sin(a));
     }
     d -= quarter;
 
@@ -179,7 +179,7 @@ class DashedBorderPainter extends CustomPainter {
     if (d < quarter) {
       final a = d / quarter * (math.pi / 2);
       return Offset(
-        right - r + r * math.cos(a + math.pi / 2),
+        left + r + r * math.cos(a + math.pi / 2),
         bottom - r + r * math.sin(a + math.pi / 2),
       );
     }
@@ -192,7 +192,7 @@ class DashedBorderPainter extends CustomPainter {
       final a = d / quarter * (math.pi / 2);
       return Offset(
         left + r + r * math.cos(a + math.pi),
-        bottom - r + r * math.sin(a + math.pi),
+        top + r + r * math.sin(a + math.pi),
       );
     }
     return Offset(left + r, top + r);

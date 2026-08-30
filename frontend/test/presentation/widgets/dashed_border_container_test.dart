@@ -77,6 +77,48 @@ void main() {
     expect(painter.radius, 12);
   });
 
+  test('DashedBorderPainter path stays on the rounded-rect outline', () {
+    final canvas = _RecordingCanvas();
+    const size = Size(320, 96);
+    const radius = 12.0;
+    final painter = DashedBorderPainter(
+      color: AppColors.accent,
+      strokeWidth: 2,
+      dash: 8,
+      space: 4,
+      radius: radius,
+    );
+
+    painter.paint(canvas, size);
+
+    final path = canvas.lastPath!;
+    final outer = Offset.zero & size;
+    final inner = outer.deflate(radius);
+    const eps = 0.75;
+
+    for (final metric in path.computeMetrics()) {
+      final steps = (metric.length / 2).ceil();
+      for (var i = 0; i <= steps; i++) {
+        final p = metric.getTangentForOffset(metric.length * i / steps)!.position;
+        final clamped = Offset(
+          p.dx.clamp(inner.left, inner.right),
+          p.dy.clamp(inner.top, inner.bottom),
+        );
+        final distanceToInner = (p - clamped).distance;
+        final onOutline = p.dx >= outer.left - eps &&
+            p.dx <= outer.right + eps &&
+            p.dy >= outer.top - eps &&
+            p.dy <= outer.bottom + eps &&
+            (distanceToInner - radius).abs() < eps;
+        expect(
+          onOutline,
+          isTrue,
+          reason: 'Point $p is off the rounded-rect outline',
+        );
+      }
+    }
+  });
+
   test('DashedBorderPainter repaints when config changes', () {
     const a = DashedBorderPainter(
       color: AppColors.accent,
