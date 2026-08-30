@@ -29,10 +29,6 @@ class TripImageError extends StatelessWidget {
   }
 }
 
-/// Polaroid-style trip card: white frame, full-bleed image with a status
-/// [AppBadge], Fraunces title and Lora-italic terracotta dates. Edit/delete
-/// live behind an [EntityActions] overflow (long-press on touch, hover ⋮ on
-/// desktop) and tapping the card opens the trip.
 class TripCard extends StatelessWidget {
   const TripCard({
     super.key,
@@ -50,7 +46,6 @@ class TripCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onOpen;
 
-  /// Reference date for status derivation; defaults to [DateTime.now].
   final DateTime? today;
 
   TripStatus get _status => TripStatus.fromDates(
@@ -93,15 +88,13 @@ class TripCard extends StatelessWidget {
     final imageUrl = trip.imageUrl;
     if (imageUrl == null) {
       return Container(
-        height: 140,
         color: AppColors.background,
         alignment: Alignment.center,
-        child: const Icon(Icons.image, size: 48, color: AppColors.muted),
+        child: const Icon(Icons.image, size: 40, color: AppColors.muted),
       );
     }
     return Image.network(
       trip.displayImageUrl(baseUrl),
-      height: 140,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) => const TripImageError(),
     );
@@ -125,40 +118,43 @@ class TripCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Stack(
-                children: [
-                  _buildImage(context),
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: AppBadge(
-                      label: label,
-                      color: badgeColor,
-                      textColor: badgeTextColor,
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildImage(context),
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: AppBadge(
+                        label: label,
+                        color: badgeColor,
+                        textColor: badgeTextColor,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       trip.name,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.titleLarge?.copyWith(color: AppColors.text),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.text,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       _dates,
                       style: const TextStyle(
                         fontFamily: 'Lora',
                         fontStyle: FontStyle.italic,
-                        fontSize: 13,
+                        fontSize: 12,
                         color: AppColors.primary,
                       ),
                     ),

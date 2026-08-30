@@ -260,12 +260,6 @@ class _TripsScreenState extends State<TripsScreen> {
     );
   }
 
-  int _columnsFor(double width) {
-    if (width < 800) return 1;
-    if (width < 1280) return 2;
-    return 3;
-  }
-
   Widget _buildBody(BuildContext context, TripsState state) {
     if (state.isLoading && state.trips.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -273,10 +267,8 @@ class _TripsScreenState extends State<TripsScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final columns = _columnsFor(width);
         final itemCount = state.trips.length + 1;
         if (state.trips.isEmpty) {
-          // The dashed card doubles as the centered empty state.
           return Center(
             child: SizedBox(
               width: (width * 0.6).clamp(220.0, 320.0),
@@ -287,9 +279,9 @@ class _TripsScreenState extends State<TripsScreen> {
         }
         return GridView.builder(
           padding: const EdgeInsets.all(12),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            childAspectRatio: 0.75,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 320,
+            childAspectRatio: 0.85,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
@@ -313,8 +305,6 @@ class _TripsScreenState extends State<TripsScreen> {
   }
 }
 
-/// Dashed "¿A dónde vamos?" card that opens the trip creation form; it is the
-/// last grid cell when trips exist and the centered empty state otherwise.
 class _CreateTripCard extends StatelessWidget {
   const _CreateTripCard({required this.onTap});
 

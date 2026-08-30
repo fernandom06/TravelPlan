@@ -204,7 +204,7 @@ void main() {
     expect(find.text('¿A dónde vamos?'), findsOneWidget);
   });
 
-  testWidgets('grid uses 1 column below 800 dp', (tester) async {
+  testWidgets('grid keeps cells under 320 dp on a phone', (tester) async {
     final controller = TripsController(_FakeTripApi(trips: [_trip, _trip2]));
     addTearDown(controller.dispose);
 
@@ -212,11 +212,15 @@ void main() {
 
     final grid = tester.widget<GridView>(find.byType(GridView));
     final delegate =
-        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-    expect(delegate.crossAxisCount, 1);
+        grid.gridDelegate as SliverGridDelegateWithMaxCrossAxisExtent;
+    expect(delegate.maxCrossAxisExtent, 320);
+    expect(
+      tester.getSize(find.byType(TripCard).first).width,
+      lessThanOrEqualTo(320),
+    );
   });
 
-  testWidgets('grid uses 2 columns between 800 and 1279 dp', (tester) async {
+  testWidgets('grid keeps cells under 320 dp on a tablet', (tester) async {
     final controller = TripsController(_FakeTripApi(trips: [_trip, _trip2]));
     addTearDown(controller.dispose);
 
@@ -224,11 +228,15 @@ void main() {
 
     final grid = tester.widget<GridView>(find.byType(GridView));
     final delegate =
-        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-    expect(delegate.crossAxisCount, 2);
+        grid.gridDelegate as SliverGridDelegateWithMaxCrossAxisExtent;
+    expect(delegate.maxCrossAxisExtent, 320);
+    expect(
+      tester.getSize(find.byType(TripCard).first).width,
+      lessThanOrEqualTo(320),
+    );
   });
 
-  testWidgets('grid uses 3 columns at 1280 dp and wider', (tester) async {
+  testWidgets('grid keeps cells under 320 dp on desktop', (tester) async {
     final controller = TripsController(_FakeTripApi(trips: [_trip, _trip2]));
     addTearDown(controller.dispose);
 
@@ -236,8 +244,12 @@ void main() {
 
     final grid = tester.widget<GridView>(find.byType(GridView));
     final delegate =
-        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-    expect(delegate.crossAxisCount, 3);
+        grid.gridDelegate as SliverGridDelegateWithMaxCrossAxisExtent;
+    expect(delegate.maxCrossAxisExtent, 320);
+    expect(
+      tester.getSize(find.byType(TripCard).first).width,
+      lessThanOrEqualTo(320),
+    );
   });
 
   testWidgets('tapping the dashed create card opens the trip form', (
