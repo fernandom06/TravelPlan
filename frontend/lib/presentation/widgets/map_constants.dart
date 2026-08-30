@@ -8,7 +8,6 @@ const kMinZoom = 3.0;
 
 const kMaxZoom = 18.0;
 
-/// CartoDB Positron light tiles (subdomains a–d). Attribution to OSM + CARTO
-/// is rendered on the map via `RichAttributionWidget`.
-const kCartoTileUrlTemplate =
-    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+/// OpenStreetMap standard raster tiles. Attribution to OSM contributors is
+/// rendered on the map via `RichAttributionWidget`.
+const kOsmTileUrlTemplate = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';

@@ -33,14 +33,14 @@ void main() {
     expect(_markers(tester), isEmpty);
   });
 
-  testWidgets('uses CartoDB Positron tiles with attribution', (tester) async {
+  testWidgets('uses OSM tiles with attribution', (tester) async {
     final controller = ZoneController();
     addTearDown(controller.dispose);
 
     await tester.pumpWidget(_map(controller));
 
     final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer).first);
-    expect(tileLayer.urlTemplate, kCartoTileUrlTemplate);
+    expect(tileLayer.urlTemplate, kOsmTileUrlTemplate);
     expect(
       find.byWidgetPredicate(
         (w) =>

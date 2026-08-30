@@ -114,13 +114,11 @@ void main() {
     expect(_markers(tester), isEmpty);
   });
 
-  testWidgets('uses CartoDB Positron tiles with visible attribution', (
-    tester,
-  ) async {
+  testWidgets('uses OSM tiles with visible attribution', (tester) async {
     await _pump(tester, _map());
 
     final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer).first);
-    expect(tileLayer.urlTemplate, kCartoTileUrlTemplate);
+    expect(tileLayer.urlTemplate, kOsmTileUrlTemplate);
     expect(
       find.byWidgetPredicate(
         (w) =>
@@ -128,8 +126,7 @@ void main() {
             w.attributions.any(
               (a) =>
                   a is TextSourceAttribution &&
-                  a.text.contains('OpenStreetMap contributors') &&
-                  a.text.contains('CARTO'),
+                  a.text.contains('OpenStreetMap contributors'),
             ),
       ),
       findsWidgets,

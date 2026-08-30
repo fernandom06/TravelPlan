@@ -66,13 +66,13 @@ class _ZoneMapState extends State<ZoneMap> {
           ),
           children: [
             TileLayer(
-              urlTemplate: kCartoTileUrlTemplate,
+              urlTemplate: kOsmTileUrlTemplate,
               userAgentPackageName: 'dev.travelplan.frontend',
             ),
             RichAttributionWidget(
               attributions: const [
                 TextSourceAttribution(
-                  'OpenStreetMap contributors © CARTO',
+                  'OpenStreetMap contributors',
                   prependCopyright: false,
                 ),
               ],

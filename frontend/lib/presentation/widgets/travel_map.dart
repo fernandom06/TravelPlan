@@ -315,13 +315,13 @@ class _TravelMapState extends State<TravelMap> {
           ),
           children: [
             TileLayer(
-              urlTemplate: kCartoTileUrlTemplate,
+              urlTemplate: kOsmTileUrlTemplate,
               userAgentPackageName: 'dev.travelplan.frontend',
             ),
             RichAttributionWidget(
               attributions: const [
                 TextSourceAttribution(
-                  'OpenStreetMap contributors © CARTO',
+                  'OpenStreetMap contributors',
                   prependCopyright: false,
                 ),
               ],
