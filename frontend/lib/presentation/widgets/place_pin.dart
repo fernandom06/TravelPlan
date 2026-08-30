@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show OverflowBoxFit;
 
 import '../../core/theme/app_theme.dart';
 
@@ -95,31 +96,36 @@ class _PinHoverTooltipState extends State<PinHoverTooltip> {
               left: 0,
               right: 0,
               child: IgnorePointer(
-                child: Container(
-                  key: const Key('place-pin-tooltip'),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.8),
-                    borderRadius: AppRadii.pill,
-                    boxShadow: const [AppShadows.soft],
-                  ),
-                  child: ClipRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Text(
-                        widget.label,
-                        style: const TextStyle(
-                          fontFamily: 'Lora',
-                          fontSize: 13,
-                          color: AppColors.text,
+                child: OverflowBox(
+                  minWidth: 0,
+                  maxWidth: double.infinity,
+                  fit: OverflowBoxFit.deferToChild,
+                  alignment: Alignment.topCenter,
+                  child: Container(
+                    key: const Key('place-pin-tooltip'),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withValues(alpha: 0.8),
+                      borderRadius: AppRadii.pill,
+                      boxShadow: const [AppShadows.soft],
+                    ),
+                    child: ClipRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Text(
+                          widget.label,
+                          style: const TextStyle(
+                            fontFamily: 'Lora',
+                            fontSize: 13,
+                            color: AppColors.text,
+                          ),
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),

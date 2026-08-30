@@ -166,6 +166,35 @@ void main() {
     expect(find.byKey(const Key('place-pin-tooltip')), findsNothing);
   });
 
+  testWidgets('hovering a pin with a long name shows the full name tooltip', (
+    tester,
+  ) async {
+    final longPlace = Place(
+      id: 1,
+      name: 'x' * 60,
+      description: null,
+      latitude: 42.0414,
+      longitude: -3.0428,
+      category: _naturaleza,
+    );
+    await _pump(tester, _map(places: [longPlace]));
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: const Offset(10, 10));
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(find.byType(PlacePin).first));
+    await tester.pump();
+
+    expect(find.text('x' * 60), findsOneWidget);
+    final tooltipSize = tester.getSize(
+      find.byKey(const Key('place-pin-tooltip')),
+    );
+    expect(tooltipSize.width, greaterThan(40));
+
+    await gesture.removePointer();
+    await tester.pump();
+  });
+
   testWidgets('tapping a wrapped pin still opens the details', (tester) async {
     await _pump(tester, _map(places: [_place]));
 
