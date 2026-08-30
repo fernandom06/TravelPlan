@@ -18,8 +18,6 @@ const kLabelMaxChars = 20;
 
 const kLabelTruncatedChars = 17;
 
-const kLabelMaxWidth = 120.0;
-
 const kLabelEdgeMargin = 8.0;
 
 /// Sketchbook-style label: Lora italic in navy with a strong white halo for
@@ -97,7 +95,7 @@ Size measureLabelSize(String name, TextStyle style) {
   final painter = TextPainter(
     text: TextSpan(text: name, style: style),
     textDirection: TextDirection.ltr,
-  )..layout(maxWidth: kLabelMaxWidth);
+  )..layout();
   return painter.size;
 }
 

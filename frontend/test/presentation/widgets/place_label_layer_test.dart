@@ -21,6 +21,16 @@ void main() {
       expect(size.width, greaterThan(0));
       expect(size.height, greaterThan(0));
     });
+
+    test('measures a 20-character name wider than the old 120px clamp', () {
+      final size = measureLabelSize('12345678901234567890', kPlaceLabelStyle);
+      expect(size.width, greaterThan(120));
+    });
+
+    test('measures a 40-character name fully without a width limit', () {
+      final size = measureLabelSize('x' * 40, kPlaceLabelStyle);
+      expect(size.width, greaterThan(250));
+    });
   });
 
   group('truncatePlaceLabel', () {
