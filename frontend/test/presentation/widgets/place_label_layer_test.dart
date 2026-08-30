@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/presentation/widgets/place_label_layer.dart';
 
 void main() {
+  group('kPlaceLabelStyle', () {
+    test('uses Lora italic navy (sketchbook)', () {
+      expect(kPlaceLabelStyle.fontFamily, 'Lora');
+      expect(kPlaceLabelStyle.fontStyle, FontStyle.italic);
+      expect(kPlaceLabelStyle.color, AppColors.text);
+    });
+  });
+
+  group('measureLabelSize', () {
+    test('measures a label with the new style', () {
+      final size = measureLabelSize('Mirador de la Catedral', kPlaceLabelStyle);
+      expect(size.width, greaterThan(0));
+      expect(size.height, greaterThan(0));
+    });
+  });
+
   group('placeLabelOpacity', () {
     test('ramps from 0 at zoom 9 to 1 at zoom 11', () {
       expect(placeLabelOpacity(8.0), 0.0);

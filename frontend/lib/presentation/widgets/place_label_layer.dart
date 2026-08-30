@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/place.dart';
 
 const kLabelFadeStartZoom = 9.0;
@@ -16,6 +17,17 @@ const kLabelHPadding = 4.0;
 const kLabelMaxWidth = 120.0;
 
 const kLabelEdgeMargin = 8.0;
+
+/// Sketchbook-style label: Lora italic in navy with a white halo for
+/// readability over the map tiles.
+const kPlaceLabelStyle = TextStyle(
+  fontFamily: 'Lora',
+  fontSize: kLabelFontSize,
+  fontStyle: FontStyle.italic,
+  fontWeight: FontWeight.w400,
+  color: AppColors.text,
+  shadows: [Shadow(color: Colors.white, blurRadius: 3)],
+);
 
 double placeLabelOpacity(double zoom) {
   final progress =
@@ -88,12 +100,7 @@ class PlaceLabelsLayer extends StatelessWidget {
     final effectiveViewport = firstFrame
         ? const Size(double.infinity, double.infinity)
         : viewport;
-    final style = TextStyle(
-      fontSize: kLabelFontSize,
-      fontWeight: FontWeight.w600,
-      color: Colors.black87,
-      shadows: const [Shadow(color: Colors.white, blurRadius: 3)],
-    );
+    final style = kPlaceLabelStyle;
 
     final geometries = <({Size markerSize, Alignment alignment, Rect rect})>[];
     for (final place in places) {
