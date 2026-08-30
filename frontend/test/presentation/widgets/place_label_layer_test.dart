@@ -46,10 +46,7 @@ void main() {
     });
 
     test('truncates a 21-character name to 17 chars plus ellipsis', () {
-      expect(
-        truncatePlaceLabel('123456789012345678901'),
-        '12345678901234567…',
-      );
+      expect(truncatePlaceLabel('123456789012345678901'), '12345678901234567…');
     });
 
     test('truncates a 60-character name to 17 chars plus ellipsis', () {

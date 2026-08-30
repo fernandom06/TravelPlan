@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/presentation/widgets/place_pin.dart';
 
 void main() {
-  Future<void> _hoverPin(WidgetTester tester, Finder pinFinder) async {
+  Future<void> hoverPin(WidgetTester tester, Finder pinFinder) async {
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: const Offset(10, 10));
     await tester.pump();
@@ -14,7 +14,7 @@ void main() {
     addTearDown(gesture.removePointer);
   }
 
-  Widget _wrap({required String label, Widget? child}) {
+  Widget wrap({required String label, Widget? child}) {
     return MaterialApp(
       home: Scaffold(
         body: Center(
@@ -28,13 +28,11 @@ void main() {
   }
 
   group('PinHoverTooltip', () {
-    testWidgets('shows the full long label wider than the pin', (
-      tester,
-    ) async {
+    testWidgets('shows the full long label wider than the pin', (tester) async {
       final label = 'x' * 60;
-      await tester.pumpWidget(_wrap(label: label));
+      await tester.pumpWidget(wrap(label: label));
 
-      await _hoverPin(tester, find.byType(PlacePin));
+      await hoverPin(tester, find.byType(PlacePin));
 
       expect(find.text(label), findsOneWidget);
       final tooltipSize = tester.getSize(
@@ -44,9 +42,9 @@ void main() {
     });
 
     testWidgets('grows centered over the pin', (tester) async {
-      await tester.pumpWidget(_wrap(label: 'x' * 60));
+      await tester.pumpWidget(wrap(label: 'x' * 60));
 
-      await _hoverPin(tester, find.byType(PlacePin));
+      await hoverPin(tester, find.byType(PlacePin));
 
       final tooltipCenter = tester.getCenter(
         find.byKey(const Key('place-pin-tooltip')),
@@ -57,9 +55,9 @@ void main() {
 
     testWidgets('short label shows the full name centered', (tester) async {
       const label = 'Mirador';
-      await tester.pumpWidget(_wrap(label: label));
+      await tester.pumpWidget(wrap(label: label));
 
-      await _hoverPin(tester, find.byType(PlacePin));
+      await hoverPin(tester, find.byType(PlacePin));
 
       expect(find.text(label), findsOneWidget);
       final tooltipCenter = tester.getCenter(
@@ -70,7 +68,7 @@ void main() {
     });
 
     testWidgets('shows no tooltip without hover', (tester) async {
-      await tester.pumpWidget(_wrap(label: 'Mirador'));
+      await tester.pumpWidget(wrap(label: 'Mirador'));
 
       expect(find.byKey(const Key('place-pin-tooltip')), findsNothing);
     });
@@ -95,7 +93,7 @@ void main() {
         ),
       );
 
-      await _hoverPin(tester, find.byType(PlacePin));
+      await hoverPin(tester, find.byType(PlacePin));
       expect(find.byKey(const Key('place-pin-tooltip')), findsOneWidget);
 
       await tester.tap(find.byType(PlacePin));
