@@ -6,10 +6,12 @@ import 'package:frontend/presentation/widgets/place_label_layer.dart';
 
 void main() {
   group('kPlaceLabelStyle', () {
-    test('uses Lora italic navy (sketchbook)', () {
+    test('uses Lora italic navy semibold (sketchbook)', () {
       expect(kPlaceLabelStyle.fontFamily, 'Lora');
       expect(kPlaceLabelStyle.fontStyle, FontStyle.italic);
+      expect(kPlaceLabelStyle.fontWeight, FontWeight.w600);
       expect(kPlaceLabelStyle.color, AppColors.text);
+      expect(kPlaceLabelStyle.shadows, isNotEmpty);
     });
   });
 

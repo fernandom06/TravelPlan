@@ -8,7 +8,7 @@ const kLabelFadeStartZoom = 9.0;
 
 const kLabelFadeEndZoom = 11.0;
 
-const kLabelFontSize = 12.0;
+const kLabelFontSize = 13.0;
 
 const kLabelHeight = 18.0;
 
@@ -18,15 +18,21 @@ const kLabelMaxWidth = 120.0;
 
 const kLabelEdgeMargin = 8.0;
 
-/// Sketchbook-style label: Lora italic in navy with a white halo for
-/// readability over the map tiles.
+/// Sketchbook-style label: Lora italic in navy with a strong white halo for
+/// readability over the busy OSM standard tiles.
 const kPlaceLabelStyle = TextStyle(
   fontFamily: 'Lora',
   fontSize: kLabelFontSize,
   fontStyle: FontStyle.italic,
-  fontWeight: FontWeight.w400,
+  fontWeight: FontWeight.w600,
   color: AppColors.text,
-  shadows: [Shadow(color: Colors.white, blurRadius: 3)],
+  shadows: [
+    Shadow(color: Colors.white, blurRadius: 2),
+    Shadow(color: Colors.white, blurRadius: 2, offset: Offset(1, 1)),
+    Shadow(color: Colors.white, blurRadius: 2, offset: Offset(-1, 1)),
+    Shadow(color: Colors.white, blurRadius: 2, offset: Offset(1, -1)),
+    Shadow(color: Colors.white, blurRadius: 2, offset: Offset(-1, -1)),
+  ],
 );
 
 double placeLabelOpacity(double zoom) {
