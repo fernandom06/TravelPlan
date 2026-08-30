@@ -14,6 +14,7 @@ import 'package:frontend/presentation/widgets/category_chip_strip.dart';
 import 'package:frontend/presentation/widgets/import_url_dialog.dart';
 import 'package:frontend/presentation/widgets/map_constants.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
+import 'package:frontend/presentation/widgets/place_label_layer.dart';
 import 'package:frontend/presentation/widgets/place_pin.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
@@ -793,6 +794,92 @@ void main() {
 
       expect(_labelOpacity(tester, 1), 1.0);
       expect(find.text('Mirador'), findsOneWidget);
+    });
+
+    testWidgets('long label renders the truncated name, not the full one', (
+      tester,
+    ) async {
+      final name = 'x' * 30;
+      final longPlace = Place(
+        id: 1,
+        name: name,
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await _pump(tester, _map(places: [longPlace]));
+
+      expect(find.text(truncatePlaceLabel(name)), findsOneWidget);
+      expect(find.text(name), findsNothing);
+    });
+
+    testWidgets('label of exactly 20 characters is read in full', (
+      tester,
+    ) async {
+      final name = 'y' * 20;
+      final twentyCharPlace = Place(
+        id: 1,
+        name: name,
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await _pump(tester, _map(places: [twentyCharPlace]));
+
+      expect(find.text(name), findsOneWidget);
+    });
+
+    testWidgets('label marker width matches the truncated text geometry', (
+      tester,
+    ) async {
+      final longPlace = Place(
+        id: 1,
+        name: 'x' * 30,
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await _pump(tester, _map(places: [longPlace]));
+
+      final labelMarkers = tester
+          .widget<MarkerLayer>(find.byType(MarkerLayer).last)
+          .markers;
+      expect(labelMarkers, hasLength(1));
+      final expectedWidth =
+          measureLabelSize(
+            truncatePlaceLabel('x' * 30),
+            kPlaceLabelStyle,
+          ).width +
+          2 * kLabelHPadding;
+      expect(labelMarkers.first.width, expectedWidth);
+    });
+
+    testWidgets('overlap hides the second label with a long first name', (
+      tester,
+    ) async {
+      final longFirst = Place(
+        id: 1,
+        name: 'x' * 30,
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      const shortSecond = Place(
+        id: 2,
+        name: 'Otro',
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await _pump(tester, _map(places: [longFirst, shortSecond]));
+
+      expect(_labelOpacity(tester, 1), 1.0);
+      expect(_labelOpacity(tester, 2), 0.0);
     });
 
     testWidgets('label is hidden below zoom 9', (tester) async {

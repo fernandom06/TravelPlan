@@ -117,7 +117,8 @@ class PlaceLabelsLayer extends StatelessWidget {
 
     final geometries = <({Size markerSize, Alignment alignment, Rect rect})>[];
     for (final place in places) {
-      final labelSize = measureLabelSize(place.name, style);
+      final displayName = truncatePlaceLabel(place.name);
+      final labelSize = measureLabelSize(displayName, style);
       final markerSize = Size(
         labelSize.width + 2 * kLabelHPadding,
         kLabelHeight,
@@ -162,10 +163,9 @@ class PlaceLabelsLayer extends StatelessWidget {
                     horizontal: kLabelHPadding,
                   ),
                   child: Text(
-                    places[i].name,
+                    truncatePlaceLabel(places[i].name),
                     style: style,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
