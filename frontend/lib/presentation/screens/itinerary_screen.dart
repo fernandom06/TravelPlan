@@ -38,7 +38,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     with SingleTickerProviderStateMixin {
   static const _dayHoverDelay = Duration(milliseconds: 500);
 
-  late final TabController _tabController;
+  late TabController _tabController;
   late List<DateTime> _days;
   Timer? _dayHoverTimer;
 
@@ -46,8 +46,18 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   void initState() {
     super.initState();
     _days = _deriveDays(widget.trip);
-    _tabController = TabController(length: _days.length, vsync: this);
+    _tabController = _createTabController();
     _load();
+  }
+
+  TabController _createTabController() {
+    final controller = TabController(length: _days.length, vsync: this);
+    controller.addListener(_onTabChanged);
+    return controller;
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -58,7 +68,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
         widget.trip.startDate != oldWidget.trip.startDate) {
       _days = newDays;
       _tabController.dispose();
-      _tabController = TabController(length: _days.length, vsync: this);
+      _tabController = _createTabController();
       _load();
     }
   }
@@ -195,6 +205,8 @@ class _ItineraryScreenState extends State<ItineraryScreen>
               TabBar(
                 controller: _tabController,
                 isScrollable: true,
+                dividerColor: Colors.transparent,
+                indicatorColor: Colors.transparent,
                 tabs: [for (var i = 0; i < _days.length; i++) _dayTab(i)],
               ),
               Expanded(

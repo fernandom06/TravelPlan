@@ -190,6 +190,42 @@ void main() {
     expect(tabBar.tabs, hasLength(10));
   });
 
+  testWidgets('highlights the active day tab when switching days', (
+    tester,
+  ) async {
+    final api = _FakeItineraryApi();
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    Color tabColor(String label) {
+      final container = tester.widget<AnimatedContainer>(
+        find
+            .ancestor(
+              of: find.text(label),
+              matching: find.byType(AnimatedContainer),
+            )
+            .first,
+      );
+      return (container.decoration as BoxDecoration).color!;
+    }
+
+    expect(tabColor('Día 1 · 01 Jun'), AppColors.primary);
+    expect(tabColor('Día 2 · 02 Jun'), AppColors.background);
+
+    await tester.tap(find.text('Día 2 · 02 Jun'));
+    await tester.pumpAndSettle();
+
+    expect(tabColor('Día 1 · 01 Jun'), AppColors.background);
+    expect(tabColor('Día 2 · 02 Jun'), AppColors.primary);
+  });
+
   testWidgets('single-day trip shows one tab', (tester) async {
     final trip = _trip(start: DateTime(2026, 6, 1), end: DateTime(2026, 6, 1));
     final api = _FakeItineraryApi();
