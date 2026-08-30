@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/trip_draft.dart';
 import '../controllers/zone_controller.dart';
+import '../widgets/dashed_border_container.dart';
 import '../widgets/zone_map.dart';
 
 class ZoneMapScreen extends StatefulWidget {
@@ -87,7 +89,21 @@ class _ZoneMapScreenState extends State<ZoneMapScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ZoneMap(controller: _controller),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: ZoneMap(controller: _controller),
+                ),
+                const Positioned(
+                  top: 16,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Center(child: _ZonePill()),
+                  ),
+                ),
+              ],
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(12),
@@ -123,6 +139,30 @@ class _ZoneMapScreenState extends State<ZoneMapScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Dashed "Área de Viaje" label pill centered over the drawing map.
+class _ZonePill extends StatelessWidget {
+  const _ZonePill();
+
+  @override
+  Widget build(BuildContext context) {
+    return DashedBorderContainer(
+      color: AppColors.muted,
+      radius: 999,
+      backgroundColor: AppColors.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: const Text(
+        'Área de Viaje',
+        style: TextStyle(
+          fontFamily: 'Fraunces',
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
       ),
     );
   }

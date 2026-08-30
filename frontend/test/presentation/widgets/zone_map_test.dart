@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/presentation/controllers/zone_controller.dart';
 import 'package:frontend/presentation/widgets/map_constants.dart';
 import 'package:frontend/presentation/widgets/zone_map.dart';
@@ -74,6 +75,43 @@ void main() {
     expect(polygon.points, hasLength(3));
     expect(_markers(tester), hasLength(3));
     expect(controller.value.points, hasLength(3));
+  });
+
+  testWidgets('polygon is mint with a dashed mint border', (tester) async {
+    final controller = ZoneController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(_map(controller));
+
+    await _tapMap(tester, Offset.zero);
+    await _tapMap(tester, const Offset(40, 0));
+    await _tapMap(tester, const Offset(0, 40));
+
+    final polygon = tester
+        .widget<PolygonLayer>(find.byType(PolygonLayer))
+        .polygons
+        .single;
+    expect(polygon.color, AppColors.accent.withValues(alpha: 0.2));
+    expect(polygon.borderColor, AppColors.accent);
+    final pattern = polygon.pattern;
+    expect(pattern, isA<StrokePattern>());
+    expect(pattern.segments, [8, 4]);
+    expect(pattern, StrokePattern.dashed(segments: [8, 4]));
+  });
+
+  testWidgets('vertex markers are mint', (tester) async {
+    final controller = ZoneController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(_map(controller));
+
+    await _tapMap(tester, Offset.zero);
+    await _tapMap(tester, const Offset(40, 0));
+    await _tapMap(tester, const Offset(0, 40));
+
+    final marker = _markers(tester).first;
+    final icon = (marker.child as Icon);
+    expect(icon.color, AppColors.accent);
   });
 
   testWidgets('an extra tap grows the polygon and vertex markers', (
