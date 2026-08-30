@@ -78,7 +78,21 @@ void main() {
 
     expect(find.byType(NavigationBar), findsNothing);
     expect(find.byKey(const Key('app-shell-desktop-top-bar')), findsOneWidget);
+    expect(find.byIcon(Icons.map), findsOneWidget);
+    expect(find.byIcon(Icons.flight_outlined), findsOneWidget);
     expect(find.text('MAPA_CONTENT'), findsOneWidget);
+  });
+
+  testWidgets('desktop top bar swaps to filled icon on active section', (
+    tester,
+  ) async {
+    await pumpShell(tester, size: const Size(1200, 800));
+
+    await tester.tap(find.text('Viajes'));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.map_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.flight), findsOneWidget);
   });
 
   testWidgets('bottom nav switches content and notifies', (tester) async {

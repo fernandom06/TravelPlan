@@ -137,12 +137,16 @@ class _DesktopTopBar extends StatelessWidget {
                 const Spacer(),
                 _TopBarSection(
                   label: 'Mapa',
+                  icon: Icons.map_outlined,
+                  activeIcon: Icons.map,
                   active: index == 0,
                   onTap: () => onSelect(0),
                 ),
                 const SizedBox(width: 8),
                 _TopBarSection(
                   label: 'Viajes',
+                  icon: Icons.flight_outlined,
+                  activeIcon: Icons.flight,
                   active: index == 1,
                   onTap: () => onSelect(1),
                 ),
@@ -158,29 +162,41 @@ class _DesktopTopBar extends StatelessWidget {
 class _TopBarSection extends StatelessWidget {
   const _TopBarSection({
     required this.label,
+    required this.icon,
+    required this.activeIcon,
     required this.active,
     required this.onTap,
   });
 
   final String label;
+  final IconData icon;
+  final IconData activeIcon;
   final bool active;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final color = active ? AppColors.primary : AppColors.text;
     return InkWell(
       onTap: onTap,
       borderRadius: AppRadii.pill,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Lora',
-            fontSize: 14,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-            color: active ? AppColors.primary : AppColors.text,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(active ? activeIcon : icon, size: 18, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 14,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                color: color,
+              ),
+            ),
+          ],
         ),
       ),
     );
