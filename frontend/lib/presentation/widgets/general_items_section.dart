@@ -70,7 +70,7 @@ class GeneralItemsSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
-                height: 158,
+                height: 160,
                 decoration: BoxDecoration(
                   color: highlighted
                       ? AppColors.surface
@@ -96,6 +96,7 @@ class GeneralItemsSection extends StatelessWidget {
                             builder: (context, _, _) => ItineraryPlaceCard(
                               item: item,
                               onDelete: () => onDeleteItem(item.id),
+                              horizontal: false,
                             ),
                           );
                         },
