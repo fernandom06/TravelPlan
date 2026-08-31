@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/itinerary_item.dart';
 import 'package:frontend/data/models/place.dart';
+import 'package:frontend/presentation/widgets/dashed_action_card.dart';
 import 'package:frontend/presentation/widgets/general_items_section.dart';
 import 'package:frontend/presentation/widgets/itinerary_place_card.dart';
 
@@ -162,4 +163,87 @@ void main() {
     await tester.tap(find.byIcon(Icons.delete_outline));
     expect(deletedId, 1);
   });
+
+  testWidgets('renders the trailing card after the mini-cards', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        GeneralItemsSection(
+          items: [_item(1, position: 0), _item(2, position: 1)],
+          onAcceptItem: (_, _) {},
+          onDeleteItem: (_) {},
+          trailing: const DashedActionCard(
+            label: '¿Añadimos un lugar?',
+            onTap: _noop,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('2'), findsOneWidget);
+    expect(find.byType(DashedActionCard), findsOneWidget);
+    final lastCardRight = tester.getTopRight(
+      find.byType(ItineraryPlaceCard).last,
+    );
+    final cardLeft = tester.getTopLeft(find.byType(DashedActionCard));
+    expect(cardLeft.dx, greaterThan(lastCardRight.dx));
+  });
+
+  testWidgets('empty state shows the hint and the trailing card together', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        GeneralItemsSection(
+          items: const [],
+          onAcceptItem: (_, _) {},
+          onDeleteItem: (_) {},
+          trailing: const DashedActionCard(
+            label: '¿Añadimos un lugar?',
+            onTap: _noop,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Añade lugares al viaje'), findsOneWidget);
+    expect(find.byType(DashedActionCard), findsOneWidget);
+  });
+
+  testWidgets('does not render a trailing card without trailing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        GeneralItemsSection(
+          items: [_item(1, position: 0)],
+          onAcceptItem: (_, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.byType(DashedActionCard), findsNothing);
+  });
+
+  testWidgets('tapping the trailing card invokes its onTap', (tester) async {
+    var tapped = false;
+    await tester.pumpWidget(
+      wrap(
+        GeneralItemsSection(
+          items: const [],
+          onAcceptItem: (_, _) {},
+          onDeleteItem: (_) {},
+          trailing: DashedActionCard(
+            label: '¿Añadimos un lugar?',
+            onTap: () => tapped = true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('¿Añadimos un lugar?'));
+    expect(tapped, isTrue);
+  });
 }
+
+void _noop() {}
