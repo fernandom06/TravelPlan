@@ -4,14 +4,24 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/itinerary_item.dart';
 import 'itinerary_place_card.dart';
 
-/// Horizontal carousel of unassigned places.
+/// Layout mode for the section: a horizontal carousel or a wrapping grid.
+enum GeneralItemsLayout {
+  /// Horizontal [ListView] carousel with a fixed 160px-tall container.
+  carousel,
+
+  /// [Wrap] grid of cards sized to the available width (2–3 per row).
+  grid,
+}
+
+/// Section of unassigned places.
 ///
 /// Header "LUGARES POR ASIGNAR" (uppercase, tracked) with a counter; a
-/// white/50 rounded container with a sand border holds a horizontally
-/// scrollable row of [ItineraryPlaceCard] mini-cards. Dropping anywhere on the
-/// container appends; dropping on a card inserts before that card's index.
-/// An optional [trailing] widget is shown after the last card (or centered
-/// when there are no items).
+/// white/50 rounded container with a sand border holds either a horizontally
+/// scrollable row of [ItineraryPlaceCard] mini-cards ([GeneralItemsLayout
+/// .carousel]) or a wrapping grid ([GeneralItemsLayout.grid]). Dropping
+/// anywhere on the container appends; dropping on a card inserts before that
+/// card's index. An optional [trailing] widget is shown after the last card
+/// (or centered when there are no items).
 class GeneralItemsSection extends StatelessWidget {
   const GeneralItemsSection({
     super.key,
@@ -19,6 +29,7 @@ class GeneralItemsSection extends StatelessWidget {
     required this.onAcceptItem,
     required this.onDeleteItem,
     this.trailing,
+    this.layout = GeneralItemsLayout.carousel,
   });
 
   final List<ItineraryItem> items;
@@ -33,6 +44,14 @@ class GeneralItemsSection extends StatelessWidget {
   /// current layout.
   final Widget? trailing;
 
+  /// How the cards are laid out inside the container.
+  final GeneralItemsLayout layout;
+
+  static const _minCardWidth = 150.0;
+  static const _spacing = 8.0;
+  static const _twoPerRowMinWidth = 2 * _minCardWidth + _spacing;
+  static const _threePerRowMinWidth = 3 * _minCardWidth + 2 * _spacing;
+
   @override
   Widget build(BuildContext context) {
     return DragTarget<ItineraryItem>(
@@ -41,6 +60,7 @@ class GeneralItemsSection extends StatelessWidget {
       },
       builder: (context, candidateData, rejectedData) {
         final highlighted = candidateData.isNotEmpty;
+        final isGrid = layout == GeneralItemsLayout.grid;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -78,7 +98,10 @@ class GeneralItemsSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
-                height: 160,
+                height: isGrid ? null : 160,
+                constraints: isGrid
+                    ? const BoxConstraints(minHeight: 160)
+                    : null,
                 decoration: BoxDecoration(
                   color: highlighted
                       ? AppColors.surface
@@ -88,8 +111,12 @@ class GeneralItemsSection extends StatelessWidget {
                     color: AppColors.muted.withValues(alpha: 0.5),
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: _buildContent(context),
+                padding: isGrid
+                    ? const EdgeInsets.symmetric(vertical: 8)
+                    : const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: isGrid
+                    ? _buildGridContent(context)
+                    : _buildContent(context),
               ),
             ),
           ],
@@ -125,6 +152,56 @@ class GeneralItemsSection extends StatelessWidget {
         );
       },
     );
+  }
+
+  Widget _buildGridContent(BuildContext context) {
+    final trailing = this.trailing;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth;
+        final perRow = _cardsPerRow(available);
+        final cardWidth = (available - _spacing * (perRow - 1)) / perRow;
+        if (items.isEmpty) {
+          if (trailing == null) {
+            return SizedBox(height: 160, child: _emptyState(context));
+          }
+          return SizedBox(
+            height: 160,
+            child: Center(
+              child: SizedBox(width: cardWidth, child: trailing),
+            ),
+          );
+        }
+        return Wrap(
+          spacing: _spacing,
+          runSpacing: _spacing,
+          children: [
+            for (var i = 0; i < items.length; i++)
+              SizedBox(
+                width: cardWidth,
+                child: DragTarget<ItineraryItem>(
+                  onAcceptWithDetails: (details) {
+                    onAcceptItem(details.data, i);
+                  },
+                  builder: (context, _, _) => ItineraryPlaceCard(
+                    item: items[i],
+                    onDelete: () => onDeleteItem(items[i].id),
+                    horizontal: false,
+                    width: cardWidth,
+                  ),
+                ),
+              ),
+            if (trailing != null) SizedBox(width: cardWidth, child: trailing),
+          ],
+        );
+      },
+    );
+  }
+
+  static int _cardsPerRow(double available) {
+    if (available >= _threePerRowMinWidth) return 3;
+    if (available >= _twoPerRowMinWidth) return 2;
+    return 1;
   }
 
   Widget _emptyState(BuildContext context) {
