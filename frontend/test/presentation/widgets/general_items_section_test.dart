@@ -188,7 +188,7 @@ void main() {
     expect(cardLeft.dx, greaterThan(lastCardRight.dx));
   });
 
-  testWidgets('empty state shows the hint and the trailing card together', (
+  testWidgets('empty state centers the trailing card without the hint', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -205,8 +205,11 @@ void main() {
       ),
     );
 
-    expect(find.text('Añade lugares al viaje'), findsOneWidget);
+    expect(find.text('Añade lugares al viaje'), findsNothing);
     expect(find.byType(DashedActionCard), findsOneWidget);
+    final sectionCenter = tester.getCenter(find.byType(GeneralItemsSection));
+    final cardCenter = tester.getCenter(find.byType(DashedActionCard));
+    expect((cardCenter.dx - sectionCenter.dx).abs(), lessThan(1));
   });
 
   testWidgets('does not render a trailing card without trailing', (

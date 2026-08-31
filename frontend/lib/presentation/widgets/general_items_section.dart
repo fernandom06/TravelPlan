@@ -10,8 +10,8 @@ import 'itinerary_place_card.dart';
 /// white/50 rounded container with a sand border holds a horizontally
 /// scrollable row of [ItineraryPlaceCard] mini-cards. Dropping anywhere on the
 /// container appends; dropping on a card inserts before that card's index.
-/// An optional [trailing] widget is shown after the last card (or next to the
-/// empty hint when there are no items).
+/// An optional [trailing] widget is shown after the last card (or centered
+/// when there are no items).
 class GeneralItemsSection extends StatelessWidget {
   const GeneralItemsSection({
     super.key,
@@ -29,7 +29,8 @@ class GeneralItemsSection extends StatelessWidget {
   final void Function(int itemId) onDeleteItem;
 
   /// Optional widget (e.g. a [DashedActionCard]) rendered at the end of the
-  /// carousel. When null the section keeps its current layout.
+  /// carousel, or centered in the empty state. When null the section keeps its
+  /// current layout.
   final Widget? trailing;
 
   @override
@@ -101,13 +102,7 @@ class GeneralItemsSection extends StatelessWidget {
     final trailing = this.trailing;
     if (items.isEmpty) {
       if (trailing == null) return _emptyState(context);
-      return Row(
-        children: [
-          Expanded(child: _emptyState(context)),
-          const SizedBox(width: 8),
-          SizedBox(width: 104, child: trailing),
-        ],
-      );
+      return Center(child: SizedBox(width: 104, child: trailing));
     }
     return ListView.separated(
       scrollDirection: Axis.horizontal,

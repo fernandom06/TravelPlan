@@ -14,6 +14,7 @@ import 'package:frontend/data/place_api.dart';
 import 'package:frontend/presentation/controllers/itinerary_controller.dart';
 import 'package:frontend/presentation/controllers/places_controller.dart';
 import 'package:frontend/presentation/screens/itinerary_screen.dart';
+import 'package:frontend/presentation/widgets/dashed_action_card.dart';
 import 'package:frontend/presentation/widgets/general_items_section.dart';
 import 'package:frontend/presentation/widgets/place_picker_dialog.dart';
 
@@ -259,7 +260,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Añade lugares al viaje'), findsOneWidget);
+    expect(find.text('Añade lugares al viaje'), findsNothing);
+    expect(find.text('¿Añadimos un lugar?'), findsOneWidget);
     expect(find.text('Arrastra lugares aquí'), findsNWidgets(3));
   });
 
@@ -401,7 +403,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.removeCalls, [1]);
-    expect(find.text('Añade lugares al viaje'), findsOneWidget);
+    expect(find.text('Añade lugares al viaje'), findsNothing);
+    expect(find.text('¿Añadimos un lugar?'), findsOneWidget);
   });
 
   testWidgets('shows the offline banner when offline', (tester) async {
@@ -468,7 +471,10 @@ void main() {
 
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(find.text('¿Añadimos un lugar?'), findsOneWidget);
-    expect(find.text('Añade lugares al viaje'), findsOneWidget);
+    expect(find.text('Añade lugares al viaje'), findsNothing);
+    final sectionCenter = tester.getCenter(find.byType(GeneralItemsSection));
+    final cardCenter = tester.getCenter(find.byType(DashedActionCard));
+    expect((cardCenter.dx - sectionCenter.dx).abs(), lessThan(1));
   });
 
   testWidgets('picker stays open to add several places in a row', (
