@@ -10,11 +10,7 @@ import 'dashed_border_container.dart';
 /// carousel. Requires a [Material] ancestor (both call sites live in a
 /// [Scaffold]).
 class DashedActionCard extends StatelessWidget {
-  const DashedActionCard({
-    super.key,
-    required this.label,
-    required this.onTap,
-  });
+  const DashedActionCard({super.key, required this.label, required this.onTap});
 
   /// Text under the `+` icon.
   final String label;

@@ -424,32 +424,33 @@ void main() {
     expect(find.text('Sin conexión con el servidor'), findsOneWidget);
   });
 
-  testWidgets('add-place card opens the picker and adding calls the controller', (
-    tester,
-  ) async {
-    final api = _FakeItineraryApi(
-      items: const [],
-      createdItem: _item(9, position: 0),
-    );
-    final controller = await _controllerWith(api, _trip());
-    addTearDown(controller.dispose);
-    final places = await _placesWith([_place(1), _place(2)]);
-    addTearDown(places.dispose);
+  testWidgets(
+    'add-place card opens the picker and adding calls the controller',
+    (tester) async {
+      final api = _FakeItineraryApi(
+        items: const [],
+        createdItem: _item(9, position: 0),
+      );
+      final controller = await _controllerWith(api, _trip());
+      addTearDown(controller.dispose);
+      final places = await _placesWith([_place(1), _place(2)]);
+      addTearDown(places.dispose);
 
-    await tester.pumpWidget(
-      _wrap(controller: controller, places: places, trip: _trip()),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        _wrap(controller: controller, places: places, trip: _trip()),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('¿Añadimos un lugar?'));
-    await tester.pumpAndSettle();
-    expect(find.byType(PlacePickerDialog), findsOneWidget);
+      await tester.tap(find.text('¿Añadimos un lugar?'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PlacePickerDialog), findsOneWidget);
 
-    await tester.tap(find.text('Lugar 1'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Lugar 1'));
+      await tester.pumpAndSettle();
 
-    expect(api.addCalls, [1]);
-  });
+      expect(api.addCalls, [1]);
+    },
+  );
 
   testWidgets('itinerary screen shows no floating action button', (
     tester,
