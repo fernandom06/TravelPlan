@@ -9,7 +9,7 @@ import '../../data/models/trip_update.dart';
 import '../controllers/itinerary_controller.dart';
 import '../controllers/places_controller.dart';
 import '../controllers/trips_controller.dart';
-import '../widgets/dashed_border_container.dart';
+import '../widgets/dashed_action_card.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/trip_card.dart';
 import '../widgets/trip_form.dart';
@@ -273,7 +273,10 @@ class _TripsScreenState extends State<TripsScreen> {
             child: SizedBox(
               width: (width * 0.6).clamp(220.0, 320.0),
               height: 280,
-              child: _CreateTripCard(onTap: _openCreateForm),
+              child: DashedActionCard(
+                label: '¿A dónde vamos?',
+                onTap: _openCreateForm,
+              ),
             ),
           );
         }
@@ -288,7 +291,10 @@ class _TripsScreenState extends State<TripsScreen> {
           itemCount: itemCount,
           itemBuilder: (_, index) {
             if (index == state.trips.length) {
-              return _CreateTripCard(onTap: _openCreateForm);
+              return DashedActionCard(
+                label: '¿A dónde vamos?',
+                onTap: _openCreateForm,
+              );
             }
             final trip = state.trips[index];
             return TripCard(
@@ -301,40 +307,6 @@ class _TripsScreenState extends State<TripsScreen> {
           },
         );
       },
-    );
-  }
-}
-
-class _CreateTripCard extends StatelessWidget {
-  const _CreateTripCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return DashedBorderContainer(
-      color: AppColors.muted,
-      radius: 16,
-      backgroundColor: AppColors.background.withValues(alpha: 0.4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.add, size: 40, color: AppColors.muted),
-            const SizedBox(height: 12),
-            Text(
-              '¿A dónde vamos?',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.text,
-                fontFamily: 'Fraunces',
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
