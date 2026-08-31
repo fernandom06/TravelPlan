@@ -13,11 +13,16 @@ class ItineraryPlaceCard extends StatelessWidget {
     required this.item,
     required this.onDelete,
     this.horizontal = true,
+    this.width,
   });
 
   final ItineraryItem item;
   final VoidCallback onDelete;
   final bool horizontal;
+
+  /// Optional width for the vertical (non-horizontal) card and its drag
+  /// feedback. When null the vertical card keeps its default 104 width.
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +31,7 @@ class ItineraryPlaceCard extends StatelessWidget {
       onDelete: onDelete,
       showDragHandle: true,
       horizontal: horizontal,
+      width: width,
     );
     final feedback = Material(
       elevation: 4,
@@ -35,7 +41,15 @@ class ItineraryPlaceCard extends StatelessWidget {
               width: 260,
               child: _MiniCard(item: item, onDelete: () {}),
             )
-          : _MiniCard(item: item, onDelete: () {}, horizontal: false),
+          : SizedBox(
+              width: width,
+              child: _MiniCard(
+                item: item,
+                onDelete: () {},
+                horizontal: false,
+                width: width,
+              ),
+            ),
     );
     final isDesktop = switch (Theme.of(context).platform) {
       TargetPlatform.linux ||
@@ -65,12 +79,14 @@ class _MiniCard extends StatelessWidget {
     required this.onDelete,
     this.showDragHandle = false,
     this.horizontal = true,
+    this.width,
   });
 
   final ItineraryItem item;
   final VoidCallback onDelete;
   final bool showDragHandle;
   final bool horizontal;
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +176,7 @@ class _MiniCard extends StatelessWidget {
     }
 
     return Container(
-      width: horizontal ? null : 104,
+      width: horizontal ? null : (width ?? 104),
       padding: EdgeInsets.symmetric(
         horizontal: 10,
         vertical: horizontal ? 8 : 5,

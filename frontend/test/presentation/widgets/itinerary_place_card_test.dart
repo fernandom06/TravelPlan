@@ -94,10 +94,7 @@ void main() {
       ),
     );
     expect(avatar.radius, greaterThanOrEqualTo(16));
-    expect(
-      avatar.backgroundColor,
-      AppColors.primary.withValues(alpha: 0.15),
-    );
+    expect(avatar.backgroundColor, AppColors.primary.withValues(alpha: 0.15));
   });
 
   testWidgets('card casts the soft AppShadows shadow', (tester) async {
@@ -115,6 +112,76 @@ void main() {
     );
     final decoration = container.decoration as BoxDecoration?;
     expect(decoration?.boxShadow, contains(AppShadows.soft));
+  });
+
+  testWidgets('vertical card applies a custom width when provided', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        Center(
+          child: ItineraryPlaceCard(
+            item: _item(),
+            onDelete: () {},
+            horizontal: false,
+            width: 200,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byType(ItineraryPlaceCard)).width,
+      closeTo(200, 0.5),
+    );
+  });
+
+  testWidgets('vertical card keeps the default 104 width without width', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        Center(
+          child: ItineraryPlaceCard(
+            item: _item(),
+            onDelete: () {},
+            horizontal: false,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byType(ItineraryPlaceCard)).width,
+      closeTo(104, 0.5),
+    );
+  });
+
+  testWidgets('drag feedback uses the configured width for vertical cards', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      await tester.pumpWidget(
+        _wrap(
+          ItineraryPlaceCard(
+            item: _item(),
+            onDelete: () {},
+            horizontal: false,
+            width: 200,
+          ),
+        ),
+      );
+
+      final draggable = tester.widget<Draggable<ItineraryItem>>(
+        find.byType(Draggable<ItineraryItem>),
+      );
+      final feedback = draggable.feedback as Material;
+      expect(feedback.child, isA<SizedBox>());
+      expect((feedback.child as SizedBox).width, 200);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('long place names truncate with ellipsis without overflow', (
