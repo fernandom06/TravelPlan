@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/itinerary_item.dart';
 import 'package:frontend/data/models/place.dart';
@@ -79,5 +80,68 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.delete_outline));
     expect(deleted, isTrue);
+  });
+
+  testWidgets('category icon sits in a circular tinted avatar', (tester) async {
+    await tester.pumpWidget(
+      _wrap(ItineraryPlaceCard(item: _item(), onDelete: () {})),
+    );
+
+    final avatar = tester.widget<CircleAvatar>(
+      find.ancestor(
+        of: find.byIcon(Icons.park),
+        matching: find.byType(CircleAvatar),
+      ),
+    );
+    expect(avatar.radius, greaterThanOrEqualTo(16));
+    expect(
+      avatar.backgroundColor,
+      AppColors.primary.withValues(alpha: 0.15),
+    );
+  });
+
+  testWidgets('card casts the soft AppShadows shadow', (tester) async {
+    await tester.pumpWidget(
+      _wrap(ItineraryPlaceCard(item: _item(), onDelete: () {})),
+    );
+
+    final container = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.text('Mirador de la Catedral'),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    final decoration = container.decoration as BoxDecoration?;
+    expect(decoration?.boxShadow, contains(AppShadows.soft));
+  });
+
+  testWidgets('long place names truncate with ellipsis without overflow', (
+    tester,
+  ) async {
+    final longName = List.filled(220, 'A').join();
+    final item = ItineraryItem(
+      id: 3,
+      dayDate: null,
+      slot: null,
+      position: 0,
+      place: Place(
+        id: 1,
+        name: longName,
+        description: null,
+        latitude: 42.5,
+        longitude: -3.5,
+        category: const Category(id: 1, name: 'Naturaleza', icon: 'nature'),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(ItineraryPlaceCard(item: item, onDelete: () {})),
+    );
+
+    final text = tester.widget<Text>(find.text(longName));
+    expect(text.overflow, TextOverflow.ellipsis);
+    expect(tester.takeException(), isNull);
   });
 }

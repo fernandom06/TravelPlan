@@ -76,11 +76,11 @@ class _MiniCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final place = item.place;
     final iconCircle = CircleAvatar(
-      radius: 14,
+      radius: 17,
       backgroundColor: AppColors.primary.withValues(alpha: 0.15),
       child: Icon(
         categoryIconFor(place.category.icon),
-        size: 16,
+        size: 18,
         color: AppColors.primary,
       ),
     );
@@ -102,7 +102,7 @@ class _MiniCard extends StatelessWidget {
             const SizedBox(width: 6),
           ],
           iconCircle,
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               place.name,
@@ -129,7 +129,7 @@ class _MiniCard extends StatelessWidget {
             const SizedBox(height: 2),
           ],
           iconCircle,
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             place.name,
             maxLines: 2,
@@ -161,7 +161,10 @@ class _MiniCard extends StatelessWidget {
 
     return Container(
       width: horizontal ? null : 104,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: horizontal ? 8 : 5,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: AppRadii.organic,
