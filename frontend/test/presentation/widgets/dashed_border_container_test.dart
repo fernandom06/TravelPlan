@@ -77,6 +77,64 @@ void main() {
     expect(painter.radius, 12);
   });
 
+  test('DashedBorderPainter keeps every stroke point inside the canvas', () {
+    final canvas = _RecordingCanvas();
+    const size = Size(200, 100);
+    final painter = DashedBorderPainter(
+      color: AppColors.accent,
+      strokeWidth: 2,
+      dash: 8,
+      space: 4,
+      radius: 12,
+    );
+
+    painter.paint(canvas, size);
+
+    final path = canvas.lastPath!;
+    final inset = painter.strokeWidth / 2;
+    final safe = Rect.fromLTRB(
+      inset,
+      inset,
+      size.width - inset,
+      size.height - inset,
+    );
+    for (final metric in path.computeMetrics()) {
+      final steps = (metric.length / 2).ceil();
+      for (var i = 0; i <= steps; i++) {
+        final p = metric
+            .getTangentForOffset(metric.length * i / steps)!
+            .position;
+        expect(
+          p.dx >= safe.left &&
+              p.dx <= safe.right &&
+              p.dy >= safe.top &&
+              p.dy <= safe.bottom,
+          isTrue,
+          reason: 'Point $p escapes the stroke-safe rect $safe',
+        );
+      }
+    }
+  });
+
+  test('DashedBorderPainter starts the first dash at the outline start', () {
+    final canvas = _RecordingCanvas();
+    final painter = DashedBorderPainter(
+      color: AppColors.accent,
+      strokeWidth: 2,
+      dash: 8,
+      space: 4,
+      radius: 12,
+    );
+
+    painter.paint(canvas, const Size(200, 100));
+
+    final metric = canvas.lastPath!.computeMetrics().first;
+    final start = metric.getTangentForOffset(0)!.position;
+    // Outline starts at the top edge: left inset (1) + radius (12), top inset.
+    expect(start.dx, closeTo(1 + 12, 0.01));
+    expect(start.dy, closeTo(1, 0.01));
+  });
+
   test('DashedBorderPainter path stays on the rounded-rect outline', () {
     final canvas = _RecordingCanvas();
     const size = Size(320, 96);
@@ -92,7 +150,7 @@ void main() {
     painter.paint(canvas, size);
 
     final path = canvas.lastPath!;
-    final outer = Offset.zero & size;
+    final outer = (Offset.zero & size).deflate(painter.strokeWidth / 2);
     final inner = outer.deflate(radius);
     const eps = 0.75;
 

@@ -74,10 +74,10 @@ class DashedBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      Radius.circular(radius),
-    );
+    // Inset by half the stroke so the full stroke width stays inside the
+    // canvas instead of being clipped by the widget bounds.
+    final rect = (Offset.zero & size).deflate(strokeWidth / 2);
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(radius));
     final path = _buildDashedPath(_sampleRoundRect(rrect), dash, space);
     canvas.drawPath(path, paint);
   }
