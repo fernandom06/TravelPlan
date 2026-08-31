@@ -12,6 +12,7 @@ import '../widgets/dashed_action_card.dart';
 import '../widgets/day_pill_strip.dart';
 import '../widgets/general_items_section.dart';
 import '../widgets/itinerary_slot_section.dart';
+import '../widgets/itinerary_two_column_layout.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/place_picker_dialog.dart';
 
@@ -38,6 +39,7 @@ class ItineraryScreen extends StatefulWidget {
 class _ItineraryScreenState extends State<ItineraryScreen>
     with SingleTickerProviderStateMixin {
   static const _dayHoverDelay = Duration(milliseconds: 500);
+  static const _twoColumnBreakpoint = 900.0;
 
   late TabController _tabController;
   late List<DateTime> _days;
@@ -188,37 +190,63 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     }
     final general = state.items.where((i) => i.isUnassigned).toList()
       ..sort((a, b) => a.position.compareTo(b.position));
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _twoColumnBreakpoint) {
+          return _buildTwoColumn(state, general);
+        }
+        return _buildStacked(state, general);
+      },
+    );
+  }
+
+  Widget _buildStacked(ItineraryState state, List<ItineraryItem> general) {
     return Column(
       children: [
-        GeneralItemsSection(
-          items: general,
-          onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
-          onDeleteItem: _removeItem,
-          trailing: DashedActionCard(
-            label: '¿Añadimos un lugar?',
-            onTap: _openPicker,
-          ),
+        _buildGeneralSection(general),
+        Expanded(child: _buildDayColumn(state)),
+      ],
+    );
+  }
+
+  Widget _buildTwoColumn(ItineraryState state, List<ItineraryItem> general) {
+    return ItineraryTwoColumnLayout(
+      leftChild: _buildGeneralSection(general, grid: true),
+      rightChild: _buildDayColumn(state),
+    );
+  }
+
+  Widget _buildGeneralSection(
+    List<ItineraryItem> general, {
+    bool grid = false,
+  }) {
+    return GeneralItemsSection(
+      layout: grid ? GeneralItemsLayout.grid : GeneralItemsLayout.carousel,
+      items: general,
+      onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
+      onDeleteItem: _removeItem,
+      trailing: DashedActionCard(
+        label: '¿Añadimos un lugar?',
+        onTap: _openPicker,
+      ),
+    );
+  }
+
+  Widget _buildDayColumn(ItineraryState state) {
+    return Column(
+      children: [
+        DayPillStrip(
+          days: _days,
+          selectedIndex: _tabController.index,
+          onSelect: (index) => _tabController.animateTo(index),
+          onDropOnDay: _dropOnDay,
+          onHoverStart: _scheduleDayOpen,
+          onHoverEnd: _cancelDayOpen,
         ),
         Expanded(
-          child: Column(
-            children: [
-              DayPillStrip(
-                days: _days,
-                selectedIndex: _tabController.index,
-                onSelect: (index) => _tabController.animateTo(index),
-                onDropOnDay: _dropOnDay,
-                onHoverStart: _scheduleDayOpen,
-                onHoverEnd: _cancelDayOpen,
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    for (final day in _days) _daySections(day, state.items),
-                  ],
-                ),
-              ),
-            ],
+          child: TabBarView(
+            controller: _tabController,
+            children: [for (final day in _days) _daySections(day, state.items)],
           ),
         ),
       ],

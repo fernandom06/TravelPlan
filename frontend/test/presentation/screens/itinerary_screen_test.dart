@@ -17,6 +17,8 @@ import 'package:frontend/presentation/screens/itinerary_screen.dart';
 import 'package:frontend/presentation/widgets/dashed_action_card.dart';
 import 'package:frontend/presentation/widgets/day_pill_strip.dart';
 import 'package:frontend/presentation/widgets/general_items_section.dart';
+import 'package:frontend/presentation/widgets/itinerary_place_card.dart';
+import 'package:frontend/presentation/widgets/itinerary_two_column_layout.dart';
 import 'package:frontend/presentation/widgets/place_picker_dialog.dart';
 
 class _FakeItineraryApi extends ItineraryApi {
@@ -549,10 +551,7 @@ void main() {
     tester.view.physicalSize = const Size(4000, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
-    final trip = _trip(
-      start: DateTime(2026, 6, 1),
-      end: DateTime(2026, 6, 14),
-    );
+    final trip = _trip(start: DateTime(2026, 6, 1), end: DateTime(2026, 6, 14));
     final api = _FakeItineraryApi();
     final controller = await _controllerWith(api, trip);
     addTearDown(controller.dispose);
@@ -564,6 +563,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // On a wide window the pill strip lives in the right column, which is
+    // narrower than the full viewport: reveal the last pill before tapping.
+    final stripScrollable = find.descendant(
+      of: find.byType(DayPillStrip),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Día 14 · 14 Jun'),
+      100,
+      scrollable: stripScrollable,
+    );
     await tester.tap(find.text('Día 14 · 14 Jun'));
     await tester.pumpAndSettle();
 
@@ -577,5 +587,221 @@ void main() {
           .first,
     );
     expect((container.decoration as BoxDecoration).color, AppColors.primary);
+  });
+
+  testWidgets('uses the stacked layout below the 900dp breakpoint', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ItineraryTwoColumnLayout), findsNothing);
+    final general = tester.getTopLeft(find.byType(GeneralItemsSection));
+    final strip = tester.getTopLeft(find.byType(DayPillStrip));
+    expect(general.dy, lessThan(strip.dy));
+  });
+
+  testWidgets('uses two columns with the grid on the left on wide screens', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ItineraryTwoColumnLayout), findsOneWidget);
+    expect(find.byType(GeneralItemsSection), findsOneWidget);
+    final general = tester.getRect(find.byType(GeneralItemsSection));
+    final strip = tester.getRect(find.byType(DayPillStrip));
+    expect(general.right, lessThan(strip.left));
+  });
+
+  testWidgets('wide grid falls to 2 cards per row on a just-wide window', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(960, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0),
+        _item(2, position: 1),
+        _item(3, position: 2),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final cards = find.descendant(
+      of: find.byType(GeneralItemsSection),
+      matching: find.byType(ItineraryPlaceCard),
+    );
+    expect(cards, findsNWidgets(3));
+    final row0 = tester.getTopLeft(cards.at(0)).dy;
+    expect(tester.getTopLeft(cards.at(1)).dy, row0);
+    expect(tester.getTopLeft(cards.at(2)).dy, greaterThan(row0));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wide drag from the grid to the timeline moves the item', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(
+      items: [_item(1, position: 0), _item(2, position: 1)],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    await _dragCard(
+      tester,
+      find.text('Lugar 1'),
+      tester.getCenter(find.text('Mañana')),
+    );
+
+    expect(api.moveCalls, [1]);
+    expect(api.movePayloads.single.dayDate, DateTime(2026, 6, 1));
+    expect(api.movePayloads.single.slot, ItinerarySlot.morning);
+    expect(api.movePayloads.single.position, 0);
+  });
+
+  testWidgets('wide drag from the timeline back to the grid unassigns', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(
+          1,
+          position: 0,
+          day: DateTime(2026, 6, 1),
+          slot: ItinerarySlot.morning,
+        ),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    await _dragCard(
+      tester,
+      find.text('Lugar 1'),
+      tester.getCenter(find.byType(GeneralItemsSection)),
+    );
+
+    expect(api.moveCalls, [1]);
+    expect(api.movePayloads.single.dayDate, isNull);
+    expect(api.movePayloads.single.slot, isNull);
+    expect(api.movePayloads.single.position, 0);
+  });
+
+  testWidgets('wide hovering a day pill while dragging opens that day', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Lugar 1')),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await gesture.moveTo(tester.getCenter(find.text('Día 3 · 03 Jun')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(_tabIndex(tester), 0);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(_tabIndex(tester), 2);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('resizing across the breakpoint keeps the selected day', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+    final trip = _trip();
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: trip),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Día 2 · 02 Jun'));
+    await tester.pumpAndSettle();
+    expect(_tabIndex(tester), 1);
+
+    tester.view.physicalSize = const Size(1600, 1200);
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: trip),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ItineraryTwoColumnLayout), findsOneWidget);
+    expect(_tabIndex(tester), 1);
+    expect(find.text('Lugar 1'), findsOneWidget);
   });
 }
