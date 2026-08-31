@@ -424,7 +424,7 @@ void main() {
     expect(find.text('Sin conexión con el servidor'), findsOneWidget);
   });
 
-  testWidgets('FAB opens the picker and adding calls the controller', (
+  testWidgets('add-place card opens the picker and adding calls the controller', (
     tester,
   ) async {
     final api = _FakeItineraryApi(
@@ -441,7 +441,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.text('¿Añadimos un lugar?'));
     await tester.pumpAndSettle();
     expect(find.byType(PlacePickerDialog), findsOneWidget);
 

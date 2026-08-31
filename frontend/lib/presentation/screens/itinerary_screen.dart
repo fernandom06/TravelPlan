@@ -9,6 +9,7 @@ import '../../data/models/place.dart';
 import '../../data/models/trip.dart';
 import '../controllers/itinerary_controller.dart';
 import '../controllers/places_controller.dart';
+import '../widgets/dashed_action_card.dart';
 import '../widgets/general_items_section.dart';
 import '../widgets/itinerary_slot_section.dart';
 import '../widgets/offline_banner.dart';
@@ -178,11 +179,6 @@ class _ItineraryScreenState extends State<ItineraryScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'itinerary-add-fab',
-        onPressed: _openPicker,
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
@@ -198,6 +194,10 @@ class _ItineraryScreenState extends State<ItineraryScreen>
           items: general,
           onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
           onDeleteItem: _removeItem,
+          trailing: DashedActionCard(
+            label: '¿Añadimos un lugar?',
+            onTap: _openPicker,
+          ),
         ),
         Expanded(
           child: Column(
