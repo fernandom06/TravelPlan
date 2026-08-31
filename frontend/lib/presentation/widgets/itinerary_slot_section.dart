@@ -19,11 +19,16 @@ class ItinerarySlotSection extends StatelessWidget {
     required this.items,
     required this.onAcceptItem,
     required this.onDeleteItem,
+    this.isLast = false,
   });
 
   final String title;
   final ItinerarySlot slot;
   final List<ItineraryItem> items;
+
+  /// Whether this is the last section of the day: when true the timeline rail
+  /// stops at its marker instead of running to the bottom edge.
+  final bool isLast;
 
   /// Called when an item is dropped on this slot with the insert index
   /// ("insert before") already computed.
@@ -49,12 +54,12 @@ class ItinerarySlotSection extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Timeline rail with a circular marker.
+              // Timeline rail with a circular marker aligned to the header.
               SizedBox(
                 width: 28,
                 child: Column(
                   children: [
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Container(
                       width: 12,
                       height: 12,
@@ -63,12 +68,13 @@ class ItinerarySlotSection extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    Expanded(
-                      child: Container(
-                        width: 2,
-                        color: AppColors.primary.withValues(alpha: 0.4),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 2,
+                          color: AppColors.primary.withValues(alpha: 0.4),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

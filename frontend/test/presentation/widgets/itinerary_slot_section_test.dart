@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/itinerary_item.dart';
 import 'package:frontend/data/models/itinerary_slot.dart';
@@ -75,6 +76,84 @@ void main() {
     expect(find.byIcon(Icons.light_mode), findsOneWidget);
     expect(find.byIcon(Icons.wb_sunny), findsNothing);
     expect(find.byIcon(Icons.dark_mode), findsNothing);
+  });
+
+  testWidgets('renders a circular primary marker in the timeline rail', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: const [],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    final marker = tester.widget<Container>(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            (w.decoration as BoxDecoration?)?.shape == BoxShape.circle,
+      ),
+    );
+    expect((marker.decoration as BoxDecoration).color, AppColors.primary);
+  });
+
+  testWidgets('renders the connecting rail line for non-final sections', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: const [],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    final line = find.byWidgetPredicate(
+      (w) =>
+          w is Container &&
+          w.color == AppColors.primary.withValues(alpha: 0.4),
+    );
+    expect(line, findsOneWidget);
+  });
+
+  testWidgets('isLast stops the rail at the marker', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Noche',
+          slot: ItinerarySlot.night,
+          isLast: true,
+          items: const [],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    final line = find.byWidgetPredicate(
+      (w) =>
+          w is Container &&
+          w.color == AppColors.primary.withValues(alpha: 0.4),
+    );
+    expect(line, findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            (w.decoration as BoxDecoration?)?.shape == BoxShape.circle,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows the empty hint when there are no items', (tester) async {

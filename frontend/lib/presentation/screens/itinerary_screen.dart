@@ -289,6 +289,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
         title: slot.label,
         slot: slot,
         items: slotItems,
+        isLast: slot == ItinerarySlot.night,
         onAcceptItem: (item, slot, index) =>
             _moveItem(item.id, day, slot, index),
         onDeleteItem: _removeItem,
