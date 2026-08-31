@@ -15,6 +15,7 @@ import 'package:frontend/presentation/controllers/itinerary_controller.dart';
 import 'package:frontend/presentation/controllers/places_controller.dart';
 import 'package:frontend/presentation/screens/itinerary_screen.dart';
 import 'package:frontend/presentation/widgets/dashed_action_card.dart';
+import 'package:frontend/presentation/widgets/day_pill_strip.dart';
 import 'package:frontend/presentation/widgets/general_items_section.dart';
 import 'package:frontend/presentation/widgets/place_picker_dialog.dart';
 
@@ -153,6 +154,9 @@ Future<void> _dragCard(WidgetTester tester, Finder card, Offset to) async {
   await tester.pumpAndSettle();
 }
 
+int _tabIndex(WidgetTester tester) =>
+    tester.widget<TabBarView>(find.byType(TabBarView)).controller!.index;
+
 void main() {
   testWidgets('shows the trip name in the app bar', (tester) async {
     final api = _FakeItineraryApi();
@@ -187,8 +191,8 @@ void main() {
     expect(find.text('Día 1 · 01 Jun'), findsOneWidget);
     expect(find.text('Día 10 · 10 Jun'), findsOneWidget);
     expect(find.text('Día 5 · 05 Jun'), findsOneWidget);
-    final tabBar = tester.widget<TabBar>(find.byType(TabBar));
-    expect(tabBar.tabs, hasLength(10));
+    final strip = tester.widget<DayPillStrip>(find.byType(DayPillStrip));
+    expect(strip.days, hasLength(10));
   });
 
   testWidgets('highlights the active day tab when switching days', (
@@ -240,8 +244,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final tabBar = tester.widget<TabBar>(find.byType(TabBar));
-    expect(tabBar.tabs, hasLength(1));
+    final strip = tester.widget<DayPillStrip>(find.byType(DayPillStrip));
+    expect(strip.days, hasLength(1));
     expect(find.text('Día 1 · 01 Jun'), findsOneWidget);
   });
 
@@ -351,10 +355,10 @@ void main() {
     await gesture.moveTo(tester.getCenter(find.text('Día 3 · 03 Jun')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
-    expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
+    expect(_tabIndex(tester), 0);
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
-    expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 2);
+    expect(_tabIndex(tester), 2);
 
     await gesture.up();
     await tester.pumpAndSettle();
@@ -381,7 +385,7 @@ void main() {
     await tester.pump();
     await gesture.moveTo(origin);
     await tester.pump(const Duration(milliseconds: 700));
-    expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
+    expect(_tabIndex(tester), 0);
 
     await gesture.up();
     await tester.pumpAndSettle();
@@ -537,5 +541,41 @@ void main() {
 
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.textContaining('No se pudo guardar'), findsOneWidget);
+  });
+
+  testWidgets('tapping the last day of a long trip selects and highlights it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(4000, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final trip = _trip(
+      start: DateTime(2026, 6, 1),
+      end: DateTime(2026, 6, 14),
+    );
+    final api = _FakeItineraryApi();
+    final controller = await _controllerWith(api, trip);
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: trip),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Día 14 · 14 Jun'));
+    await tester.pumpAndSettle();
+
+    expect(_tabIndex(tester), 13);
+    final container = tester.widget<AnimatedContainer>(
+      find
+          .ancestor(
+            of: find.text('Día 14 · 14 Jun'),
+            matching: find.byType(AnimatedContainer),
+          )
+          .first,
+    );
+    expect((container.decoration as BoxDecoration).color, AppColors.primary);
   });
 }
