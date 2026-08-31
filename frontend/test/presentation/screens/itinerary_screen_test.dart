@@ -36,7 +36,7 @@ class _FakeItineraryApi extends ItineraryApi {
   @override
   Future<ItineraryItem> addPlace(String tripId, int placeId) async {
     addCalls.add(placeId);
-    return createdItem!;
+    return createdItem ?? _item(placeId, position: 0);
   }
 
   @override
@@ -449,6 +449,62 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.addCalls, [1]);
+  });
+
+  testWidgets('itinerary screen shows no floating action button', (
+    tester,
+  ) async {
+    final api = _FakeItineraryApi();
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.text('¿Añadimos un lugar?'), findsOneWidget);
+    expect(find.text('Añade lugares al viaje'), findsOneWidget);
+  });
+
+  testWidgets('picker stays open to add several places in a row', (
+    tester,
+  ) async {
+    final api = _FakeItineraryApi(items: const []);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([_place(1), _place(2)]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('¿Añadimos un lugar?'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lugar 1'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlacePickerDialog), findsOneWidget);
+
+    await tester.tap(find.text('Lugar 2'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cerrar'));
+    await tester.pumpAndSettle();
+
+    expect(api.addCalls, [1, 2]);
+    final generalSection = find.byType(GeneralItemsSection);
+    expect(
+      find.descendant(of: generalSection, matching: find.text('Lugar 1')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: generalSection, matching: find.text('Lugar 2')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows a snackbar when the autosave move fails', (tester) async {
