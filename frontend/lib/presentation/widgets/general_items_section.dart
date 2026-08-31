@@ -10,12 +10,15 @@ import 'itinerary_place_card.dart';
 /// white/50 rounded container with a sand border holds a horizontally
 /// scrollable row of [ItineraryPlaceCard] mini-cards. Dropping anywhere on the
 /// container appends; dropping on a card inserts before that card's index.
+/// An optional [trailing] widget is shown after the last card (or next to the
+/// empty hint when there are no items).
 class GeneralItemsSection extends StatelessWidget {
   const GeneralItemsSection({
     super.key,
     required this.items,
     required this.onAcceptItem,
     required this.onDeleteItem,
+    this.trailing,
   });
 
   final List<ItineraryItem> items;
@@ -24,6 +27,10 @@ class GeneralItemsSection extends StatelessWidget {
   /// with the horizontal insert index already computed.
   final void Function(ItineraryItem item, int index) onAcceptItem;
   final void Function(int itemId) onDeleteItem;
+
+  /// Optional widget (e.g. a [DashedActionCard]) rendered at the end of the
+  /// carousel. When null the section keeps its current layout.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -81,29 +88,45 @@ class GeneralItemsSection extends StatelessWidget {
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: items.isEmpty
-                    ? _emptyState(context)
-                    : ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: items.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 8),
-                        itemBuilder: (_, i) {
-                          final item = items[i];
-                          return DragTarget<ItineraryItem>(
-                            onAcceptWithDetails: (details) {
-                              onAcceptItem(details.data, i);
-                            },
-                            builder: (context, _, _) => ItineraryPlaceCard(
-                              item: item,
-                              onDelete: () => onDeleteItem(item.id),
-                              horizontal: false,
-                            ),
-                          );
-                        },
-                      ),
+                child: _buildContent(context),
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    final trailing = this.trailing;
+    if (items.isEmpty) {
+      if (trailing == null) return _emptyState(context);
+      return Row(
+        children: [
+          Expanded(child: _emptyState(context)),
+          const SizedBox(width: 8),
+          SizedBox(width: 104, child: trailing),
+        ],
+      );
+    }
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: items.length + (trailing == null ? 0 : 1),
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (_, i) {
+        if (trailing != null && i == items.length) {
+          return SizedBox(width: 104, child: trailing);
+        }
+        final item = items[i];
+        return DragTarget<ItineraryItem>(
+          onAcceptWithDetails: (details) {
+            onAcceptItem(details.data, i);
+          },
+          builder: (context, _, _) => ItineraryPlaceCard(
+            item: item,
+            onDelete: () => onDeleteItem(item.id),
+            horizontal: false,
+          ),
         );
       },
     );
