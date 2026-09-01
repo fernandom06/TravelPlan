@@ -37,6 +37,7 @@ Widget _wrap({
   void Function(int)? onHoverStart,
   VoidCallback? onHoverEnd,
   bool withSource = false,
+  bool centered = false,
 }) {
   final strip = DayPillStrip(
     days: days,
@@ -45,6 +46,7 @@ Widget _wrap({
     onDropOnDay: onDropOnDay ?? (_, _) {},
     onHoverStart: onHoverStart ?? (_) {},
     onHoverEnd: onHoverEnd ?? () {},
+    centered: centered,
   );
   if (!withSource) {
     return MaterialApp(home: Scaffold(body: strip));
@@ -55,9 +57,7 @@ Widget _wrap({
         children: [
           LongPressDraggable<ItineraryItem>(
             data: _item(),
-            feedback: const Material(
-              child: SizedBox(width: 120, height: 40),
-            ),
+            feedback: const Material(child: SizedBox(width: 120, height: 40)),
             child: const SizedBox(
               width: 120,
               height: 40,
@@ -81,7 +81,9 @@ void main() {
     expect(find.text('Día 3 · 03 Jun'), findsOneWidget);
   });
 
-  testWidgets('highlights the active pill in primary', (tester) async {
+  testWidgets('highlights the active pill in primary and the rest in sand', (
+    tester,
+  ) async {
     await tester.pumpWidget(_wrap(days: _days(3), selectedIndex: 0));
     await tester.pumpAndSettle();
 
@@ -98,7 +100,77 @@ void main() {
     }
 
     expect(pillColor('Día 1 · 01 Jun'), AppColors.primary);
-    expect(pillColor('Día 2 · 02 Jun'), AppColors.background);
+    expect(pillColor('Día 2 · 02 Jun'), AppColors.muted.withValues(alpha: 0.6));
+  });
+
+  testWidgets('centered strip centers the pill block in the viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _wrap(days: _days(3), selectedIndex: 0, centered: true),
+    );
+    await tester.pumpAndSettle();
+
+    final first = tester.getTopLeft(find.text('Día 1 · 01 Jun'));
+    final last = tester.getTopRight(find.text('Día 3 · 03 Jun'));
+    final blockCenter = (first.dx + last.dx) / 2;
+    final stripCenter = tester.getCenter(find.byType(DayPillStrip)).dx;
+    expect((blockCenter - stripCenter).abs(), lessThanOrEqualTo(1));
+  });
+
+  testWidgets('non-centered strip starts the pills at the left edge', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_wrap(days: _days(3), selectedIndex: 0));
+    await tester.pumpAndSettle();
+
+    final firstPill = find
+        .ancestor(
+          of: find.text('Día 1 · 01 Jun'),
+          matching: find.byType(AnimatedContainer),
+        )
+        .first;
+    final firstPillLeft = tester.getTopLeft(firstPill).dx;
+    final stripLeft = tester.getTopLeft(find.byType(DayPillStrip)).dx;
+    expect(firstPillLeft - stripLeft, lessThan(20));
+  });
+
+  testWidgets('centered strip still scrolls to reveal a far selected day', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final days = _days(14);
+    await tester.pumpWidget(
+      _wrap(days: days, selectedIndex: 0, centered: true),
+    );
+    await tester.pumpAndSettle();
+
+    final scrollableFinder = find.descendant(
+      of: find.byType(DayPillStrip),
+      matching: find.byType(Scrollable),
+    );
+    expect(scrollableFinder, findsOneWidget);
+    expect(tester.state<ScrollableState>(scrollableFinder).position.pixels, 0);
+
+    await tester.pumpWidget(
+      _wrap(days: days, selectedIndex: 13, centered: true),
+    );
+    await tester.pumpAndSettle();
+
+    final position = tester.state<ScrollableState>(scrollableFinder).position;
+    expect(position.pixels, greaterThan(0));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('tapping a pill selects its day', (tester) async {

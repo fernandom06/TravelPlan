@@ -224,12 +224,12 @@ void main() {
     }
 
     expect(tabColor('Día 1 · 01 Jun'), AppColors.primary);
-    expect(tabColor('Día 2 · 02 Jun'), AppColors.background);
+    expect(tabColor('Día 2 · 02 Jun'), AppColors.muted.withValues(alpha: 0.6));
 
     await tester.tap(find.text('Día 2 · 02 Jun'));
     await tester.pumpAndSettle();
 
-    expect(tabColor('Día 1 · 01 Jun'), AppColors.background);
+    expect(tabColor('Día 1 · 01 Jun'), AppColors.muted.withValues(alpha: 0.6));
     expect(tabColor('Día 2 · 02 Jun'), AppColors.primary);
   });
 

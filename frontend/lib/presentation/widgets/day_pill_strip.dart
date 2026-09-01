@@ -19,6 +19,7 @@ class DayPillStrip extends StatefulWidget {
     required this.onDropOnDay,
     required this.onHoverStart,
     required this.onHoverEnd,
+    this.centered = false,
   });
 
   final List<DateTime> days;
@@ -27,6 +28,10 @@ class DayPillStrip extends StatefulWidget {
   final void Function(ItineraryItem item, DateTime day) onDropOnDay;
   final void Function(int index) onHoverStart;
   final VoidCallback onHoverEnd;
+
+  /// Whether the pill row is centered when it fits the viewport (desktop
+  /// layouts). When false the pills start at the left edge.
+  final bool centered;
 
   @override
   State<DayPillStrip> createState() => _DayPillStripState();
@@ -77,27 +82,40 @@ class _DayPillStripState extends State<DayPillStrip> {
 
   @override
   Widget build(BuildContext context) {
-    return Scrollbar(
-      controller: _scrollController,
-      child: SingleChildScrollView(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Scrollbar(
         controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          children: [
-            for (var i = 0; i < widget.days.length; i++)
-              _DayPill(
-                key: _pillKeys[i],
-                index: i,
-                label: 'Día ${i + 1} · ${_dayMonthLabel(widget.days[i])}',
-                active: i == widget.selectedIndex,
-                day: widget.days[i],
-                onSelect: () => widget.onSelect(i),
-                onHoverStart: widget.onHoverStart,
-                onHoverEnd: widget.onHoverEnd,
-                onDropOnDay: widget.onDropOnDay,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: Row(
+                  mainAxisAlignment: widget.centered
+                      ? MainAxisAlignment.center
+                      : MainAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < widget.days.length; i++)
+                      _DayPill(
+                        key: _pillKeys[i],
+                        index: i,
+                        label:
+                            'Día ${i + 1} · ${_dayMonthLabel(widget.days[i])}',
+                        active: i == widget.selectedIndex,
+                        day: widget.days[i],
+                        onSelect: () => widget.onSelect(i),
+                        onHoverStart: widget.onHoverStart,
+                        onHoverEnd: widget.onHoverEnd,
+                        onDropOnDay: widget.onDropOnDay,
+                      ),
+                  ],
+                ),
               ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -164,7 +182,9 @@ class _DayPill extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 4),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             decoration: BoxDecoration(
-              color: active ? AppColors.primary : AppColors.background,
+              color: active
+                  ? AppColors.primary
+                  : AppColors.muted.withValues(alpha: 0.6),
               borderRadius: AppRadii.pill,
               border: highlighted
                   ? Border.all(color: AppColors.accent, width: 2)
