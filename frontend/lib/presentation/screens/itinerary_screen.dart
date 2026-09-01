@@ -203,25 +203,33 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   Widget _buildStacked(ItineraryState state, List<ItineraryItem> general) {
     return Column(
       children: [
+        _buildDayPillStrip(centered: false),
         _buildGeneralSection(general),
-        Expanded(child: _buildDayColumn(state)),
+        Expanded(child: _buildDayTimeline(state)),
       ],
     );
   }
 
   Widget _buildTwoColumn(ItineraryState state, List<ItineraryItem> general) {
     return ItineraryTwoColumnLayout(
-      leftChild: _buildGeneralSection(general, grid: true),
-      rightChild: _buildDayColumn(state),
+      leftChild: _buildGeneralSection(general, vertical: true),
+      rightChild: Column(
+        children: [
+          _buildDayPillStrip(centered: true),
+          Expanded(child: _buildDayTimeline(state)),
+        ],
+      ),
     );
   }
 
   Widget _buildGeneralSection(
     List<ItineraryItem> general, {
-    bool grid = false,
+    bool vertical = false,
   }) {
     return GeneralItemsSection(
-      layout: grid ? GeneralItemsLayout.vertical : GeneralItemsLayout.carousel,
+      layout: vertical
+          ? GeneralItemsLayout.vertical
+          : GeneralItemsLayout.carousel,
       items: general,
       onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
       onDeleteItem: _removeItem,
@@ -232,24 +240,22 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     );
   }
 
-  Widget _buildDayColumn(ItineraryState state) {
-    return Column(
-      children: [
-        DayPillStrip(
-          days: _days,
-          selectedIndex: _tabController.index,
-          onSelect: (index) => _tabController.animateTo(index),
-          onDropOnDay: _dropOnDay,
-          onHoverStart: _scheduleDayOpen,
-          onHoverEnd: _cancelDayOpen,
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [for (final day in _days) _daySections(day, state.items)],
-          ),
-        ),
-      ],
+  Widget _buildDayPillStrip({required bool centered}) {
+    return DayPillStrip(
+      days: _days,
+      selectedIndex: _tabController.index,
+      onSelect: (index) => _tabController.animateTo(index),
+      onDropOnDay: _dropOnDay,
+      onHoverStart: _scheduleDayOpen,
+      onHoverEnd: _cancelDayOpen,
+      centered: centered,
+    );
+  }
+
+  Widget _buildDayTimeline(ItineraryState state) {
+    return TabBarView(
+      controller: _tabController,
+      children: [for (final day in _days) _daySections(day, state.items)],
     );
   }
 

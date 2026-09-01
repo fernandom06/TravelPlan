@@ -607,14 +607,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ItineraryTwoColumnLayout), findsNothing);
-    final general = tester.getTopLeft(find.byType(GeneralItemsSection));
     final strip = tester.getTopLeft(find.byType(DayPillStrip));
-    expect(general.dy, lessThan(strip.dy));
+    final general = tester.getTopLeft(find.byType(GeneralItemsSection));
+    final timeline = tester.getTopLeft(find.byType(TabBarView));
+    expect(strip.dy, lessThan(general.dy));
+    expect(general.dy, lessThan(timeline.dy));
+    final stripWidget = tester.widget<DayPillStrip>(find.byType(DayPillStrip));
+    expect(stripWidget.centered, isFalse);
   });
 
-  testWidgets('uses two columns with the grid on the left on wide screens', (
-    tester,
-  ) async {
+  testWidgets('uses two columns with the vertical list on the left on wide '
+      'screens', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -634,6 +637,34 @@ void main() {
     final general = tester.getRect(find.byType(GeneralItemsSection));
     final strip = tester.getRect(find.byType(DayPillStrip));
     expect(general.right, lessThan(strip.left));
+    final stripWidget = tester.widget<DayPillStrip>(find.byType(DayPillStrip));
+    expect(stripWidget.centered, isTrue);
+    final section = tester.widget<GeneralItemsSection>(
+      find.byType(GeneralItemsSection),
+    );
+    expect(section.layout, GeneralItemsLayout.vertical);
+  });
+
+  testWidgets('renders a single section and strip exactly at the 900dp '
+      'breakpoint', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ItineraryTwoColumnLayout), findsOneWidget);
+    expect(find.byType(GeneralItemsSection), findsOneWidget);
+    expect(find.byType(DayPillStrip), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('wide list renders one card per row at full width', (
