@@ -120,4 +120,47 @@ void main() {
     // height instead of growing to its natural 3000.
     expect(tester.getSize(find.byKey(const Key('right'))).height, 1200);
   });
+
+  testWidgets('constrains the left column width and centers it', (
+    tester,
+  ) async {
+    await _pumpWide(
+      tester,
+      const SizedBox(width: 200, height: 100, key: Key('left')),
+      const SizedBox(key: Key('right')),
+    );
+
+    final left = tester.getRect(find.byKey(const Key('left')));
+    expect(left.width, closeTo(200, 0.5));
+    // Row: Expanded + 16 gap + Expanded; the left half spans 0..792.
+    final leftHalfCenter = (1600 - 16) / 4;
+    expect((left.center.dx - leftHalfCenter).abs(), lessThan(1));
+  });
+
+  testWidgets('caps the left column at the max width on ultra-wide windows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(4000, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ItineraryTwoColumnLayout(
+            leftChild: const SizedBox(
+              width: 3000,
+              height: 100,
+              key: Key('left'),
+            ),
+            rightChild: const SizedBox(key: Key('right')),
+          ),
+        ),
+      ),
+    );
+
+    final left = tester.getRect(find.byKey(const Key('left')));
+    expect(left.width, lessThanOrEqualTo(480));
+    final leftHalfCenter = (4000 - 16) / 4;
+    expect((left.center.dx - leftHalfCenter).abs(), lessThan(1));
+  });
 }
