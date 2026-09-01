@@ -4,21 +4,21 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/itinerary_item.dart';
 import 'itinerary_place_card.dart';
 
-/// Layout mode for the section: a horizontal carousel or a wrapping grid.
+/// Layout mode for the section: a horizontal carousel or a vertical list.
 enum GeneralItemsLayout {
-  /// Horizontal [ListView] carousel with a fixed 160px-tall container.
+  /// Horizontal [ListView] carousel with a fixed 176px-tall container.
   carousel,
 
-  /// [Wrap] grid of cards sized to the available width (2–3 per row).
-  grid,
+  /// Full-width vertical list of cards, one per row.
+  vertical,
 }
 
 /// Section of unassigned places.
 ///
-/// Header "LUGARES POR ASIGNAR" (uppercase, tracked) with a counter; a
-/// white/50 rounded container with a sand border holds either a horizontally
-/// scrollable row of [ItineraryPlaceCard] mini-cards ([GeneralItemsLayout
-/// .carousel]) or a wrapping grid ([GeneralItemsLayout.grid]). Dropping
+/// Header "LUGARES POR ASIGNAR" (uppercase, tracked); a white/50 rounded
+/// container with a sand border holds either a horizontally scrollable row of
+/// [ItineraryPlaceCard] mini-cards ([GeneralItemsLayout.carousel]) or a
+/// full-width vertical list ([GeneralItemsLayout.vertical]). Dropping
 /// anywhere on the container appends; dropping on a card inserts before that
 /// card's index. An optional [trailing] widget is shown after the last card
 /// (or centered when there are no items).
@@ -47,10 +47,8 @@ class GeneralItemsSection extends StatelessWidget {
   /// How the cards are laid out inside the container.
   final GeneralItemsLayout layout;
 
-  static const _minCardWidth = 150.0;
-  static const _spacing = 8.0;
-  static const _twoPerRowMinWidth = 2 * _minCardWidth + _spacing;
-  static const _threePerRowMinWidth = 3 * _minCardWidth + 2 * _spacing;
+  static const _carouselHeight = 176.0;
+  static const _trailingHeight = 120.0;
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +58,7 @@ class GeneralItemsSection extends StatelessWidget {
       },
       builder: (context, candidateData, rejectedData) {
         final highlighted = candidateData.isNotEmpty;
-        final isGrid = layout == GeneralItemsLayout.grid;
+        final isVertical = layout == GeneralItemsLayout.vertical;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -78,19 +76,6 @@ class GeneralItemsSection extends StatelessWidget {
                       color: Color(0xB33D405B), // navy/70
                     ),
                   ),
-                  const Spacer(),
-                  CircleAvatar(
-                    radius: 10,
-                    backgroundColor: AppColors.muted.withValues(alpha: 0.6),
-                    child: Text(
-                      '${items.length}',
-                      style: const TextStyle(
-                        fontFamily: 'Lora',
-                        fontSize: 11,
-                        color: AppColors.text,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -98,9 +83,9 @@ class GeneralItemsSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
-                height: isGrid ? null : 160,
-                constraints: isGrid
-                    ? const BoxConstraints(minHeight: 160)
+                height: isVertical ? null : _carouselHeight,
+                constraints: isVertical
+                    ? const BoxConstraints(minHeight: 120)
                     : null,
                 decoration: BoxDecoration(
                   color: highlighted
@@ -111,11 +96,11 @@ class GeneralItemsSection extends StatelessWidget {
                     color: AppColors.muted.withValues(alpha: 0.5),
                   ),
                 ),
-                padding: isGrid
+                padding: isVertical
                     ? const EdgeInsets.symmetric(vertical: 8)
                     : const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: isGrid
-                    ? _buildGridContent(context)
+                child: isVertical
+                    ? _buildVerticalContent(context)
                     : _buildContent(context),
               ),
             ),
@@ -154,54 +139,34 @@ class GeneralItemsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildGridContent(BuildContext context) {
+  Widget _buildVerticalContent(BuildContext context) {
     final trailing = this.trailing;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final available = constraints.maxWidth;
-        final perRow = _cardsPerRow(available);
-        final cardWidth = (available - _spacing * (perRow - 1)) / perRow;
-        if (items.isEmpty) {
-          if (trailing == null) {
-            return SizedBox(height: 160, child: _emptyState(context));
-          }
-          return SizedBox(
-            height: 160,
-            child: Center(
-              child: SizedBox(width: cardWidth, child: trailing),
-            ),
-          );
-        }
-        return Wrap(
-          spacing: _spacing,
-          runSpacing: _spacing,
-          children: [
-            for (var i = 0; i < items.length; i++)
-              SizedBox(
-                width: cardWidth,
-                child: DragTarget<ItineraryItem>(
-                  onAcceptWithDetails: (details) {
-                    onAcceptItem(details.data, i);
-                  },
-                  builder: (context, _, _) => ItineraryPlaceCard(
-                    item: items[i],
-                    onDelete: () => onDeleteItem(items[i].id),
-                    horizontal: false,
-                    width: cardWidth,
-                  ),
-                ),
+    if (items.isEmpty) {
+      if (trailing == null) {
+        return SizedBox(height: _trailingHeight, child: _emptyState(context));
+      }
+      return SizedBox(height: _trailingHeight, child: trailing);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < items.length; i++)
+          DragTarget<ItineraryItem>(
+            onAcceptWithDetails: (details) {
+              onAcceptItem(details.data, i);
+            },
+            builder: (context, _, _) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ItineraryPlaceCard(
+                item: items[i],
+                onDelete: () => onDeleteItem(items[i].id),
               ),
-            if (trailing != null) SizedBox(width: cardWidth, child: trailing),
-          ],
-        );
-      },
+            ),
+          ),
+        if (trailing != null)
+          SizedBox(height: _trailingHeight, child: trailing),
+      ],
     );
-  }
-
-  static int _cardsPerRow(double available) {
-    if (available >= _threePerRowMinWidth) return 3;
-    if (available >= _twoPerRowMinWidth) return 2;
-    return 1;
   }
 
   Widget _emptyState(BuildContext context) {

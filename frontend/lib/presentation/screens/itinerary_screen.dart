@@ -221,7 +221,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     bool grid = false,
   }) {
     return GeneralItemsSection(
-      layout: grid ? GeneralItemsLayout.grid : GeneralItemsLayout.carousel,
+      layout: grid ? GeneralItemsLayout.vertical : GeneralItemsLayout.carousel,
       items: general,
       onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
       onDeleteItem: _removeItem,

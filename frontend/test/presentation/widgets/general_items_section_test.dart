@@ -38,7 +38,9 @@ Future<void> _dragCard(WidgetTester tester, Finder card, Offset to) async {
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-  testWidgets('shows the title with a counter and the cards', (tester) async {
+  testWidgets('shows the title and the cards without a counter', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       wrap(
         GeneralItemsSection(
@@ -50,7 +52,7 @@ void main() {
     );
 
     expect(find.text('LUGARES POR ASIGNAR'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
+    expect(find.text('2'), findsNothing);
     expect(find.byType(ItineraryPlaceCard), findsNWidgets(2));
   });
 
@@ -179,7 +181,6 @@ void main() {
       ),
     );
 
-    expect(find.text('2'), findsOneWidget);
     expect(find.byType(DashedActionCard), findsOneWidget);
     final lastCardRight = tester.getTopRight(
       find.byType(ItineraryPlaceCard).last,
@@ -248,7 +249,9 @@ void main() {
     expect(tapped, isTrue);
   });
 
-  testWidgets('grid layout renders no horizontal scrollable', (tester) async {
+  testWidgets('vertical layout renders no horizontal scrollable', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       wrap(
         SizedBox(
@@ -257,7 +260,7 @@ void main() {
             items: [_item(1, position: 0), _item(2, position: 1)],
             onAcceptItem: (_, _) {},
             onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.grid,
+            layout: GeneralItemsLayout.vertical,
           ),
         ),
       ),
@@ -272,7 +275,7 @@ void main() {
     );
   });
 
-  testWidgets('grid shows 2 cards per row on a 340-wide section', (
+  testWidgets('vertical layout renders one card per row at full width', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -288,7 +291,7 @@ void main() {
             ],
             onAcceptItem: (_, _) {},
             onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.grid,
+            layout: GeneralItemsLayout.vertical,
           ),
         ),
       ),
@@ -296,46 +299,22 @@ void main() {
 
     final cards = find.byType(ItineraryPlaceCard);
     expect(cards, findsNWidgets(4));
-    final row0 = tester.getTopLeft(cards.at(0)).dy;
-    expect(tester.getTopLeft(cards.at(1)).dy, row0);
-    expect(tester.getTopLeft(cards.at(2)).dy, greaterThan(row0));
-    expect(
-      tester.getTopLeft(cards.at(3)).dy,
-      tester.getTopLeft(cards.at(2)).dy,
-    );
+    final widths = <double>[
+      for (var i = 0; i < 4; i++) tester.getSize(cards.at(i)).width,
+    ];
+    expect(widths.toSet(), hasLength(1));
+    expect(widths.first, greaterThan(280));
+    for (var i = 1; i < 4; i++) {
+      expect(
+        tester.getTopLeft(cards.at(i)).dy,
+        greaterThan(tester.getTopLeft(cards.at(i - 1)).dy),
+      );
+    }
+    final placeCard = tester.widget<ItineraryPlaceCard>(cards.first);
+    expect(placeCard.horizontal, isTrue);
   });
 
-  testWidgets('grid shows 3 cards per row on a 500-wide section', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      wrap(
-        SizedBox(
-          width: 500,
-          child: GeneralItemsSection(
-            items: [
-              _item(1, position: 0),
-              _item(2, position: 1),
-              _item(3, position: 2),
-              _item(4, position: 3),
-            ],
-            onAcceptItem: (_, _) {},
-            onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.grid,
-          ),
-        ),
-      ),
-    );
-
-    final cards = find.byType(ItineraryPlaceCard);
-    expect(cards, findsNWidgets(4));
-    final row0 = tester.getTopLeft(cards.at(0)).dy;
-    expect(tester.getTopLeft(cards.at(1)).dy, row0);
-    expect(tester.getTopLeft(cards.at(2)).dy, row0);
-    expect(tester.getTopLeft(cards.at(3)).dy, greaterThan(row0));
-  });
-
-  testWidgets('grid cards use the computed width and vertical layout', (
+  testWidgets('vertical layout puts the trailing card below at full width', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -346,23 +325,76 @@ void main() {
             items: [_item(1, position: 0), _item(2, position: 1)],
             onAcceptItem: (_, _) {},
             onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.grid,
+            layout: GeneralItemsLayout.vertical,
+            trailing: const DashedActionCard(
+              label: '¿Añadimos un lugar?',
+              onTap: _noop,
+            ),
           ),
         ),
       ),
     );
 
-    final card = find.byType(ItineraryPlaceCard).first;
-    final width = tester.getSize(card).width;
-    expect(width, closeTo(154, 1));
-    final placeCard = tester.widget<ItineraryPlaceCard>(card);
-    expect(placeCard.horizontal, isFalse);
-    expect(placeCard.width, closeTo(154, 1));
+    expect(find.byType(DashedActionCard), findsOneWidget);
+    final lastCard = find.byType(ItineraryPlaceCard).last;
+    final trailingTop = tester.getTopLeft(find.byType(DashedActionCard));
+    expect(trailingTop.dy, greaterThan(tester.getBottomLeft(lastCard).dy));
+    final cardWidth = tester.getSize(lastCard).width;
+    expect(tester.getSize(find.byType(DashedActionCard)).width, cardWidth);
+    expect(
+      tester.getSize(find.byType(DashedActionCard)).height,
+      closeTo(120, 1),
+    );
   });
 
-  testWidgets('dropping a grid card on another grid card inserts before', (
+  testWidgets('vertical empty state shows only the add card with trailing', (
     tester,
   ) async {
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          child: GeneralItemsSection(
+            items: const [],
+            onAcceptItem: (_, _) {},
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+            trailing: const DashedActionCard(
+              label: '¿Añadimos un lugar?',
+              onTap: _noop,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Añade lugares al viaje'), findsNothing);
+    expect(find.byType(DashedActionCard), findsOneWidget);
+  });
+
+  testWidgets('vertical empty state without trailing shows the hint', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          child: GeneralItemsSection(
+            items: const [],
+            onAcceptItem: (_, _) {},
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Añade lugares al viaje'), findsOneWidget);
+    expect(find.byType(DashedActionCard), findsNothing);
+  });
+
+  testWidgets('dropping a vertical card on another vertical card inserts '
+      'before', (tester) async {
     ItineraryItem? accepted;
     int? acceptedIndex;
     await tester.pumpWidget(
@@ -380,7 +412,7 @@ void main() {
               acceptedIndex = index;
             },
             onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.grid,
+            layout: GeneralItemsLayout.vertical,
           ),
         ),
       ),
@@ -393,7 +425,7 @@ void main() {
     expect(acceptedIndex, 0);
   });
 
-  testWidgets('dropping a card on the grid header appends', (tester) async {
+  testWidgets('dropping a card on the vertical header appends', (tester) async {
     ItineraryItem? accepted;
     int? acceptedIndex;
     await tester.pumpWidget(
@@ -410,7 +442,7 @@ void main() {
                   acceptedIndex = index;
                 },
                 onDeleteItem: (_) {},
-                layout: GeneralItemsLayout.grid,
+                layout: GeneralItemsLayout.vertical,
               ),
             ),
           ],
@@ -429,83 +461,7 @@ void main() {
     expect(acceptedIndex, 2);
   });
 
-  testWidgets('grid empty state shows the hint', (tester) async {
-    await tester.pumpWidget(
-      wrap(
-        SizedBox(
-          width: 340,
-          child: GeneralItemsSection(
-            items: const [],
-            onAcceptItem: (_, _) {},
-            onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.grid,
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('Añade lugares al viaje'), findsOneWidget);
-    expect(find.byType(DashedActionCard), findsNothing);
-  });
-
-  testWidgets('grid empty state centers the trailing card', (tester) async {
-    await tester.pumpWidget(
-      wrap(
-        SizedBox(
-          width: 340,
-          child: GeneralItemsSection(
-            items: const [],
-            onAcceptItem: (_, _) {},
-            onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.grid,
-            trailing: const DashedActionCard(
-              label: '¿Añadimos un lugar?',
-              onTap: _noop,
-            ),
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('Añade lugares al viaje'), findsNothing);
-    expect(find.byType(DashedActionCard), findsOneWidget);
-    final sectionCenter = tester.getCenter(find.byType(GeneralItemsSection));
-    final cardCenter = tester.getCenter(find.byType(DashedActionCard));
-    expect((cardCenter.dx - sectionCenter.dx).abs(), lessThan(1));
-  });
-
-  testWidgets('grid renders the trailing card after the last card', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      wrap(
-        SizedBox(
-          width: 340,
-          child: GeneralItemsSection(
-            items: [_item(1, position: 0), _item(2, position: 1)],
-            onAcceptItem: (_, _) {},
-            onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.grid,
-            trailing: const DashedActionCard(
-              label: '¿Añadimos un lugar?',
-              onTap: _noop,
-            ),
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byType(DashedActionCard), findsOneWidget);
-    final lastCard = find.byType(ItineraryPlaceCard).last;
-    final trailingTop = tester.getTopLeft(find.byType(DashedActionCard));
-    expect(trailingTop.dy, greaterThan(tester.getBottomLeft(lastCard).dy));
-    final firstCardLeft = tester.getTopLeft(
-      find.byType(ItineraryPlaceCard).at(0),
-    );
-    expect(trailingTop.dx, closeTo(firstCardLeft.dx, 1));
-  });
-
-  testWidgets('grid delete button calls onDeleteItem with its id', (
+  testWidgets('vertical delete button calls onDeleteItem with its id', (
     tester,
   ) async {
     int? deletedId;
@@ -517,7 +473,7 @@ void main() {
             items: [_item(1, position: 0)],
             onAcceptItem: (_, _) {},
             onDeleteItem: (id) => deletedId = id,
-            layout: GeneralItemsLayout.grid,
+            layout: GeneralItemsLayout.vertical,
           ),
         ),
       ),

@@ -636,7 +636,7 @@ void main() {
     expect(general.right, lessThan(strip.left));
   });
 
-  testWidgets('wide grid falls to 2 cards per row on a just-wide window', (
+  testWidgets('wide list renders one card per row at full width', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(960, 1200);
@@ -665,8 +665,14 @@ void main() {
     );
     expect(cards, findsNWidgets(3));
     final row0 = tester.getTopLeft(cards.at(0)).dy;
-    expect(tester.getTopLeft(cards.at(1)).dy, row0);
-    expect(tester.getTopLeft(cards.at(2)).dy, greaterThan(row0));
+    expect(tester.getTopLeft(cards.at(1)).dy, greaterThan(row0));
+    expect(
+      tester.getTopLeft(cards.at(2)).dy,
+      greaterThan(tester.getTopLeft(cards.at(1)).dy),
+    );
+    final width0 = tester.getSize(cards.at(0)).width;
+    expect(tester.getSize(cards.at(1)).width, width0);
+    expect(tester.getSize(cards.at(2)).width, width0);
     expect(tester.takeException(), isNull);
   });
 
