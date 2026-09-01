@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/category_palette.dart';
 import '../../data/category_icon_catalog.dart';
 import '../../data/models/itinerary_item.dart';
 
@@ -93,11 +94,11 @@ class _MiniCard extends StatelessWidget {
     final place = item.place;
     final iconCircle = CircleAvatar(
       radius: 17,
-      backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+      backgroundColor: categoryColorFor(place.category),
       child: Icon(
         categoryIconFor(place.category.icon),
         size: 18,
-        color: AppColors.primary,
+        color: Colors.white,
       ),
     );
     final deleteButton = IconButton(
@@ -120,16 +121,33 @@ class _MiniCard extends StatelessWidget {
           iconCircle,
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              place.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: 'Lora',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  place.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Lora',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  place.category.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Lora',
+                    fontSize: 10,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 4),
