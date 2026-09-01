@@ -352,4 +352,65 @@ void main() {
 
     expect(borderColor(), AppColors.muted);
   });
+
+  testWidgets('slot with five or more items keeps a single growing dashed '
+      'container', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: [for (var i = 1; i <= 5; i++) _item(i, position: i - 1)],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.byType(DashedBorderContainer), findsOneWidget);
+    expect(find.byType(ItineraryPlaceCard), findsNWidgets(5));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('slot handles very long place and category names without '
+      'overflow', (tester) async {
+    final longName = List.filled(200, 'A').join();
+    final longCategory = List.filled(80, 'C').join();
+    final item = ItineraryItem(
+      id: 1,
+      dayDate: null,
+      slot: null,
+      position: 0,
+      place: Place(
+        id: 1,
+        name: longName,
+        description: null,
+        latitude: 42.5,
+        longitude: -3.5,
+        category: Category(id: 1, name: longCategory, icon: 'nature'),
+      ),
+    );
+
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: [item],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<Text>(find.text(longName)).overflow,
+      TextOverflow.ellipsis,
+    );
+    expect(
+      tester.widget<Text>(find.text(longCategory)).overflow,
+      TextOverflow.ellipsis,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

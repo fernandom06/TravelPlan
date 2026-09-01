@@ -19,6 +19,7 @@ import 'package:frontend/presentation/widgets/day_pill_strip.dart';
 import 'package:frontend/presentation/widgets/general_items_section.dart';
 import 'package:frontend/presentation/widgets/itinerary_place_card.dart';
 import 'package:frontend/presentation/widgets/itinerary_two_column_layout.dart';
+import 'package:frontend/presentation/widgets/offline_banner.dart';
 import 'package:frontend/presentation/widgets/place_picker_dialog.dart';
 
 class _FakeItineraryApi extends ItineraryApi {
@@ -431,6 +432,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sin conexión con el servidor'), findsOneWidget);
+    final banner = tester.getTopLeft(find.byType(OfflineBanner));
+    final strip = tester.getTopLeft(find.byType(DayPillStrip));
+    expect(banner.dy, lessThan(strip.dy));
   });
 
   testWidgets(
@@ -840,5 +844,30 @@ void main() {
     expect(find.byType(ItineraryTwoColumnLayout), findsOneWidget);
     expect(_tabIndex(tester), 1);
     expect(find.text('Lugar 1'), findsOneWidget);
+  });
+
+  testWidgets('14-day trip on mobile keeps the pills scrollable without '
+      'overflow', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final trip = _trip(start: DateTime(2026, 6, 1), end: DateTime(2026, 6, 14));
+    final api = _FakeItineraryApi();
+    final controller = await _controllerWith(api, trip);
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: trip),
+    );
+    await tester.pumpAndSettle();
+
+    final stripScrollable = find.descendant(
+      of: find.byType(DayPillStrip),
+      matching: find.byType(Scrollable),
+    );
+    expect(stripScrollable, findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

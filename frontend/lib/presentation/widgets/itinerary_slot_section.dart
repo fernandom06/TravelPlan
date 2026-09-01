@@ -164,12 +164,15 @@ class ItinerarySlotSection extends StatelessWidget {
             color: highlighted ? AppColors.accent : AppColors.muted,
           ),
           const SizedBox(width: 6),
-          Text(
-            'Arrastra lugares aquí',
-            style: TextStyle(
-              fontFamily: 'Lora',
-              fontSize: 13,
-              color: highlighted ? AppColors.accent : AppColors.muted,
+          Expanded(
+            child: Text(
+              'Arrastra lugares aquí',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Lora',
+                fontSize: 13,
+                color: highlighted ? AppColors.accent : AppColors.muted,
+              ),
             ),
           ),
         ],

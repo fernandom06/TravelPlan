@@ -26,6 +26,27 @@ ItineraryItem _item(int id, {required int position}) {
   );
 }
 
+ItineraryItem _longItem(int id) {
+  return ItineraryItem(
+    id: id,
+    dayDate: null,
+    slot: null,
+    position: 0,
+    place: Place(
+      id: id,
+      name: List.filled(200, 'A').join(),
+      description: null,
+      latitude: 42.5,
+      longitude: -3.5,
+      category: Category(
+        id: 1,
+        name: List.filled(80, 'C').join(),
+        icon: 'nature',
+      ),
+    ),
+  );
+}
+
 Future<void> _dragCard(WidgetTester tester, Finder card, Offset to) async {
   final gesture = await tester.startGesture(tester.getCenter(card));
   await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
@@ -481,6 +502,75 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.delete_outline));
     expect(deletedId, 1);
+  });
+
+  testWidgets('carousel handles very long names without overflow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        GeneralItemsSection(
+          items: [_longItem(1)],
+          onAcceptItem: (_, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text(List.filled(200, 'A').join()), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('vertical list handles very long names without overflow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          child: GeneralItemsSection(
+            items: [_longItem(1)],
+            onAcceptItem: (_, _) {},
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final nameText = tester.widget<Text>(
+      find.text(List.filled(200, 'A').join()),
+    );
+    expect(nameText.overflow, TextOverflow.ellipsis);
+  });
+
+  testWidgets('vertical empty state keeps the add card visible and tappable', (
+    tester,
+  ) async {
+    var tapped = false;
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          child: GeneralItemsSection(
+            items: const [],
+            onAcceptItem: (_, _) {},
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+            trailing: DashedActionCard(
+              label: '¿Añadimos un lugar?',
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(DashedActionCard), findsOneWidget);
+    expect(find.text('Añade lugares al viaje'), findsNothing);
+    await tester.tap(find.text('¿Añadimos un lugar?'));
+    expect(tapped, isTrue);
   });
 }
 
