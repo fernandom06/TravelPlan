@@ -142,9 +142,9 @@ class TripCard extends StatelessWidget {
                   children: [
                     Text(
                       trip.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.text,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleMedium?.copyWith(color: AppColors.text),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

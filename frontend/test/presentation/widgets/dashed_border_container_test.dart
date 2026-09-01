@@ -157,13 +157,16 @@ void main() {
     for (final metric in path.computeMetrics()) {
       final steps = (metric.length / 2).ceil();
       for (var i = 0; i <= steps; i++) {
-        final p = metric.getTangentForOffset(metric.length * i / steps)!.position;
+        final p = metric
+            .getTangentForOffset(metric.length * i / steps)!
+            .position;
         final clamped = Offset(
           p.dx.clamp(inner.left, inner.right),
           p.dy.clamp(inner.top, inner.bottom),
         );
         final distanceToInner = (p - clamped).distance;
-        final onOutline = p.dx >= outer.left - eps &&
+        final onOutline =
+            p.dx >= outer.left - eps &&
             p.dx <= outer.right + eps &&
             p.dy >= outer.top - eps &&
             p.dy <= outer.bottom + eps &&
