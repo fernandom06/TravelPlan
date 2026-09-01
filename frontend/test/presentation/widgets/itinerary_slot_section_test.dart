@@ -7,6 +7,7 @@ import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/itinerary_item.dart';
 import 'package:frontend/data/models/itinerary_slot.dart';
 import 'package:frontend/data/models/place.dart';
+import 'package:frontend/presentation/widgets/dashed_border_container.dart';
 import 'package:frontend/presentation/widgets/itinerary_place_card.dart';
 import 'package:frontend/presentation/widgets/itinerary_slot_section.dart';
 
@@ -78,7 +79,7 @@ void main() {
     expect(find.byIcon(Icons.dark_mode), findsNothing);
   });
 
-  testWidgets('renders a circular primary marker in the timeline rail', (
+  testWidgets('renders a hollow circular marker in the timeline rail', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -100,7 +101,9 @@ void main() {
             (w.decoration as BoxDecoration?)?.shape == BoxShape.circle,
       ),
     );
-    expect((marker.decoration as BoxDecoration).color, AppColors.primary);
+    final decoration = marker.decoration as BoxDecoration;
+    expect(decoration.color, AppColors.background);
+    expect(decoration.border, Border.all(color: AppColors.primary, width: 2));
   });
 
   testWidgets('renders the connecting rail line for non-final sections', (
@@ -120,8 +123,7 @@ void main() {
 
     final line = find.byWidgetPredicate(
       (w) =>
-          w is Container &&
-          w.color == AppColors.primary.withValues(alpha: 0.4),
+          w is Container && w.color == AppColors.primary.withValues(alpha: 0.4),
     );
     expect(line, findsOneWidget);
   });
@@ -142,8 +144,7 @@ void main() {
 
     final line = find.byWidgetPredicate(
       (w) =>
-          w is Container &&
-          w.color == AppColors.primary.withValues(alpha: 0.4),
+          w is Container && w.color == AppColors.primary.withValues(alpha: 0.4),
     );
     expect(line, findsNothing);
     expect(
@@ -284,5 +285,71 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.delete_outline));
     expect(deletedId, 1);
+  });
+
+  testWidgets('wraps assigned cards in a single dashed container', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: [_item(1, position: 0), _item(2, position: 1)],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.byType(DashedBorderContainer), findsOneWidget);
+    expect(find.text('Arrastra lugares aquí'), findsNothing);
+  });
+
+  testWidgets('dashed border turns accent while dragging over the slot', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        Column(
+          children: [
+            ItineraryPlaceCard(item: _item(1, position: 0), onDelete: () {}),
+            ItinerarySlotSection(
+              title: 'Mañana',
+              slot: _slot,
+              items: const [],
+              onAcceptItem: (_, _, _) {},
+              onDeleteItem: (_) {},
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Color borderColor() {
+      final paint = tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.byType(DashedBorderContainer),
+          matching: find.byType(CustomPaint),
+        ),
+      );
+      return (paint.painter as DashedBorderPainter).color;
+    }
+
+    expect(borderColor(), AppColors.muted);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(ItineraryPlaceCard).first),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await gesture.moveTo(tester.getCenter(find.byType(ItinerarySlotSection)));
+    await tester.pump();
+
+    expect(borderColor(), AppColors.accent);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(borderColor(), AppColors.muted);
   });
 }

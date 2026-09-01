@@ -61,11 +61,12 @@ class ItinerarySlotSection extends StatelessWidget {
                   children: [
                     const SizedBox(height: 8),
                     Container(
-                      width: 12,
-                      height: 12,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
                         shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primary, width: 2),
                       ),
                     ),
                     if (!isLast)
@@ -105,26 +106,30 @@ class ItinerarySlotSection extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (items.isEmpty)
-                      _emptyZone(context, highlighted)
-                    else
-                      Column(
-                        children: [
-                          for (var i = 0; i < items.length; i++)
-                            DragTarget<ItineraryItem>(
-                              onAcceptWithDetails: (details) {
-                                onAcceptItem(details.data, slot, i);
-                              },
-                              builder: (context, _, _) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: ItineraryPlaceCard(
-                                  item: items[i],
-                                  onDelete: () => onDeleteItem(items[i].id),
-                                ),
-                              ),
+                    _dropZone(
+                      context,
+                      highlighted,
+                      items.isEmpty
+                          ? _emptyHint(highlighted)
+                          : Column(
+                              children: [
+                                for (var i = 0; i < items.length; i++)
+                                  DragTarget<ItineraryItem>(
+                                    onAcceptWithDetails: (details) {
+                                      onAcceptItem(details.data, slot, i);
+                                    },
+                                    builder: (context, _, _) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: ItineraryPlaceCard(
+                                        item: items[i],
+                                        onDelete: () =>
+                                            onDeleteItem(items[i].id),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
+                    ),
                   ],
                 ),
               ),
@@ -135,7 +140,7 @@ class ItinerarySlotSection extends StatelessWidget {
     );
   }
 
-  Widget _emptyZone(BuildContext context, bool highlighted) {
+  Widget _dropZone(BuildContext context, bool highlighted, Widget child) {
     return DashedBorderContainer(
       color: highlighted ? AppColors.accent : AppColors.muted,
       backgroundColor: highlighted
@@ -143,27 +148,31 @@ class ItinerarySlotSection extends StatelessWidget {
           : AppColors.surface.withValues(alpha: 0.3),
       radius: 16,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: SizedBox(
-        height: 100,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_circle_outline,
-              size: 16,
+      child: child,
+    );
+  }
+
+  Widget _emptyHint(bool highlighted) {
+    return SizedBox(
+      height: 100,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_circle_outline,
+            size: 16,
+            color: highlighted ? AppColors.accent : AppColors.muted,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Arrastra lugares aquí',
+            style: TextStyle(
+              fontFamily: 'Lora',
+              fontSize: 13,
               color: highlighted ? AppColors.accent : AppColors.muted,
             ),
-            const SizedBox(width: 6),
-            Text(
-              'Arrastra lugares aquí',
-              style: TextStyle(
-                fontFamily: 'Lora',
-                fontSize: 13,
-                color: highlighted ? AppColors.accent : AppColors.muted,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
