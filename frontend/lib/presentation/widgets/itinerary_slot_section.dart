@@ -106,9 +106,10 @@ class ItinerarySlotSection extends StatelessWidget {
                         ],
                       ),
                     ),
-                    _dropZone(
+                    _content(
                       context,
                       highlighted,
+                      items.isEmpty,
                       items.isEmpty
                           ? _emptyHint(highlighted)
                           : Column(
@@ -140,6 +141,20 @@ class ItinerarySlotSection extends StatelessWidget {
     );
   }
 
+  /// Renders the assigned cards directly on the timeline when the slot has
+  /// content at rest; the dashed drop zone is only shown while the slot is
+  /// empty or being dragged over, so the dashed border keeps its "drop here"
+  /// meaning instead of framing every filled group.
+  Widget _content(
+    BuildContext context,
+    bool highlighted,
+    bool isEmpty,
+    Widget child,
+  ) {
+    if (highlighted || isEmpty) return _dropZone(context, highlighted, child);
+    return child;
+  }
+
   Widget _dropZone(BuildContext context, bool highlighted, Widget child) {
     return DashedBorderContainer(
       color: highlighted ? AppColors.accent : AppColors.muted,
@@ -161,7 +176,7 @@ class ItinerarySlotSection extends StatelessWidget {
           Icon(
             Icons.add_circle_outline,
             size: 16,
-            color: highlighted ? AppColors.accent : AppColors.muted,
+            color: highlighted ? AppColors.accent : AppColors.textSecondary,
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -169,9 +184,8 @@ class ItinerarySlotSection extends StatelessWidget {
               'Arrastra lugares aquí',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'Lora',
                 fontSize: 13,
-                color: highlighted ? AppColors.accent : AppColors.muted,
+                color: highlighted ? AppColors.accent : AppColors.textSecondary,
               ),
             ),
           ),

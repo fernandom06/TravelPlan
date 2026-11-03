@@ -83,7 +83,7 @@ class _DayPillStripState extends State<DayPillStrip> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Scrollbar(
         controller: _scrollController,
         child: LayoutBuilder(

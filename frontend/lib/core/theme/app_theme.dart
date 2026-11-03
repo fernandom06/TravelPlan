@@ -21,6 +21,10 @@ abstract final class AppColors {
   /// Sand — borders, dividers, disabled states.
   static const Color muted = Color(0xFFD6CEB6);
 
+  /// Navy at 60% — secondary text and icons (category labels, hints, drag
+  /// handles, delete). Readable where [muted] would only work as a stroke.
+  static const Color textSecondary = Color(0x993D405B);
+
   /// Mint — success states, nature categories, fresh highlights.
   static const Color accent = Color(0xFF81B29A);
 }

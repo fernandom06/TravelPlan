@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/presentation/widgets/dashed_action_card.dart';
 import 'package:frontend/presentation/widgets/dashed_border_container.dart';
 
@@ -47,6 +48,46 @@ void main() {
       wrap(const DashedActionCard(label: '¿Añadimos un lugar?', onTap: _noop)),
     );
     expect(find.text('¿Añadimos un lugar?'), findsOneWidget);
+  });
+
+  testWidgets('compact variant uses a smaller icon', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const DashedActionCard(
+          label: '¿Añadimos un lugar?',
+          onTap: _noop,
+          compact: true,
+        ),
+      ),
+    );
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.add));
+    expect(icon.size, 20);
+    expect(find.text('¿Añadimos un lugar?'), findsOneWidget);
+  });
+
+  testWidgets('compact label uses the secondary text color', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const DashedActionCard(
+          label: '¿Añadimos un lugar?',
+          onTap: _noop,
+          compact: true,
+        ),
+      ),
+    );
+
+    final label = tester.widget<Text>(find.text('¿Añadimos un lugar?'));
+    expect(label.style?.color, AppColors.textSecondary);
+  });
+
+  testWidgets('full label keeps the primary text color', (tester) async {
+    await tester.pumpWidget(
+      wrap(const DashedActionCard(label: '¿A dónde vamos?', onTap: _noop)),
+    );
+
+    final label = tester.widget<Text>(find.text('¿A dónde vamos?'));
+    expect(label.style?.color, AppColors.text);
   });
 }
 

@@ -72,7 +72,7 @@ void main() {
       ),
     );
 
-    expect(find.text('LUGARES POR ASIGNAR'), findsOneWidget);
+    expect(find.text('Lugares por asignar'), findsOneWidget);
     expect(find.text('2'), findsNothing);
     expect(find.byType(ItineraryPlaceCard), findsNWidgets(2));
   });
@@ -287,13 +287,15 @@ void main() {
       ),
     );
 
-    expect(
+    final scrollables = tester.widgetList<Scrollable>(
       find.descendant(
         of: find.byType(GeneralItemsSection),
         matching: find.byType(Scrollable),
       ),
-      findsNothing,
     );
+    for (final scrollable in scrollables) {
+      expect(scrollable.axisDirection, AxisDirection.down);
+    }
   });
 
   testWidgets('vertical layout renders one card per row at full width', (
@@ -335,7 +337,34 @@ void main() {
     expect(placeCard.horizontal, isTrue);
   });
 
-  testWidgets('vertical layout puts the trailing card below at full width', (
+  testWidgets('vertical list centers the header with its cards when there is '
+      'spare height', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          height: 600,
+          child: GeneralItemsSection(
+            items: [_item(1, position: 0)],
+            onAcceptItem: (_, _) {},
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+          ),
+        ),
+      ),
+    );
+
+    final panel = tester.getRect(
+      find.byKey(const ValueKey('general-items-panel')),
+    );
+    final header = tester.getRect(find.text('Lugares por asignar'));
+    final card = tester.getRect(find.byType(ItineraryPlaceCard));
+    // Header sits above the card, and the whole group is centered.
+    expect(header.bottom, lessThanOrEqualTo(card.top));
+    expect((header.top + card.bottom) / 2, closeTo(panel.center.dy, 10));
+  });
+
+  testWidgets('vertical list puts the trailing card below at full width', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -350,6 +379,7 @@ void main() {
             trailing: const DashedActionCard(
               label: '¿Añadimos un lugar?',
               onTap: _noop,
+              compact: true,
             ),
           ),
         ),
@@ -364,7 +394,7 @@ void main() {
     expect(tester.getSize(find.byType(DashedActionCard)).width, cardWidth);
     expect(
       tester.getSize(find.byType(DashedActionCard)).height,
-      closeTo(120, 1),
+      closeTo(72, 1),
     );
   });
 
@@ -383,6 +413,7 @@ void main() {
             trailing: const DashedActionCard(
               label: '¿Añadimos un lugar?',
               onTap: _noop,
+              compact: true,
             ),
           ),
         ),
@@ -474,7 +505,7 @@ void main() {
     await _dragCard(
       tester,
       find.byType(ItineraryPlaceCard).first,
-      tester.getTopLeft(find.text('LUGARES POR ASIGNAR')) +
+      tester.getTopLeft(find.text('Lugares por asignar')) +
           const Offset(40, 10),
     );
 
@@ -561,6 +592,7 @@ void main() {
             trailing: DashedActionCard(
               label: '¿Añadimos un lugar?',
               onTap: () => tapped = true,
+              compact: true,
             ),
           ),
         ),
@@ -571,6 +603,86 @@ void main() {
     expect(find.text('Añade lugares al viaje'), findsNothing);
     await tester.tap(find.text('¿Añadimos un lugar?'));
     expect(tapped, isTrue);
+  });
+
+  testWidgets('vertical panel is unframed at rest and fills while dragging', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          child: GeneralItemsSection(
+            items: [_item(1, position: 0)],
+            onAcceptItem: (_, _) {},
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+          ),
+        ),
+      ),
+    );
+
+    BoxDecoration? panelDecoration() {
+      final animated = tester.widget<AnimatedContainer>(
+        find.byKey(const ValueKey('general-items-panel')),
+      );
+      return animated.decoration as BoxDecoration?;
+    }
+
+    expect(panelDecoration()?.color, isNull);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(ItineraryPlaceCard).first),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await gesture.moveTo(tester.getCenter(find.text('Lugares por asignar')));
+    await tester.pump();
+
+    expect(panelDecoration()?.color, isNotNull);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(panelDecoration()?.color, isNull);
+  });
+
+  testWidgets('vertical panel fills the height it is given and scrolls when '
+      'the cards overflow', (tester) async {
+    tester.view.physicalSize = const Size(400, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          child: GeneralItemsSection(
+            items: [for (var i = 0; i < 12; i++) _item(i, position: i)],
+            onAcceptItem: (_, _) {},
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+          ),
+        ),
+      ),
+    );
+
+    final section = tester.getRect(find.byType(GeneralItemsSection));
+    expect(section.height, closeTo(600, 1));
+    final scrollable = tester.widget<Scrollable>(
+      find.descendant(
+        of: find.byType(GeneralItemsSection),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(scrollable.axisDirection, AxisDirection.down);
+    await tester.drag(
+      find.descendant(
+        of: find.byType(GeneralItemsSection),
+        matching: find.byType(Scrollable),
+      ),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }
 

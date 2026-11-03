@@ -64,6 +64,34 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
   });
 
+  testWidgets('wide layout panel fills the full lateral height', (tester) async {
+    await _pump(tester, const Size(1200, 800));
+
+    final size = tester.getSize(find.byKey(const Key('place-form-panel')));
+    expect(size.width, 400);
+    expect(size.height, 800);
+
+    final right = tester.getTopRight(
+      find.byKey(const Key('place-form-panel')),
+    );
+    expect(right.dx, 1200);
+    expect(right.dy, 0);
+  });
+
+  testWidgets('wide layout centers the content vertically', (tester) async {
+    await _pump(tester, const Size(1200, 800));
+
+    final panel = find.byKey(const Key('place-form-panel'));
+    final scroll = find.descendant(
+      of: panel,
+      matching: find.byType(SingleChildScrollView),
+    );
+
+    final panelCenter = tester.getCenter(panel);
+    final scrollCenter = tester.getCenter(scroll);
+    expect(scrollCenter.dy, closeTo(panelCenter.dy, 0.1));
+  });
+
   testWidgets('text is preserved when crossing the breakpoint', (tester) async {
     await _pump(tester, const Size(500, 900));
     await tester.enterText(find.byType(TextField), 'Mirador');

@@ -18,6 +18,7 @@ import 'package:frontend/presentation/widgets/dashed_action_card.dart';
 import 'package:frontend/presentation/widgets/day_pill_strip.dart';
 import 'package:frontend/presentation/widgets/general_items_section.dart';
 import 'package:frontend/presentation/widgets/itinerary_place_card.dart';
+import 'package:frontend/presentation/widgets/itinerary_slot_section.dart';
 import 'package:frontend/presentation/widgets/itinerary_two_column_layout.dart';
 import 'package:frontend/presentation/widgets/offline_banner.dart';
 import 'package:frontend/presentation/widgets/place_picker_dialog.dart';
@@ -174,6 +175,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Viaje a Galicia'), findsOneWidget);
+    final title = tester.widget<Text>(find.text('Viaje a Galicia'));
+    expect(title.style?.fontSize, 28);
+    final appBar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(appBar.centerTitle, isFalse);
     final theme = Theme.of(tester.element(find.byType(AppBar)));
     expect(theme.appBarTheme.centerTitle, isTrue);
     expect(theme.appBarTheme.titleTextStyle?.fontFamily, 'Fraunces');
@@ -196,6 +201,33 @@ void main() {
     expect(find.text('Día 5 · 05 Jun'), findsOneWidget);
     final strip = tester.widget<DayPillStrip>(find.byType(DayPillStrip));
     expect(strip.days, hasLength(10));
+  });
+
+  testWidgets('day strip sits on a white surface with a divider above it', (
+    tester,
+  ) async {
+    final api = _FakeItineraryApi();
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final container = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.byType(DayPillStrip),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    final decoration = container.decoration! as BoxDecoration;
+    expect(decoration.color, AppColors.surface);
+    expect(decoration.border!.top.color, AppColors.muted);
   });
 
   testWidgets('highlights the active day tab when switching days', (
@@ -620,8 +652,8 @@ void main() {
     expect(stripWidget.centered, isFalse);
   });
 
-  testWidgets('uses two columns with the vertical list on the left on wide '
-      'screens', (tester) async {
+  testWidgets('on wide screens the day strip spans the page above both '
+      'columns', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -639,14 +671,92 @@ void main() {
     expect(find.byType(ItineraryTwoColumnLayout), findsOneWidget);
     expect(find.byType(GeneralItemsSection), findsOneWidget);
     final general = tester.getRect(find.byType(GeneralItemsSection));
+    final timeline = tester.getRect(find.byType(TabBarView));
     final strip = tester.getRect(find.byType(DayPillStrip));
-    expect(general.right, lessThan(strip.left));
+    final layout = tester.getRect(find.byType(ItineraryTwoColumnLayout));
+    expect(strip.bottom, lessThanOrEqualTo(layout.top));
+    expect(strip.left, 0);
+    expect(strip.width, tester.view.physicalSize.width);
+    expect(general.right, lessThanOrEqualTo(timeline.left));
     final stripWidget = tester.widget<DayPillStrip>(find.byType(DayPillStrip));
     expect(stripWidget.centered, isTrue);
     final section = tester.widget<GeneralItemsSection>(
       find.byType(GeneralItemsSection),
     );
     expect(section.layout, GeneralItemsLayout.vertical);
+  });
+
+  testWidgets('wide unassigned panel fills the column height instead of '
+      'hugging its cards', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final general = tester.getRect(find.byType(GeneralItemsSection));
+    final layout = tester.getRect(find.byType(ItineraryTwoColumnLayout));
+    final card = tester.getRect(find.byType(ItineraryPlaceCard).first);
+    expect(general.bottom, closeTo(layout.bottom, 1));
+    expect(general.top, closeTo(layout.top, 1));
+    expect(general.height, greaterThan(card.height * 2));
+  });
+
+  testWidgets('wide day timeline is centered vertically', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(
+      items: [_item(1, day: DateTime(2026, 6, 1), slot: ItinerarySlot.morning)],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final timeline = tester.getRect(find.byType(TabBarView));
+    final sections = find.byType(ItinerarySlotSection);
+    final contentTop = tester.getRect(sections.first).top;
+    final contentBottom = tester.getRect(sections.last).bottom;
+    final contentCenter = (contentTop + contentBottom) / 2;
+    expect((contentCenter - timeline.center.dy).abs(), lessThan(2));
+  });
+
+  testWidgets('stacked day timeline keeps its content top aligned', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(
+      items: [_item(1, day: DateTime(2026, 6, 1), slot: ItinerarySlot.morning)],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final timeline = tester.getRect(find.byType(TabBarView));
+    final sections = find.byType(ItinerarySlotSection);
+    expect(tester.getRect(sections.first).top, closeTo(timeline.top, 1));
   });
 
   testWidgets('renders a single section and strip exactly at the 900dp '

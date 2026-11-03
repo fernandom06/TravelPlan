@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/itinerary_item.dart';
 import '../../data/models/itinerary_slot.dart';
 import '../../data/models/place.dart';
@@ -40,6 +41,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     with SingleTickerProviderStateMixin {
   static const _dayHoverDelay = Duration(milliseconds: 500);
   static const _twoColumnBreakpoint = 900.0;
+  static const _dayTimelineMaxWidth = 680.0;
 
   late TabController _tabController;
   late List<DateTime> _days;
@@ -166,7 +168,15 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.trip.name)),
+      appBar: AppBar(
+        title: Text(
+          widget.trip.name,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontSize: 28),
+        ),
+        centerTitle: false,
+      ),
       body: ValueListenableBuilder<bool>(
         valueListenable: widget.online,
         builder: (_, isOnline, _) => Column(
@@ -205,20 +215,23 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       children: [
         _buildDayPillStrip(centered: false),
         _buildGeneralSection(general),
-        Expanded(child: _buildDayTimeline(state)),
+        Expanded(child: _buildDayTimeline(state, centered: false)),
       ],
     );
   }
 
   Widget _buildTwoColumn(ItineraryState state, List<ItineraryItem> general) {
-    return ItineraryTwoColumnLayout(
-      leftChild: _buildGeneralSection(general, vertical: true),
-      rightChild: Column(
-        children: [
-          _buildDayPillStrip(centered: true),
-          Expanded(child: _buildDayTimeline(state)),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildDayPillStrip(centered: true),
+        Expanded(
+          child: ItineraryTwoColumnLayout(
+            leftChild: _buildGeneralSection(general, vertical: true),
+            rightChild: _buildDayTimeline(state, centered: true),
+          ),
+        ),
+      ],
     );
   }
 
@@ -236,30 +249,45 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       trailing: DashedActionCard(
         label: '¿Añadimos un lugar?',
         onTap: _openPicker,
+        compact: true,
       ),
     );
   }
 
   Widget _buildDayPillStrip({required bool centered}) {
-    return DayPillStrip(
-      days: _days,
-      selectedIndex: _tabController.index,
-      onSelect: (index) => _tabController.animateTo(index),
-      onDropOnDay: _dropOnDay,
-      onHoverStart: _scheduleDayOpen,
-      onHoverEnd: _cancelDayOpen,
-      centered: centered,
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.muted)),
+      ),
+      child: DayPillStrip(
+        days: _days,
+        selectedIndex: _tabController.index,
+        onSelect: (index) => _tabController.animateTo(index),
+        onDropOnDay: _dropOnDay,
+        onHoverStart: _scheduleDayOpen,
+        onHoverEnd: _cancelDayOpen,
+        centered: centered,
+      ),
     );
   }
 
-  Widget _buildDayTimeline(ItineraryState state) {
+  Widget _buildDayTimeline(ItineraryState state, {required bool centered}) {
     return TabBarView(
       controller: _tabController,
-      children: [for (final day in _days) _daySections(day, state.items)],
+      children: [
+        for (final day in _days)
+          _daySections(day, state.items, centered: centered),
+      ],
     );
   }
 
-  Widget _daySections(DateTime day, List<ItineraryItem> items) {
+  Widget _daySections(
+    DateTime day,
+    List<ItineraryItem> items, {
+    bool centered = false,
+  }) {
     Widget section(ItinerarySlot slot) {
       final slotItems =
           items.where((i) => i.dayDate == day && i.slot == slot).toList()
@@ -275,13 +303,30 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      children: [
-        section(ItinerarySlot.morning),
-        section(ItinerarySlot.afternoon),
-        section(ItinerarySlot.night),
-      ],
+    final sections = [
+      section(ItinerarySlot.morning),
+      section(ItinerarySlot.afternoon),
+      section(ItinerarySlot.night),
+    ];
+    if (!centered) {
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: sections,
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _dayTimelineMaxWidth),
+              child: Column(children: sections),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

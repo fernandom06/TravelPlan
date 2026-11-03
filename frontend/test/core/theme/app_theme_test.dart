@@ -13,6 +13,7 @@ void main() {
       expect(AppColors.surface, const Color(0xFFFFFFFF));
       expect(AppColors.text, const Color(0xFF3D405B));
       expect(AppColors.muted, const Color(0xFFD6CEB6));
+      expect(AppColors.textSecondary, const Color(0x993D405B));
       expect(AppColors.accent, const Color(0xFF81B29A));
     });
   });

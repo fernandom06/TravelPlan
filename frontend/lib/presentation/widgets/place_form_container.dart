@@ -7,8 +7,8 @@ import 'app_shell.dart';
 ///
 /// - < 800 dp: bottom sheet (~530 high, top corners 24, drag handle) that
 ///   lifts with the keyboard via `viewInsets`.
-/// - >= 800 dp: right-anchored 400px panel with left corners 24 over a light
-///   scrim, living inside the map's `Stack`.
+/// - >= 800 dp: right-docked 400px full-height panel over a light scrim,
+///   living inside the map's `Stack`.
 ///
 /// The child is keyed with a [GlobalKey] so crossing the breakpoint reparents
 /// the form element instead of recreating it — text controllers survive.
@@ -46,21 +46,25 @@ class _PlaceFormContainerState extends State<PlaceFormContainer> {
             child: Container(color: Colors.black.withValues(alpha: 0.1)),
           ),
         ),
-        Align(
-          alignment: Alignment.centerRight,
+        Positioned(
+          top: 0,
+          bottom: 0,
+          right: 0,
+          width: 400,
           child: Container(
             key: const Key('place-form-panel'),
-            width: 400,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(24),
+              border: Border(
+                left: BorderSide(color: AppColors.muted.withValues(alpha: 0.5)),
               ),
               boxShadow: const [AppShadows.soft],
             ),
-            child: KeyedSubtree(
-              key: _childKey,
-              child: SingleChildScrollView(child: widget.child),
+            child: Center(
+              child: KeyedSubtree(
+                key: _childKey,
+                child: SingleChildScrollView(child: widget.child),
+              ),
             ),
           ),
         ),

@@ -287,7 +287,7 @@ void main() {
     expect(deletedId, 1);
   });
 
-  testWidgets('wraps assigned cards in a single dashed container', (
+  testWidgets('renders assigned cards directly on the timeline when at rest', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -302,8 +302,45 @@ void main() {
       ),
     );
 
-    expect(find.byType(DashedBorderContainer), findsOneWidget);
+    expect(find.byType(DashedBorderContainer), findsNothing);
+    expect(find.byType(ItineraryPlaceCard), findsNWidgets(2));
     expect(find.text('Arrastra lugares aquí'), findsNothing);
+  });
+
+  testWidgets('shows the dashed drop zone while dragging over a slot with '
+      'items', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        Column(
+          children: [
+            ItineraryPlaceCard(item: _item(1, position: 0), onDelete: () {}),
+            ItinerarySlotSection(
+              title: 'Mañana',
+              slot: _slot,
+              items: [_item(2, position: 0)],
+              onAcceptItem: (_, _, _) {},
+              onDeleteItem: (_) {},
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.byType(DashedBorderContainer), findsNothing);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(ItineraryPlaceCard).first),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await gesture.moveTo(tester.getCenter(find.text('Mañana')));
+    await tester.pump();
+
+    expect(find.byType(DashedBorderContainer), findsOneWidget);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DashedBorderContainer), findsNothing);
   });
 
   testWidgets('dashed border turns accent while dragging over the slot', (
@@ -353,8 +390,8 @@ void main() {
     expect(borderColor(), AppColors.muted);
   });
 
-  testWidgets('slot with five or more items keeps a single growing dashed '
-      'container', (tester) async {
+  testWidgets('slot with five or more items keeps cards on the timeline at '
+      'rest', (tester) async {
     await tester.pumpWidget(
       wrap(
         ItinerarySlotSection(
@@ -367,7 +404,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(DashedBorderContainer), findsOneWidget);
+    expect(find.byType(DashedBorderContainer), findsNothing);
     expect(find.byType(ItineraryPlaceCard), findsNWidgets(5));
     expect(tester.takeException(), isNull);
   });

@@ -107,7 +107,7 @@ class _MiniCard extends StatelessWidget {
       onPressed: onDelete,
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
-      color: AppColors.muted,
+      color: AppColors.textSecondary,
     );
 
     final Widget content;
@@ -115,7 +115,11 @@ class _MiniCard extends StatelessWidget {
       content = Row(
         children: [
           if (showDragHandle) ...[
-            const Icon(Icons.drag_indicator, size: 16, color: AppColors.muted),
+            const Icon(
+              Icons.drag_indicator,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(width: 6),
           ],
           iconCircle,
@@ -130,8 +134,7 @@ class _MiniCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontFamily: 'Lora',
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.text,
                   ),
@@ -142,9 +145,8 @@ class _MiniCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontFamily: 'Lora',
-                    fontSize: 10,
-                    color: AppColors.muted,
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -159,7 +161,11 @@ class _MiniCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (showDragHandle) ...[
-            const Icon(Icons.drag_indicator, size: 14, color: AppColors.muted),
+            const Icon(
+              Icons.drag_indicator,
+              size: 14,
+              color: AppColors.textSecondary,
+            ),
             const SizedBox(height: 2),
           ],
           iconCircle,
@@ -170,8 +176,7 @@ class _MiniCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'Lora',
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppColors.text,
             ),
@@ -183,9 +188,8 @@ class _MiniCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'Lora',
-              fontSize: 10,
-              color: AppColors.muted,
+              fontSize: 11,
+              color: AppColors.textSecondary,
             ),
           ),
           deleteButton,
