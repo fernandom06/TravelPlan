@@ -10,7 +10,6 @@ import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/data/models/place_update.dart';
-import 'package:frontend/presentation/widgets/category_chip_strip.dart';
 import 'package:frontend/presentation/widgets/import_url_dialog.dart';
 import 'package:frontend/presentation/widgets/map_constants.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
@@ -49,10 +48,6 @@ Widget _map({
   List<Place> places = const [],
   bool isOnline = true,
   MapController? mapController,
-  Future<Category> Function(String name, String? icon)? onCreateCategory,
-  Future<Category> Function(int id, String name, String? icon)?
-  onRenameCategory,
-  Future<void> Function(int id, int? reassignTo)? onDeleteCategory,
   Future<void> Function(int id, PlaceUpdate update)? onUpdatePlace,
   Future<void> Function(int id)? onDeletePlace,
   Future<LatLng> Function(String url)? onResolveMapUrl,
@@ -65,9 +60,6 @@ Widget _map({
         onCreatePlace: _noopCreate,
         onUpdatePlace: onUpdatePlace ?? _noopUpdate,
         onDeletePlace: onDeletePlace ?? _noopDelete,
-        onCreateCategory: onCreateCategory,
-        onRenameCategory: onRenameCategory,
-        onDeleteCategory: onDeleteCategory,
         isOnline: isOnline,
         onResolveMapUrl: onResolveMapUrl,
         mapController: mapController,
@@ -320,86 +312,6 @@ void main() {
 
     expect(find.byType(PlaceForm), findsNothing);
     expect(_markers(tester), isEmpty);
-  });
-
-  testWidgets('creates a category from the form opened on the map', (
-    tester,
-  ) async {
-    String? createdName;
-    await _pump(
-      tester,
-      _map(
-        onCreateCategory: (name, icon) async {
-          createdName = name;
-          return const Category(id: 5, name: 'Playa');
-        },
-      ),
-    );
-
-    await tester.tapAt(
-      tester.getCenter(find.byType(FlutterMap)) + const Offset(0, 220),
-    );
-    await tester.pump(const Duration(milliseconds: 350));
-    expect(find.byType(PlaceForm), findsOneWidget);
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(CategoryChipStrip),
-        matching: find.byIcon(Icons.add),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre de la categoría'),
-      'Playa',
-    );
-    await tester.tap(find.byIcon(Icons.check));
-    await tester.pumpAndSettle();
-
-    expect(createdName, 'Playa');
-    // 'Playa' is autoselected and appears as a chip.
-    expect(find.text('Playa'), findsOneWidget);
-  });
-
-  testWidgets('wires rename and delete callbacks to the form on the map', (
-    tester,
-  ) async {
-    String? renamedId;
-    String? renamedName;
-    await _pump(
-      tester,
-      _map(
-        onRenameCategory: (id, name, icon) async {
-          renamedId = '$id';
-          renamedName = name;
-          return const Category(id: 1, name: 'Costa');
-        },
-        onDeleteCategory: (_, _) async {},
-      ),
-    );
-
-    await tester.tapAt(
-      tester.getCenter(find.byType(FlutterMap)) + const Offset(0, 220),
-    );
-    await tester.pump(const Duration(milliseconds: 350));
-    expect(find.byType(PlaceForm), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, 'Mirador');
-    await tester.pump();
-    await tester.longPress(find.text('Naturaleza'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Editar'));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nuevo nombre'),
-      'Costa',
-    );
-    await tester.tap(find.byIcon(Icons.check));
-    await tester.pumpAndSettle();
-
-    expect(renamedId, '1');
-    expect(renamedName, 'Costa');
   });
 
   testWidgets('marker tap opens PlaceDetails with Editar and Cerrar', (

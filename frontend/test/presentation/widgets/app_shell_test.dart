@@ -39,7 +39,11 @@ void main() {
   Future<void> pumpShell(
     WidgetTester tester, {
     required Size size,
-    List<Widget> children = const [Text('MAPA_CONTENT'), Text('TRIPS_CONTENT')],
+    List<Widget> children = const [
+      Text('MAPA_CONTENT'),
+      Text('TRIPS_CONTENT'),
+      Text('AJUSTES_CONTENT'),
+    ],
     ValueChanged<int>? onTabChanged,
   }) async {
     tester.view.physicalSize = size;
@@ -109,6 +113,51 @@ void main() {
     expect(changedTo, 1);
     expect(find.text('TRIPS_CONTENT').hitTestable(), findsOneWidget);
     expect(find.text('MAPA_CONTENT').hitTestable(), findsNothing);
+  });
+
+  testWidgets('bottom nav has an Ajustes destination that switches content', (
+    tester,
+  ) async {
+    int? changedTo;
+    await pumpShell(
+      tester,
+      size: const Size(700, 844),
+      onTabChanged: (i) => changedTo = i,
+    );
+
+    expect(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Ajustes'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+
+    expect(changedTo, 2);
+    expect(find.text('AJUSTES_CONTENT').hitTestable(), findsOneWidget);
+    expect(find.text('MAPA_CONTENT').hitTestable(), findsNothing);
+  });
+
+  testWidgets('desktop top bar shows the Ajustes section and notifies', (
+    tester,
+  ) async {
+    int? changedTo;
+    await pumpShell(
+      tester,
+      size: const Size(1200, 800),
+      onTabChanged: (i) => changedTo = i,
+    );
+
+    expect(find.text('Ajustes'), findsOneWidget);
+    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+
+    expect(changedTo, 2);
   });
 
   testWidgets('top bar switches content and notifies', (tester) async {

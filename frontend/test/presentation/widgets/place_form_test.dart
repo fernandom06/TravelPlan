@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
-import 'package:frontend/data/place_api.dart';
 import 'package:frontend/presentation/widgets/category_chip_strip.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
 
@@ -42,28 +39,45 @@ Future<void> _selectCategory(WidgetTester tester, String name) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _startCreate(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.add));
-  await tester.pumpAndSettle();
+/// Hosts a [PlaceForm] whose category list can be swapped at runtime, mirroring
+/// how the map rebuilds the form from the shared controller state.
+class _FormHarness extends StatefulWidget {
+  const _FormHarness({
+    super.key,
+    required this.categories,
+    required this.onSave,
+  });
+
+  final List<Category> categories;
+  final void Function(String name, int categoryId, String? description) onSave;
+
+  @override
+  State<_FormHarness> createState() => _FormHarnessState();
 }
 
-Future<void> _startRename(WidgetTester tester, String name) async {
-  await tester.longPress(find.text(name));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Editar'));
-  await tester.pumpAndSettle();
-}
+class _FormHarnessState extends State<_FormHarness> {
+  late List<Category> _categories;
 
-Future<void> _startDelete(WidgetTester tester, String name) async {
-  await tester.longPress(find.text(name));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Borrar'));
-  await tester.pumpAndSettle();
-}
+  @override
+  void initState() {
+    super.initState();
+    _categories = widget.categories;
+  }
 
-Future<void> _confirmInline(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.check));
-  await tester.pumpAndSettle();
+  void setCategories(List<Category> categories) {
+    setState(() => _categories = categories);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _wrap(
+      PlaceForm(
+        categories: _categories,
+        onSave: widget.onSave,
+        onCancel: () {},
+      ),
+    );
+  }
 }
 
 void main() {
@@ -222,8 +236,6 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_, _) async =>
-              const Category(id: 5, name: 'Playa'),
         ),
       ),
     );
@@ -245,15 +257,7 @@ void main() {
       isTrue,
     );
 
-    // 3: Monumento -> add chip.
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pumpAndSettle();
-    expect(
-      Focus.maybeOf(tester.element(find.byIcon(Icons.add)))!.hasPrimaryFocus,
-      isTrue,
-    );
-
-    // 4: add chip -> Descripcion.
+    // 3: Monumento -> Descripcion.
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
     final descriptionField = tester.widget<EditableText>(
@@ -271,15 +275,13 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_, _) async =>
-              const Category(id: 5, name: 'Playa'),
         ),
       ),
     );
     await tester.pump();
 
-    // Reach Descripcion via the tab sequence (Nombre -> 3 chips -> Descripcion).
-    for (var i = 0; i < 4; i++) {
+    // Reach Descripcion via the tab sequence (Nombre -> 2 chips -> Descripcion).
+    for (var i = 0; i < 3; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
     }
@@ -293,9 +295,9 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pumpAndSettle();
 
-    // Focus returned to the add chip (last focusable of the strip).
+    // Focus returned to the last focusable chip.
     expect(
-      Focus.maybeOf(tester.element(find.byIcon(Icons.add)))!.hasPrimaryFocus,
+      Focus.maybeOf(tester.element(find.text('Monumento')))!.hasPrimaryFocus,
       isTrue,
     );
   });
@@ -307,8 +309,6 @@ void main() {
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_, _) async =>
-              const Category(id: 5, name: 'Playa'),
         ),
       ),
     );
@@ -317,8 +317,8 @@ void main() {
     // Name is empty so Guardar is disabled.
     expect(_saveButton(tester).onPressed, isNull);
 
-    // Reach Descripcion: Nombre -> 3 chips -> Descripcion.
-    for (var i = 0; i < 4; i++) {
+    // Reach Descripcion: Nombre -> 2 chips -> Descripcion.
+    for (var i = 0; i < 3; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
     }
@@ -566,599 +566,80 @@ void main() {
     expect(closed, isTrue);
   });
 
-  testWidgets('shows an add chip to create a new category', (tester) async {
+  testWidgets('category chips are a pure selector in the place form', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         PlaceForm(
           categories: _categories,
           onSave: (_, _, _) {},
           onCancel: () {},
-          onCreateCategory: (_, _) async =>
-              const Category(id: 5, name: 'Playa'),
         ),
       ),
     );
 
-    expect(find.byIcon(Icons.add), findsOneWidget);
+    expect(find.byIcon(Icons.add), findsNothing);
+
+    await tester.longPress(find.text('Naturaleza'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Editar'), findsNothing);
+    expect(find.text('Borrar'), findsNothing);
+    expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('creating a category autoselects it', (tester) async {
-    String? createdName;
+  testWidgets('keeps the selection when the category is renamed upstream', (
+    tester,
+  ) async {
+    int? savedCategoryId;
+    final key = GlobalKey<_FormHarnessState>();
     await tester.pumpWidget(
-      _wrap(
-        PlaceForm(
-          categories: _categories,
-          onSave: (_, _, _) {},
-          onCancel: () {},
-          onCreateCategory: (name, icon) async {
-            createdName = name;
-            return const Category(id: 5, name: 'Playa');
-          },
-        ),
+      _FormHarness(
+        key: key,
+        categories: const [
+          Category(id: 1, name: 'Playa'),
+          Category(id: 2, name: 'Monumento'),
+        ],
+        onSave: (name, categoryId, description) => savedCategoryId = categoryId,
       ),
+    );
+
+    await tester.enterText(find.byType(TextField).first, 'Mirador');
+    await tester.pump();
+    await _selectCategory(tester, 'Playa');
+
+    key.currentState!.setCategories(const [
+      Category(id: 1, name: 'Costa'),
+      Category(id: 2, name: 'Monumento'),
+    ]);
+    await tester.pump();
+
+    expect(find.text('Costa'), findsOneWidget);
+    expect(find.text('Playa'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
+    await tester.pump();
+
+    expect(savedCategoryId, 1);
+  });
+
+  testWidgets('clears the selection when the category is deleted upstream', (
+    tester,
+  ) async {
+    final key = GlobalKey<_FormHarnessState>();
+    await tester.pumpWidget(
+      _FormHarness(key: key, categories: _categories, onSave: (_, _, _) {}),
     );
 
     await _fillName(tester);
-    await _selectCategory(tester, 'Naturaleza');
+    await _selectCategory(tester, 'Monumento');
 
-    await _startCreate(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre de la categoría'),
-      'Playa',
-    );
-    await _confirmInline(tester);
-
-    expect(createdName, 'Playa');
-    // Autoselected: the new chip appears and is selected.
-    expect(find.text('Playa'), findsOneWidget);
-    expect(_saveButton(tester).onPressed, isNotNull);
-  });
-
-  testWidgets('shows an inline error when the category already exists', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _wrap(
-        PlaceForm(
-          categories: _categories,
-          onSave: (_, _, _) {},
-          onCancel: () {},
-          onCreateCategory: (_, _) async =>
-              throw const DuplicateCategoryException('duplicate'),
-        ),
-      ),
-    );
-
-    await _startCreate(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre de la categoría'),
-      'Playa',
-    );
-    await _confirmInline(tester);
-
-    expect(find.textContaining('Ya existe'), findsOneWidget);
-
-    // Cancel the editor: no Playa chip was created.
-    await tester.tap(find.byIcon(Icons.close));
-    await tester.pumpAndSettle();
-    expect(find.text('Playa'), findsNothing);
-  });
-
-  testWidgets('shows an inline error when creating the category fails', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _wrap(
-        PlaceForm(
-          categories: _categories,
-          onSave: (_, _, _) {},
-          onCancel: () {},
-          onCreateCategory: (_, _) async =>
-              throw const PlaceApiException('boom'),
-        ),
-      ),
-    );
-
-    await _startCreate(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre de la categoría'),
-      'Playa',
-    );
-    await _confirmInline(tester);
-
-    expect(find.textContaining('No se pudo crear'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.close));
-    await tester.pumpAndSettle();
-    expect(find.text('Playa'), findsNothing);
-  });
-
-  testWidgets(
-    'shows an inline error when creating a category fails with a generic exception',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          PlaceForm(
-            categories: _categories,
-            onSave: (_, _, _) {},
-            onCancel: () {},
-            onCreateCategory: (_, _) async => throw Exception('Network error'),
-          ),
-        ),
-      );
-
-      await _startCreate(tester);
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nombre de la categoría'),
-        'Playa',
-      );
-      await _confirmInline(tester);
-
-      expect(find.textContaining('No se pudo crear'), findsOneWidget);
-
-      await tester.tap(find.byIcon(Icons.close));
-      await tester.pumpAndSettle();
-      expect(find.text('Playa'), findsNothing);
-    },
-  );
-
-  testWidgets('double tap on confirm does not call onCreateCategory twice', (
-    tester,
-  ) async {
-    var callCount = 0;
-    final completer = Completer<Category>();
-    await tester.pumpWidget(
-      _wrap(
-        PlaceForm(
-          categories: _categories,
-          onSave: (_, _, _) {},
-          onCancel: () {},
-          onCreateCategory: (_, _) {
-            callCount++;
-            return completer.future;
-          },
-        ),
-      ),
-    );
-
-    await _startCreate(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre de la categoría'),
-      'Playa',
-    );
-
-    await tester.tap(find.byIcon(Icons.check));
-    await tester.pump();
-    final checkButton = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.check),
-    );
-    expect(checkButton.onPressed, isNull);
-
-    await tester.tap(find.byIcon(Icons.check), warnIfMissed: false);
+    key.currentState!.setCategories(const [_naturaleza]);
     await tester.pump();
 
-    expect(callCount, 1);
-
-    completer.complete(const Category(id: 5, name: 'Playa'));
-    await tester.pumpAndSettle();
-
-    expect(callCount, 1);
-    expect(find.text('Playa'), findsOneWidget);
-  });
-
-  testWidgets('keeps name and description when creating a category', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _wrap(
-        PlaceForm(
-          categories: _categories,
-          onSave: (_, _, _) {},
-          onCancel: () {},
-          onCreateCategory: (_, _) async =>
-              const Category(id: 5, name: 'Playa'),
-        ),
-      ),
-    );
-
-    await _fillName(tester);
-    await tester.enterText(find.byType(TextField).last, 'Vistas');
-    await _startCreate(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre de la categoría'),
-      'Playa',
-    );
-    await _confirmInline(tester);
-
-    expect(find.text('Mirador'), findsOneWidget);
-    expect(find.text('Vistas'), findsOneWidget);
-  });
-
-  group('rename/delete category', () {
-    PlaceForm form({
-      List<Place> places = const [],
-      Future<Category> Function(int id, String name, String? icon)?
-      onRenameCategory,
-      Future<void> Function(int id, int? reassignTo)? onDeleteCategory,
-    }) {
-      return PlaceForm(
-        categories: _categories,
-        places: places,
-        onSave: (_, _, _) {},
-        onCancel: () {},
-        onCreateCategory: (_, _) async => const Category(id: 9, name: 'Playa'),
-        onRenameCategory: onRenameCategory,
-        onDeleteCategory: onDeleteCategory,
-      );
-    }
-
-    testWidgets('no overflow menu is shown without callbacks', (tester) async {
-      await tester.pumpWidget(_wrap(form()));
-
-      await _fillName(tester);
-      await tester.longPress(find.text('Naturaleza'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Editar'), findsNothing);
-      expect(find.text('Borrar'), findsNothing);
-    });
-
-    testWidgets('long-press with callbacks opens the actions menu', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrap(
-          form(
-            onRenameCategory: (_, name, _) async =>
-                const Category(id: 1, name: 'X'),
-            onDeleteCategory: (_, _) async {},
-          ),
-        ),
-      );
-
-      await _fillName(tester);
-      await tester.longPress(find.text('Naturaleza'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Editar'), findsOneWidget);
-      expect(find.text('Borrar'), findsOneWidget);
-    });
-
-    testWidgets('renaming updates the strip and keeps the selection', (
-      tester,
-    ) async {
-      String? renamedId;
-      String? renamedName;
-      await tester.pumpWidget(
-        _wrap(
-          form(
-            onRenameCategory: (id, name, icon) async {
-              renamedId = '$id';
-              renamedName = name;
-              return const Category(id: 1, name: 'Costa');
-            },
-          ),
-        ),
-      );
-
-      await _fillName(tester);
-      await _selectCategory(tester, 'Naturaleza');
-
-      await _startRename(tester, 'Naturaleza');
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nuevo nombre'),
-        'Costa',
-      );
-      await _confirmInline(tester);
-
-      expect(renamedId, '1');
-      expect(renamedName, 'Costa');
-      expect(find.text('Costa'), findsOneWidget);
-      expect(_saveButton(tester).onPressed, isNotNull);
-    });
-
-    testWidgets('shows an inline error when renaming to an existing name', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrap(
-          form(
-            onRenameCategory: (_, _, _) async =>
-                throw const DuplicateCategoryException('duplicate'),
-          ),
-        ),
-      );
-
-      await _fillName(tester);
-      await _selectCategory(tester, 'Naturaleza');
-      await _startRename(tester, 'Naturaleza');
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nuevo nombre'),
-        'Monumento',
-      );
-      await _confirmInline(tester);
-
-      expect(
-        find.text('Ya existe una categoría con ese nombre'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets(
-      'empty rename shows an inline error and does not call the callback',
-      (tester) async {
-        var called = false;
-        await tester.pumpWidget(
-          _wrap(
-            form(
-              onRenameCategory: (_, _, _) async {
-                called = true;
-                return const Category(id: 1, name: 'X');
-              },
-            ),
-          ),
-        );
-
-        await _fillName(tester);
-        await _selectCategory(tester, 'Naturaleza');
-        await _startRename(tester, 'Naturaleza');
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Nuevo nombre'),
-          '',
-        );
-        await _confirmInline(tester);
-
-        expect(find.text('El nombre no puede estar vacío'), findsOneWidget);
-        expect(called, isFalse);
-      },
-    );
-
-    testWidgets('shows an inline error when renaming fails', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          form(
-            onRenameCategory: (_, _, _) async =>
-                throw const PlaceApiException('boom'),
-          ),
-        ),
-      );
-
-      await _fillName(tester);
-      await _selectCategory(tester, 'Naturaleza');
-      await _startRename(tester, 'Naturaleza');
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nuevo nombre'),
-        'Costa',
-      );
-      await _confirmInline(tester);
-
-      expect(find.text('No se pudo renombrar la categoría'), findsOneWidget);
-    });
-
-    testWidgets('double tap on confirm does not call rename twice', (
-      tester,
-    ) async {
-      var callCount = 0;
-      final completer = Completer<Category>();
-      await tester.pumpWidget(
-        _wrap(
-          form(
-            onRenameCategory: (_, _, _) {
-              callCount++;
-              return completer.future;
-            },
-          ),
-        ),
-      );
-
-      await _fillName(tester);
-      await _selectCategory(tester, 'Naturaleza');
-      await _startRename(tester, 'Naturaleza');
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nuevo nombre'),
-        'Costa',
-      );
-
-      await tester.tap(find.byIcon(Icons.check));
-      await tester.pump();
-      final checkButton = tester.widget<IconButton>(
-        find.widgetWithIcon(IconButton, Icons.check),
-      );
-      expect(checkButton.onPressed, isNull);
-
-      await tester.tap(find.byIcon(Icons.check), warnIfMissed: false);
-      await tester.pump();
-
-      expect(callCount, 1);
-
-      completer.complete(const Category(id: 1, name: 'Costa'));
-      await tester.pumpAndSettle();
-      expect(callCount, 1);
-    });
-
-    testWidgets(
-      'deleting a category without places confirms, removes it and clears selection',
-      (tester) async {
-        int? deletedId;
-        int? reassignTo;
-        await tester.pumpWidget(
-          _wrap(
-            form(
-              onDeleteCategory: (id, reassign) async {
-                deletedId = id;
-                reassignTo = reassign;
-              },
-            ),
-          ),
-        );
-
-        await _fillName(tester);
-        await _selectCategory(tester, 'Monumento');
-
-        await _startDelete(tester, 'Monumento');
-
-        expect(find.byType(AlertDialog), findsOneWidget);
-        await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
-        await tester.pumpAndSettle();
-
-        expect(deletedId, 2);
-        expect(reassignTo, isNull);
-        // The deleted (selected) category is gone from the strip.
-        expect(find.text('Monumento'), findsNothing);
-      },
-    );
-
-    testWidgets('deleting the selected category disables save', (tester) async {
-      await tester.pumpWidget(_wrap(form(onDeleteCategory: (_, _) async {})));
-
-      await _fillName(tester);
-      await _selectCategory(tester, 'Monumento');
-      await _startDelete(tester, 'Monumento');
-      await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
-      await tester.pumpAndSettle();
-
-      expect(_saveButton(tester).onPressed, isNull);
-    });
-
-    testWidgets(
-      'deleting a category with places shows count and destination dropdown',
-      (tester) async {
-        int? deletedId;
-        int? reassignTo;
-        await tester.pumpWidget(
-          _wrap(
-            form(
-              places: [_place],
-              onDeleteCategory: (id, reassign) async {
-                deletedId = id;
-                reassignTo = reassign;
-              },
-            ),
-          ),
-        );
-
-        await _fillName(tester);
-        await _selectCategory(tester, 'Naturaleza');
-        await _startDelete(tester, 'Naturaleza');
-
-        expect(find.textContaining('tiene 1 lugar'), findsOneWidget);
-
-        final items = tester.widgetList<DropdownMenuItem<Category>>(
-          find.descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(DropdownMenuItem<Category>),
-          ),
-        );
-        expect(items.map((i) => i.value!.id), isNot(contains(1)));
-        expect(items.map((i) => i.value!.id), contains(2));
-
-        await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
-        await tester.pumpAndSettle();
-
-        expect(deletedId, 1);
-        expect(reassignTo, 2);
-      },
-    );
-
-    testWidgets('deleting the only category with places is blocked', (
-      tester,
-    ) async {
-      var called = false;
-      await tester.pumpWidget(
-        _wrap(
-          PlaceForm(
-            categories: [_naturaleza],
-            places: [_place],
-            onSave: (_, _, _) {},
-            onCancel: () {},
-            onDeleteCategory: (_, _) async {
-              called = true;
-            },
-          ),
-        ),
-      );
-
-      await _fillName(tester);
-      await _selectCategory(tester, 'Naturaleza');
-      await _startDelete(tester, 'Naturaleza');
-
-      expect(find.textContaining('única categoría'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.text('Eliminar'),
-        ),
-        findsNothing,
-      );
-      expect(called, isFalse);
-    });
-
-    testWidgets(
-      'shows a message when deleting fails with CategoryNotEmptyException',
-      (tester) async {
-        await tester.pumpWidget(
-          _wrap(
-            form(
-              places: [_place],
-              onDeleteCategory: (_, _) async =>
-                  throw const CategoryNotEmptyException('conflict'),
-            ),
-          ),
-        );
-
-        await _fillName(tester);
-        await _selectCategory(tester, 'Monumento');
-        await _startDelete(tester, 'Monumento');
-        await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
-        await tester.pumpAndSettle();
-
-        expect(find.textContaining('lugares sin destino'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'shows a message when deleting fails with InvalidReassignTargetException',
-      (tester) async {
-        await tester.pumpWidget(
-          _wrap(
-            form(
-              places: [_place],
-              onDeleteCategory: (_, _) async =>
-                  throw const InvalidReassignTargetException('invalid'),
-            ),
-          ),
-        );
-
-        await _fillName(tester);
-        await _selectCategory(tester, 'Monumento');
-        await _startDelete(tester, 'Monumento');
-        await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('El destino no es válido'), findsOneWidget);
-      },
-    );
-
-    testWidgets('shows a message when deleting fails with a generic error', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrap(
-          form(
-            places: [_place],
-            onDeleteCategory: (_, _) async => throw Exception('boom'),
-          ),
-        ),
-      );
-
-      await _fillName(tester);
-      await _selectCategory(tester, 'Monumento');
-      await _startDelete(tester, 'Monumento');
-      await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('No se pudo eliminar la categoría'), findsOneWidget);
-    });
+    expect(find.text('Monumento'), findsNothing);
+    expect(_saveButton(tester).onPressed, isNull);
   });
 
   group('edit mode', () {
