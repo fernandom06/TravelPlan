@@ -100,6 +100,11 @@ class _AppShellState extends State<AppShell> {
             selectedIcon: Icon(Icons.flight),
             label: 'Viajes',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Ajustes',
+          ),
         ],
       ),
     );
@@ -149,6 +154,14 @@ class _DesktopTopBar extends StatelessWidget {
                   activeIcon: Icons.flight,
                   active: index == 1,
                   onTap: () => onSelect(1),
+                ),
+                const SizedBox(width: 8),
+                _TopBarSection(
+                  label: 'Ajustes',
+                  icon: Icons.settings_outlined,
+                  activeIcon: Icons.settings,
+                  active: index == 2,
+                  onTap: () => onSelect(2),
                 ),
               ],
             ),

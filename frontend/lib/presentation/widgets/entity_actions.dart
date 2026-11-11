@@ -14,6 +14,46 @@ import '../../core/theme/app_theme.dart';
 ///
 /// An iPad in horizontal layout (>= 800 dp) still gets long-press menus, while
 /// a narrow desktop window (< 800 dp) still gets hover menus.
+/// Opens the shared actions bottom sheet.
+///
+/// [EntityActions] uses it on touch platforms; other widgets (the settings
+/// category rows) reuse it as a long-press shortcut so the menu stays in one
+/// place. Only the actions that are provided are listed.
+Future<void> showEntityActionsMenu(
+  BuildContext context, {
+  VoidCallback? onEdit,
+  VoidCallback? onDelete,
+  String editLabel = 'Editar',
+  String deleteLabel = 'Borrar',
+}) {
+  final items = <Widget>[
+    if (onEdit != null)
+      ListTile(
+        leading: const Icon(Icons.edit_outlined),
+        title: Text(editLabel),
+        onTap: () {
+          Navigator.pop(context);
+          onEdit();
+        },
+      ),
+    if (onDelete != null)
+      ListTile(
+        leading: const Icon(Icons.delete_outline),
+        title: Text(deleteLabel),
+        onTap: () {
+          Navigator.pop(context);
+          onDelete();
+        },
+      ),
+  ];
+  return showModalBottomSheet<void>(
+    context: context,
+    builder: (sheetContext) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: items),
+    ),
+  );
+}
+
 class EntityActions extends StatefulWidget {
   const EntityActions({
     super.key,
@@ -44,32 +84,13 @@ class _EntityActionsState extends State<EntityActions> {
         platform == TargetPlatform.fuchsia;
   }
 
-  Future<void> _showMenu() async {
-    final items = <Widget>[
-      if (widget.onEdit != null)
-        ListTile(
-          leading: const Icon(Icons.edit_outlined),
-          title: Text(widget.editLabel),
-          onTap: () {
-            Navigator.pop(context);
-            widget.onEdit!();
-          },
-        ),
-      if (widget.onDelete != null)
-        ListTile(
-          leading: const Icon(Icons.delete_outline),
-          title: Text(widget.deleteLabel),
-          onTap: () {
-            Navigator.pop(context);
-            widget.onDelete!();
-          },
-        ),
-    ];
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: items),
-      ),
+  Future<void> _showMenu() {
+    return showEntityActionsMenu(
+      context,
+      onEdit: widget.onEdit,
+      onDelete: widget.onDelete,
+      editLabel: widget.editLabel,
+      deleteLabel: widget.deleteLabel,
     );
   }
 

@@ -154,10 +154,6 @@ class PlaceForm extends StatefulWidget {
     required this.categories,
     required this.onSave,
     required this.onCancel,
-    this.onCreateCategory,
-    this.places = const [],
-    this.onRenameCategory,
-    this.onDeleteCategory,
     this.initialName,
     this.initialDescription,
     this.initialCategory,
@@ -167,11 +163,6 @@ class PlaceForm extends StatefulWidget {
   final List<Category> categories;
   final void Function(String name, int categoryId, String? description) onSave;
   final VoidCallback onCancel;
-  final Future<Category> Function(String name, String? icon)? onCreateCategory;
-  final List<Place> places;
-  final Future<Category> Function(int id, String name, String? icon)?
-  onRenameCategory;
-  final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final String? initialName;
   final String? initialDescription;
   final Category? initialCategory;
@@ -187,7 +178,6 @@ class _PlaceFormState extends State<PlaceForm> {
   late final FocusNode _nameFocus;
   late final FocusNode _categoryFocus;
   late final FocusNode _descriptionFocus;
-  late List<Category> _categories;
   Category? _selectedCategory;
 
   @override
@@ -200,7 +190,6 @@ class _PlaceFormState extends State<PlaceForm> {
     _nameFocus = FocusNode();
     _categoryFocus = FocusNode();
     _descriptionFocus = FocusNode();
-    _categories = List.of(widget.categories);
     _selectedCategory = widget.initialCategory;
     // autofocus on the TextField is discarded when the surrounding scope
     // already holds focus (e.g. the map overlay), so also request focus after
@@ -213,13 +202,16 @@ class _PlaceFormState extends State<PlaceForm> {
   @override
   void didUpdateWidget(PlaceForm oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final knownIds = {for (final c in _categories) c.id};
-    final additions = widget.categories
-        .where((c) => !knownIds.contains(c.id))
-        .toList();
-    if (additions.isNotEmpty) {
-      _categories = [..._categories, ...additions];
+    final selected = _selectedCategory;
+    if (selected == null) return;
+    Category? fresh;
+    for (final category in widget.categories) {
+      if (category.id == selected.id) {
+        fresh = category;
+        break;
+      }
     }
+    _selectedCategory = fresh;
   }
 
   @override
@@ -277,27 +269,10 @@ class _PlaceFormState extends State<PlaceForm> {
 
   Widget _buildCategoryField() {
     return CategoryChipStrip(
-      categories: _categories,
+      categories: widget.categories,
       value: _selectedCategory,
-      places: widget.places,
       focusNode: _categoryFocus,
-      onCreate: widget.onCreateCategory,
-      onRename: widget.onRenameCategory,
-      onDelete: widget.onDeleteCategory,
       onChanged: (c) => setState(() => _selectedCategory = c),
-      onCategoryAdded: (c) => setState(() => _categories = [..._categories, c]),
-      onCategoryRenamed: (c) => setState(() {
-        _categories = [for (final x in _categories) x.id == c.id ? c : x];
-        if (_selectedCategory?.id == c.id) {
-          _selectedCategory = c;
-        }
-      }),
-      onCategoryDeleted: (id) => setState(() {
-        _categories = _categories.where((x) => x.id != id).toList();
-        if (_selectedCategory?.id == id) {
-          _selectedCategory = null;
-        }
-      }),
     );
   }
 

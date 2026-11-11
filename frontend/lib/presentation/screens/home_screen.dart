@@ -7,6 +7,7 @@ import '../controllers/trips_controller.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/travel_map.dart';
+import 'settings_screen.dart';
 import 'trips_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -45,7 +46,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(children: [_buildMapContent(), _buildTripsContent()]);
+    return AppShell(
+      children: [
+        _buildMapContent(),
+        _buildTripsContent(),
+        _buildSettingsContent(),
+      ],
+    );
   }
 
   Widget _buildMapContent() {
@@ -64,12 +71,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 onCreatePlace: widget.placesController.createPlace,
                 onUpdatePlace: widget.placesController.updatePlace,
                 onDeletePlace: widget.placesController.deletePlace,
-                onCreateCategory: (name, icon) => widget.placesController
-                    .createCategory(CategoryDraft(name: name, icon: icon)),
-                onRenameCategory: (id, name, icon) => widget.placesController
-                    .renameCategory(id, CategoryDraft(name: name, icon: icon)),
-                onDeleteCategory: (id, reassignTo) => widget.placesController
-                    .deleteCategory(id, reassignTo: reassignTo),
                 onResolveMapUrl: widget.placesController.resolveMapUrl,
               ),
             ),
@@ -86,6 +87,31 @@ class _HomeScreenState extends State<HomeScreen> {
       placesController: widget.placesController,
       online: widget.online,
       baseUrl: widget.apiBaseUrl,
+    );
+  }
+
+  Widget _buildSettingsContent() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: widget.online,
+      builder: (_, isOnline, _) => ValueListenableBuilder<PlacesState>(
+        valueListenable: widget.placesController,
+        builder: (_, state, _) => SettingsScreen(
+          categories: state.categories,
+          places: state.places,
+          isOnline: isOnline,
+          onCreate: (name, icon) => widget.placesController.createCategory(
+            CategoryDraft(name: name, icon: icon),
+          ),
+          onRename: (id, name, icon) => widget.placesController.renameCategory(
+            id,
+            CategoryDraft(name: name, icon: icon),
+          ),
+          onDelete: (id, reassignTo) => widget.placesController.deleteCategory(
+            id,
+            reassignTo: reassignTo,
+          ),
+        ),
+      ),
     );
   }
 }

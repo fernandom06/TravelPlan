@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/itinerary_api.dart';
 import 'package:frontend/data/models/category.dart';
+import 'package:frontend/data/models/category_draft.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/trip.dart';
 import 'package:frontend/data/models/trip_draft.dart';
@@ -13,26 +14,39 @@ import 'package:frontend/data/trip_api.dart';
 import 'package:frontend/presentation/controllers/places_controller.dart';
 import 'package:frontend/presentation/controllers/trips_controller.dart';
 import 'package:frontend/presentation/screens/home_screen.dart';
+import 'package:frontend/presentation/screens/settings_screen.dart';
 import 'package:frontend/presentation/screens/trips_screen.dart';
 import 'package:frontend/presentation/screens/zone_map_screen.dart';
 import 'package:frontend/presentation/widgets/offline_banner.dart';
+import 'package:frontend/presentation/widgets/place_form.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
 class _FakePlaceApi extends PlaceApi {
-  _FakePlaceApi({this.error}) : super(baseUrl: 'http://fake');
+  _FakePlaceApi({this.error, this.categories = const []})
+    : super(baseUrl: 'http://fake');
 
   final Object? error;
+  final List<Category> categories;
+  int fetchCategoryCalls = 0;
+  final List<CategoryDraft> createDrafts = [];
 
   @override
   Future<List<Category>> fetchCategories() async {
+    fetchCategoryCalls++;
     if (error != null) throw error!;
-    return const [];
+    return categories;
   }
 
   @override
   Future<List<Place>> fetchPlaces() async {
     if (error != null) throw error!;
     return const [];
+  }
+
+  @override
+  Future<Category> createCategory(CategoryDraft draft) async {
+    createDrafts.add(draft);
+    return Category(id: 5, name: draft.name, icon: draft.icon);
   }
 }
 
@@ -249,6 +263,91 @@ void main() {
 
     expect(find.byType(TripsScreen).hitTestable(), findsOneWidget);
     expect(find.byType(TravelMap).hitTestable(), findsNothing);
+  });
+
+  testWidgets('tapping Ajustes shows the settings page with the categories', (
+    tester,
+  ) async {
+    final online = ValueNotifier<bool>(true);
+    addTearDown(online.dispose);
+    final api = _FakePlaceApi(
+      categories: const [
+        Category(id: 1, name: 'Playa'),
+        Category(id: 2, name: 'Restaurante', icon: 'restaurant'),
+      ],
+    );
+    final controller = PlacesController(api);
+    addTearDown(controller.dispose);
+
+    await _pumpHome(tester, online, controller);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SettingsScreen).hitTestable(), findsOneWidget);
+    expect(find.text('Categorías'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Playa'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Restaurante'), findsOneWidget);
+    expect(api.fetchCategoryCalls, 1);
+  });
+
+  testWidgets('Ajustes stays accessible offline with the category list', (
+    tester,
+  ) async {
+    final online = ValueNotifier<bool>(false);
+    addTearDown(online.dispose);
+    final controller = PlacesController(
+      _FakePlaceApi(categories: const [Category(id: 1, name: 'Playa')]),
+    );
+    addTearDown(controller.dispose);
+
+    await _pumpHome(tester, online, controller);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SettingsScreen).hitTestable(), findsOneWidget);
+    expect(find.text('Categorías'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Playa'), findsOneWidget);
+    expect(find.byType(OfflineBanner).hitTestable(), findsNothing);
+  });
+
+  testWidgets('a category created in Ajustes appears in the map form strip', (
+    tester,
+  ) async {
+    final online = ValueNotifier<bool>(true);
+    addTearDown(online.dispose);
+    final api = _FakePlaceApi(
+      categories: const [Category(id: 1, name: 'Playa')],
+    );
+    final controller = PlacesController(api);
+    addTearDown(controller.dispose);
+
+    await _pumpHome(tester, online, controller);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Añadir categoría'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Museo');
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ListTile, 'Museo'), findsOneWidget);
+
+    await tester.tap(find.text('Mapa'));
+    await tester.pumpAndSettle();
+
+    await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(PlaceForm), findsOneWidget);
+    expect(find.text('Museo'), findsOneWidget);
+    expect(find.text('Playa'), findsOneWidget);
+    expect(api.fetchCategoryCalls, 1);
   });
 
   testWidgets('shows offline banner in Viajes tab when offline', (

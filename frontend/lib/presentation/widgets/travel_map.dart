@@ -23,9 +23,6 @@ class TravelMap extends StatefulWidget {
     required this.onCreatePlace,
     required this.onUpdatePlace,
     required this.onDeletePlace,
-    this.onCreateCategory,
-    this.onRenameCategory,
-    this.onDeleteCategory,
     this.isOnline = true,
     this.onResolveMapUrl,
     this.mapController,
@@ -36,10 +33,6 @@ class TravelMap extends StatefulWidget {
   final Future<void> Function(PlaceDraft draft) onCreatePlace;
   final Future<void> Function(int id, PlaceUpdate update) onUpdatePlace;
   final Future<void> Function(int id) onDeletePlace;
-  final Future<Category> Function(String name, String? icon)? onCreateCategory;
-  final Future<Category> Function(int id, String name, String? icon)?
-  onRenameCategory;
-  final Future<void> Function(int id, int? reassignTo)? onDeleteCategory;
   final bool isOnline;
   final Future<LatLng> Function(String url)? onResolveMapUrl;
   final MapController? mapController;
@@ -357,12 +350,8 @@ class _TravelMapState extends State<TravelMap> {
       case _Creating():
         return PlaceForm(
           categories: widget.categories,
-          places: widget.places,
           onSave: _handleSave,
           onCancel: _closeForm,
-          onCreateCategory: widget.onCreateCategory,
-          onRenameCategory: widget.onRenameCategory,
-          onDeleteCategory: widget.onDeleteCategory,
         );
       case _Viewing(:final place):
         return PlaceDetails(
@@ -374,16 +363,12 @@ class _TravelMapState extends State<TravelMap> {
       case _Editing(:final place):
         return PlaceForm(
           categories: widget.categories,
-          places: widget.places,
           initialName: place.name,
           initialDescription: place.description,
           initialCategory: place.category,
           onSave: _handleUpdate,
           onCancel: _handleCancelEdit,
           onDelete: _handleDelete,
-          onCreateCategory: widget.onCreateCategory,
-          onRenameCategory: widget.onRenameCategory,
-          onDeleteCategory: widget.onDeleteCategory,
         );
       case _Idle():
         return const SizedBox.shrink();
