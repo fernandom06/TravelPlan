@@ -4,3 +4,4 @@ skills*
 **/.vscode/settings.json
 .tmp/
 *.db
+.impeccable/config.local.json
