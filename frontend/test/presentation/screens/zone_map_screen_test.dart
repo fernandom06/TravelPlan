@@ -69,6 +69,12 @@ Future<void> _tapInDialog(WidgetTester tester, String label) async {
 }
 
 void main() {
+  testWidgets('shows the Área de Viaje pill over the map', (tester) async {
+    await _openScreen(tester);
+
+    expect(find.text('Área de Viaje'), findsOneWidget);
+  });
+
   testWidgets('Crear viaje is disabled with fewer than 3 points', (
     tester,
   ) async {

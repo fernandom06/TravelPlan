@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/place_api.dart';
-import 'package:frontend/presentation/widgets/category_dropdown.dart';
+import 'package:frontend/presentation/widgets/category_chip_strip.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
 
 const _naturaleza = Category(id: 1, name: 'Naturaleza');
@@ -27,42 +28,36 @@ Widget _wrap(Widget child) => MaterialApp(
   home: Scaffold(body: SingleChildScrollView(child: child)),
 );
 
-FilledButton _saveButton(WidgetTester tester) =>
-    tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Guardar'));
+FilledButton _saveButton(WidgetTester tester) => tester.widget<FilledButton>(
+  find.widgetWithText(FilledButton, 'Guardar Lugar'),
+);
 
 Future<void> _fillName(WidgetTester tester) async {
   await tester.enterText(find.byType(TextField).first, 'Mirador');
   await tester.pump();
 }
 
-Future<void> _openCategoryMenu(WidgetTester tester) async {
-  await tester.tap(find.byType(CategoryDropdown));
-  await tester.pumpAndSettle();
-}
-
 Future<void> _selectCategory(WidgetTester tester, String name) async {
-  await _openCategoryMenu(tester);
-  await tester.tap(find.text(name).last);
+  await tester.tap(find.text(name));
   await tester.pumpAndSettle();
 }
 
-Future<void> _tapEditOn(WidgetTester tester, String name) async {
-  final row = find.ancestor(
-    of: find.text(name),
-    matching: find.byType(ListTile),
-  );
-  await tester.tap(find.descendant(of: row, matching: find.byIcon(Icons.edit)));
+Future<void> _startCreate(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.add));
   await tester.pumpAndSettle();
 }
 
-Future<void> _tapDeleteOn(WidgetTester tester, String name) async {
-  final row = find.ancestor(
-    of: find.text(name),
-    matching: find.byType(ListTile),
-  );
-  await tester.tap(
-    find.descendant(of: row, matching: find.byIcon(Icons.delete_outline)),
-  );
+Future<void> _startRename(WidgetTester tester, String name) async {
+  await tester.longPress(find.text(name));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Editar'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _startDelete(WidgetTester tester, String name) async {
+  await tester.longPress(find.text(name));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Borrar'));
   await tester.pumpAndSettle();
 }
 
@@ -72,6 +67,62 @@ Future<void> _confirmInline(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('name field is a wireframe-style Fraunces input', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Nombra este rincón...'), findsOneWidget);
+    final nameField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(nameField.style?.fontFamily, 'Fraunces');
+    expect(nameField.style?.fontWeight, FontWeight.w600);
+    expect(nameField.style?.fontSize, 24);
+  });
+
+  testWidgets('description textarea sits on a paper tone', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    final descriptionField = tester.widget<TextField>(
+      find.byType(TextField).last,
+    );
+    expect(descriptionField.decoration?.filled, isTrue);
+  });
+
+  testWidgets('footer shows a terracotta Guardar Lugar button', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+        ),
+      ),
+    );
+
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Guardar Lugar'),
+    );
+    expect(button.style?.backgroundColor?.resolve({}), AppColors.primary);
+    final size = tester.getSize(
+      find.widgetWithText(FilledButton, 'Guardar Lugar'),
+    );
+    expect(size.height, greaterThanOrEqualTo(48));
+  });
+
   testWidgets('renders name, category, description and save button', (
     tester,
   ) async {
@@ -86,8 +137,8 @@ void main() {
     );
 
     expect(find.byType(TextField), findsNWidgets(2));
-    expect(find.byType(CategoryDropdown), findsOneWidget);
-    expect(find.text('Guardar'), findsOneWidget);
+    expect(find.byType(CategoryChipStrip), findsOneWidget);
+    expect(find.text('Guardar Lugar'), findsOneWidget);
   });
 
   testWidgets('autofocus on Nombre in create mode', (tester) async {
@@ -136,14 +187,13 @@ void main() {
     );
     await tester.pump();
 
-    for (final editable in tester.widgetList<EditableText>(
-      find.byType(EditableText),
-    )) {
-      expect(editable.focusNode.hasFocus, isFalse);
-    }
+    final editable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    expect(editable.focusNode.hasFocus, isFalse);
   });
 
-  testWidgets('Tab from Nombre moves focus to Categoria and opens panel', (
+  testWidgets('Tab from Nombre moves focus into the category chips', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -160,121 +210,12 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
 
-    // The category trigger took focus and opened its panel.
-    expect(find.byType(ListTile), findsWidgets);
-    final nameEditable = tester.widget<EditableText>(
-      find.byType(EditableText).first,
-    );
-    expect(nameEditable.focusNode.hasFocus, isFalse);
+    final chipFocus = Focus.maybeOf(tester.element(find.text('Naturaleza')));
+    expect(chipFocus, isNotNull);
+    expect(chipFocus!.hasPrimaryFocus, isTrue);
   });
 
-  testWidgets(
-    'Tab recorre Nombre, trigger, filas y Descripcion y cierra el panel',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          PlaceForm(
-            categories: _categories,
-            onSave: (_, _, _) {},
-            onCancel: () {},
-            onCreateCategory: (_, _) async =>
-                const Category(id: 5, name: 'Playa'),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      // 1: Nombre -> Categoria trigger; the panel opens.
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-      expect(find.byType(ListTile), findsWidgets);
-
-      // 2: trigger -> first row (Naturaleza).
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-      expect(
-        Focus.maybeOf(
-          tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
-        ),
-        FocusManager.instance.primaryFocus,
-      );
-
-      // 3: Naturaleza -> Monumento.
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-      expect(
-        Focus.maybeOf(
-          tester.element(find.widgetWithText(ListTile, 'Monumento')),
-        ),
-        FocusManager.instance.primaryFocus,
-      );
-
-      // 4: Monumento -> "Nueva categoría".
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-      expect(
-        Focus.maybeOf(
-          tester.element(find.widgetWithText(ListTile, 'Nueva categoría')),
-        ),
-        FocusManager.instance.primaryFocus,
-      );
-
-      // 5: "Nueva categoría" -> Descripcion; the panel closes.
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-      final descriptionField = tester.widget<EditableText>(
-        find.byType(EditableText).at(1),
-      );
-      expect(descriptionField.focusNode.hasFocus, isTrue);
-      expect(find.byType(ListTile), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'Shift+Tab from Descripcion returns to the Categoria trigger and reopens the panel',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          PlaceForm(
-            categories: _categories,
-            onSave: (_, _, _) {},
-            onCancel: () {},
-            onCreateCategory: (_, _) async =>
-                const Category(id: 5, name: 'Playa'),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      // Reach Descripcion via the tab sequence.
-      for (var i = 0; i < 5; i++) {
-        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-        await tester.pumpAndSettle();
-      }
-      final descriptionField = tester.widget<EditableText>(
-        find.byType(EditableText).at(1),
-      );
-      expect(descriptionField.focusNode.hasFocus, isTrue);
-
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pumpAndSettle();
-
-      // The category trigger regained focus and the panel reopened.
-      final triggerDecorator = find.descendant(
-        of: find.byType(CategoryDropdown),
-        matching: find.byType(InputDecorator),
-      );
-      expect(
-        Focus.maybeOf(tester.element(triggerDecorator)),
-        FocusManager.instance.primaryFocus,
-      );
-      expect(find.byType(ListTile), findsWidgets);
-    },
-  );
-
-  testWidgets('Tab from Categoria enters the first row', (tester) async {
+  testWidgets('Tab traverses Nombre, chips and Descripcion', (tester) async {
     await tester.pumpWidget(
       _wrap(
         PlaceForm(
@@ -288,21 +229,75 @@ void main() {
     );
     await tester.pump();
 
+    // 1: Nombre -> first chip (Naturaleza).
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
-    expect(find.byType(ListTile), findsWidgets);
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pumpAndSettle();
-
-    // The second Tab leaves the focus on the first row, with the panel open.
     expect(
-      Focus.maybeOf(
-        tester.element(find.widgetWithText(ListTile, 'Naturaleza')),
-      ),
-      FocusManager.instance.primaryFocus,
+      Focus.maybeOf(tester.element(find.text('Naturaleza')))!.hasPrimaryFocus,
+      isTrue,
     );
-    expect(find.byType(ListTile), findsWidgets);
+
+    // 2: Naturaleza -> Monumento.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(
+      Focus.maybeOf(tester.element(find.text('Monumento')))!.hasPrimaryFocus,
+      isTrue,
+    );
+
+    // 3: Monumento -> add chip.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(
+      Focus.maybeOf(tester.element(find.byIcon(Icons.add)))!.hasPrimaryFocus,
+      isTrue,
+    );
+
+    // 4: add chip -> Descripcion.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    final descriptionField = tester.widget<EditableText>(
+      find.byType(EditableText).at(1),
+    );
+    expect(descriptionField.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('Shift+Tab from Descripcion returns focus to the chips', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        PlaceForm(
+          categories: _categories,
+          onSave: (_, _, _) {},
+          onCancel: () {},
+          onCreateCategory: (_, _) async =>
+              const Category(id: 5, name: 'Playa'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Reach Descripcion via the tab sequence (Nombre -> 3 chips -> Descripcion).
+    for (var i = 0; i < 4; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+    }
+    final descriptionField = tester.widget<EditableText>(
+      find.byType(EditableText).at(1),
+    );
+    expect(descriptionField.focusNode.hasFocus, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    // Focus returned to the add chip (last focusable of the strip).
+    expect(
+      Focus.maybeOf(tester.element(find.byIcon(Icons.add)))!.hasPrimaryFocus,
+      isTrue,
+    );
   });
 
   testWidgets('disabled Guardar is skipped by Tab', (tester) async {
@@ -322,9 +317,8 @@ void main() {
     // Name is empty so Guardar is disabled.
     expect(_saveButton(tester).onPressed, isNull);
 
-    // Reach Descripcion via the full sequence: Nombre -> Categoria -> rows
-    // (Naturaleza, Monumento, Nueva categoria) -> Descripcion.
-    for (var i = 0; i < 5; i++) {
+    // Reach Descripcion: Nombre -> 3 chips -> Descripcion.
+    for (var i = 0; i < 4; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pumpAndSettle();
     }
@@ -339,7 +333,6 @@ void main() {
     await tester.pumpAndSettle();
 
     final primary = FocusManager.instance.primaryFocus;
-    // The focus landed on the Cancelar button.
     final cancelFinder = find.widgetWithText(TextButton, 'Cancelar');
     final onCancel =
         primary != null &&
@@ -354,9 +347,7 @@ void main() {
             .isNotEmpty;
     expect(onCancel, isTrue);
 
-    // The disabled Guardar never receives focus: the primary focus is not
-    // within the save button.
-    final saveFinder = find.widgetWithText(FilledButton, 'Guardar');
+    final saveFinder = find.widgetWithText(FilledButton, 'Guardar Lugar');
     final onSave =
         primary != null &&
         find
@@ -442,8 +433,7 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'Vistas');
     await _selectCategory(tester, 'Monumento');
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
-    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
 
     expect(savedName, 'Mirador');
     expect(savedCategoryId, 2);
@@ -468,105 +458,66 @@ void main() {
   testWidgets('pressing next on name moves focus to category without saving', (
     tester,
   ) async {
-    String? savedName;
+    var saved = false;
     await tester.pumpWidget(
       _wrap(
         PlaceForm(
           categories: _categories,
-          onSave: (name, _, _) {
-            savedName = name;
-          },
+          onSave: (_, _, _) => saved = true,
           onCancel: () {},
         ),
       ),
     );
 
-    await _selectCategory(tester, 'Monumento');
-    await _fillName(tester);
-    await tester.testTextInput.receiveAction(TextInputAction.next);
-    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
 
-    expect(savedName, isNull);
-    // The category trigger took focus: the panel is open and name lost focus.
-    expect(find.byType(ListTile), findsWidgets);
-    final nameEditable = tester.widget<EditableText>(
-      find.byType(EditableText).first,
-    );
-    expect(nameEditable.focusNode.hasFocus, isFalse);
+    final chipFocus = Focus.maybeOf(tester.element(find.text('Naturaleza')));
+    expect(chipFocus!.hasPrimaryFocus, isTrue);
+    expect(saved, isFalse);
   });
 
   testWidgets('pressing next on the name does not save', (tester) async {
-    String? savedName;
-    int? savedCategoryId;
+    var saved = false;
     await tester.pumpWidget(
       _wrap(
         PlaceForm(
           categories: _categories,
-          onSave: (name, categoryId, _) {
-            savedName = name;
-            savedCategoryId = categoryId;
-          },
+          onSave: (_, _, _) => saved = true,
           onCancel: () {},
         ),
       ),
     );
 
-    await _selectCategory(tester, 'Monumento');
     await _fillName(tester);
     await tester.testTextInput.receiveAction(TextInputAction.next);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(savedName, isNull);
-    expect(savedCategoryId, isNull);
-    // The category trigger took focus: the panel is open.
-    expect(find.byType(ListTile), findsWidgets);
+    expect(saved, isFalse);
   });
 
   testWidgets('pressing Enter on the description submits the form', (
     tester,
   ) async {
     String? savedName;
-    int? savedCategoryId;
     await tester.pumpWidget(
       _wrap(
         PlaceForm(
           categories: _categories,
-          onSave: (name, categoryId, _) {
-            savedName = name;
-            savedCategoryId = categoryId;
-          },
+          onSave: (name, _, _) => savedName = name,
           onCancel: () {},
         ),
       ),
     );
 
-    await _selectCategory(tester, 'Monumento');
     await _fillName(tester);
+    await _selectCategory(tester, 'Naturaleza');
     await tester.enterText(find.byType(TextField).last, 'Vistas');
+
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(savedName, 'Mirador');
-    expect(savedCategoryId, 2);
-  });
-
-  testWidgets('pressing next on name never saves', (tester) async {
-    var submitted = false;
-    await tester.pumpWidget(
-      _wrap(
-        PlaceForm(
-          categories: _categories,
-          onSave: (_, _, _) => submitted = true,
-          onCancel: () {},
-        ),
-      ),
-    );
-
-    await _fillName(tester);
-    await tester.testTextInput.receiveAction(TextInputAction.next);
-    await tester.pump();
-
-    expect(submitted, isFalse);
   });
 
   testWidgets('read-only mode disables fields and shows Cerrar', (
@@ -578,16 +529,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Guardar'), findsNothing);
+    final nameField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(nameField.enabled, isFalse);
     expect(find.text('Cerrar'), findsOneWidget);
-    for (final field in tester.widgetList<TextField>(find.byType(TextField))) {
-      expect(field.enabled, isFalse);
-    }
-    // The category dropdown is present, but tapping it does not open the menu.
-    expect(find.byType(CategoryDropdown), findsOneWidget);
-    await tester.tap(find.byType(CategoryDropdown));
-    await tester.pumpAndSettle();
-    expect(find.byType(ListTile), findsNothing);
   });
 
   testWidgets('PlaceDetails muestra el nombre y la categoría del lugar', (
@@ -601,6 +545,7 @@ void main() {
 
     expect(find.text('Mirador'), findsOneWidget);
     expect(find.text('Naturaleza'), findsOneWidget);
+    expect(find.byIcon(Icons.add), findsNothing);
   });
 
   testWidgets('pressing Cerrar calls onClose', (tester) async {
@@ -610,9 +555,7 @@ void main() {
         PlaceDetails(
           categories: _categories,
           place: _place,
-          onClose: () {
-            closed = true;
-          },
+          onClose: () => closed = true,
         ),
       ),
     );
@@ -623,7 +566,7 @@ void main() {
     expect(closed, isTrue);
   });
 
-  testWidgets('shows an affordance to create a new category', (tester) async {
+  testWidgets('shows an add chip to create a new category', (tester) async {
     await tester.pumpWidget(
       _wrap(
         PlaceForm(
@@ -636,8 +579,7 @@ void main() {
       ),
     );
 
-    await _openCategoryMenu(tester);
-    expect(find.text('Nueva categoría'), findsOneWidget);
+    expect(find.byIcon(Icons.add), findsOneWidget);
   });
 
   testWidgets('creating a category autoselects it', (tester) async {
@@ -659,9 +601,7 @@ void main() {
     await _fillName(tester);
     await _selectCategory(tester, 'Naturaleza');
 
-    await _openCategoryMenu(tester);
-    await tester.tap(find.text('Nueva categoría'));
-    await tester.pumpAndSettle();
+    await _startCreate(tester);
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
       'Playa',
@@ -669,9 +609,8 @@ void main() {
     await _confirmInline(tester);
 
     expect(createdName, 'Playa');
-    // Autoselected: the trigger and the menu row both show 'Playa'.
-    expect(find.text('Playa'), findsNWidgets(2));
-    // Guardar is enabled once a category is selected and the name is set.
+    // Autoselected: the new chip appears and is selected.
+    expect(find.text('Playa'), findsOneWidget);
     expect(_saveButton(tester).onPressed, isNotNull);
   });
 
@@ -690,9 +629,7 @@ void main() {
       ),
     );
 
-    await _openCategoryMenu(tester);
-    await tester.tap(find.text('Nueva categoría'));
-    await tester.pumpAndSettle();
+    await _startCreate(tester);
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
       'Playa',
@@ -700,8 +637,11 @@ void main() {
     await _confirmInline(tester);
 
     expect(find.textContaining('Ya existe'), findsOneWidget);
-    // The new category row is not added to the list.
-    expect(find.widgetWithText(ListTile, 'Playa'), findsNothing);
+
+    // Cancel the editor: no Playa chip was created.
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.text('Playa'), findsNothing);
   });
 
   testWidgets('shows an inline error when creating the category fails', (
@@ -719,9 +659,7 @@ void main() {
       ),
     );
 
-    await _openCategoryMenu(tester);
-    await tester.tap(find.text('Nueva categoría'));
-    await tester.pumpAndSettle();
+    await _startCreate(tester);
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
       'Playa',
@@ -729,7 +667,10 @@ void main() {
     await _confirmInline(tester);
 
     expect(find.textContaining('No se pudo crear'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, 'Playa'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.text('Playa'), findsNothing);
   });
 
   testWidgets(
@@ -746,9 +687,7 @@ void main() {
         ),
       );
 
-      await _openCategoryMenu(tester);
-      await tester.tap(find.text('Nueva categoría'));
-      await tester.pumpAndSettle();
+      await _startCreate(tester);
       await tester.enterText(
         find.widgetWithText(TextField, 'Nombre de la categoría'),
         'Playa',
@@ -756,7 +695,10 @@ void main() {
       await _confirmInline(tester);
 
       expect(find.textContaining('No se pudo crear'), findsOneWidget);
-      expect(find.widgetWithText(ListTile, 'Playa'), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(find.text('Playa'), findsNothing);
     },
   );
 
@@ -779,9 +721,7 @@ void main() {
       ),
     );
 
-    await _openCategoryMenu(tester);
-    await tester.tap(find.text('Nueva categoría'));
-    await tester.pumpAndSettle();
+    await _startCreate(tester);
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
       'Playa',
@@ -803,7 +743,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(callCount, 1);
-    expect(find.text('Playa'), findsNWidgets(2));
+    expect(find.text('Playa'), findsOneWidget);
   });
 
   testWidgets('keeps name and description when creating a category', (
@@ -823,9 +763,7 @@ void main() {
 
     await _fillName(tester);
     await tester.enterText(find.byType(TextField).last, 'Vistas');
-    await _openCategoryMenu(tester);
-    await tester.tap(find.text('Nueva categoría'));
-    await tester.pumpAndSettle();
+    await _startCreate(tester);
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
       'Playa',
@@ -854,17 +792,18 @@ void main() {
       );
     }
 
-    testWidgets('shows no edit/delete icons without callbacks', (tester) async {
+    testWidgets('no overflow menu is shown without callbacks', (tester) async {
       await tester.pumpWidget(_wrap(form()));
 
       await _fillName(tester);
-      await _openCategoryMenu(tester);
+      await tester.longPress(find.text('Naturaleza'));
+      await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.edit), findsNothing);
-      expect(find.byIcon(Icons.delete_outline), findsNothing);
+      expect(find.text('Editar'), findsNothing);
+      expect(find.text('Borrar'), findsNothing);
     });
 
-    testWidgets('shows edit/delete icons per row when callbacks are present', (
+    testWidgets('long-press with callbacks opens the actions menu', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -878,14 +817,14 @@ void main() {
       );
 
       await _fillName(tester);
-      await _openCategoryMenu(tester);
+      await tester.longPress(find.text('Naturaleza'));
+      await tester.pumpAndSettle();
 
-      // One edit + one delete per row (2 rows).
-      expect(find.byIcon(Icons.edit), findsNWidgets(2));
-      expect(find.byIcon(Icons.delete_outline), findsNWidgets(2));
+      expect(find.text('Editar'), findsOneWidget);
+      expect(find.text('Borrar'), findsOneWidget);
     });
 
-    testWidgets('renaming updates the dropdown and keeps the selection', (
+    testWidgets('renaming updates the strip and keeps the selection', (
       tester,
     ) async {
       String? renamedId;
@@ -905,8 +844,7 @@ void main() {
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
 
-      await _openCategoryMenu(tester);
-      await _tapEditOn(tester, 'Naturaleza');
+      await _startRename(tester, 'Naturaleza');
       await tester.enterText(
         find.widgetWithText(TextField, 'Nuevo nombre'),
         'Costa',
@@ -915,8 +853,7 @@ void main() {
 
       expect(renamedId, '1');
       expect(renamedName, 'Costa');
-      // The trigger and the row show the new name; the menu stays open.
-      expect(find.text('Costa'), findsNWidgets(2));
+      expect(find.text('Costa'), findsOneWidget);
       expect(_saveButton(tester).onPressed, isNotNull);
     });
 
@@ -934,8 +871,7 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
-      await _openCategoryMenu(tester);
-      await _tapEditOn(tester, 'Naturaleza');
+      await _startRename(tester, 'Naturaleza');
       await tester.enterText(
         find.widgetWithText(TextField, 'Nuevo nombre'),
         'Monumento',
@@ -965,8 +901,7 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Naturaleza');
-        await _openCategoryMenu(tester);
-        await _tapEditOn(tester, 'Naturaleza');
+        await _startRename(tester, 'Naturaleza');
         await tester.enterText(
           find.widgetWithText(TextField, 'Nuevo nombre'),
           '',
@@ -990,8 +925,7 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
-      await _openCategoryMenu(tester);
-      await _tapEditOn(tester, 'Naturaleza');
+      await _startRename(tester, 'Naturaleza');
       await tester.enterText(
         find.widgetWithText(TextField, 'Nuevo nombre'),
         'Costa',
@@ -1019,8 +953,7 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
-      await _openCategoryMenu(tester);
-      await _tapEditOn(tester, 'Naturaleza');
+      await _startRename(tester, 'Naturaleza');
       await tester.enterText(
         find.widgetWithText(TextField, 'Nuevo nombre'),
         'Costa',
@@ -1051,7 +984,6 @@ void main() {
         await tester.pumpWidget(
           _wrap(
             form(
-              places: [_place],
               onDeleteCategory: (id, reassign) async {
                 deletedId = id;
                 reassignTo = reassign;
@@ -1063,8 +995,7 @@ void main() {
         await _fillName(tester);
         await _selectCategory(tester, 'Monumento');
 
-        await _openCategoryMenu(tester);
-        await _tapDeleteOn(tester, 'Monumento');
+        await _startDelete(tester, 'Monumento');
 
         expect(find.byType(AlertDialog), findsOneWidget);
         await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
@@ -1072,21 +1003,17 @@ void main() {
 
         expect(deletedId, 2);
         expect(reassignTo, isNull);
-        // The deleted (selected) category is gone from the list.
-        expect(find.widgetWithText(ListTile, 'Monumento'), findsNothing);
+        // The deleted (selected) category is gone from the strip.
+        expect(find.text('Monumento'), findsNothing);
       },
     );
 
     testWidgets('deleting the selected category disables save', (tester) async {
-      await tester.pumpWidget(
-        _wrap(form(places: [_place], onDeleteCategory: (_, _) async {})),
-      );
+      await tester.pumpWidget(_wrap(form(onDeleteCategory: (_, _) async {})));
 
       await _fillName(tester);
       await _selectCategory(tester, 'Monumento');
-      await _openCategoryMenu(tester);
-      await _tapDeleteOn(tester, 'Monumento');
-      await tester.pumpAndSettle();
+      await _startDelete(tester, 'Monumento');
       await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
       await tester.pumpAndSettle();
 
@@ -1112,13 +1039,10 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Naturaleza');
-        await _openCategoryMenu(tester);
-        await _tapDeleteOn(tester, 'Naturaleza');
+        await _startDelete(tester, 'Naturaleza');
 
         expect(find.textContaining('tiene 1 lugar'), findsOneWidget);
 
-        await tester.tap(find.byType(DropdownButtonFormField<Category>).last);
-        await tester.pumpAndSettle();
         final items = tester.widgetList<DropdownMenuItem<Category>>(
           find.descendant(
             of: find.byType(AlertDialog),
@@ -1128,8 +1052,6 @@ void main() {
         expect(items.map((i) => i.value!.id), isNot(contains(1)));
         expect(items.map((i) => i.value!.id), contains(2));
 
-        await tester.tap(find.text('Monumento').last);
-        await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
         await tester.pumpAndSettle();
 
@@ -1158,8 +1080,7 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Naturaleza');
-      await _openCategoryMenu(tester);
-      await _tapDeleteOn(tester, 'Naturaleza');
+      await _startDelete(tester, 'Naturaleza');
 
       expect(find.textContaining('única categoría'), findsOneWidget);
       expect(
@@ -1187,9 +1108,7 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Monumento');
-        await _openCategoryMenu(tester);
-        await _tapDeleteOn(tester, 'Monumento');
-        await tester.pumpAndSettle();
+        await _startDelete(tester, 'Monumento');
         await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
         await tester.pumpAndSettle();
 
@@ -1212,9 +1131,7 @@ void main() {
 
         await _fillName(tester);
         await _selectCategory(tester, 'Monumento');
-        await _openCategoryMenu(tester);
-        await _tapDeleteOn(tester, 'Monumento');
-        await tester.pumpAndSettle();
+        await _startDelete(tester, 'Monumento');
         await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
         await tester.pumpAndSettle();
 
@@ -1236,9 +1153,7 @@ void main() {
 
       await _fillName(tester);
       await _selectCategory(tester, 'Monumento');
-      await _openCategoryMenu(tester);
-      await _tapDeleteOn(tester, 'Monumento');
-      await tester.pumpAndSettle();
+      await _startDelete(tester, 'Monumento');
       await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
       await tester.pumpAndSettle();
 

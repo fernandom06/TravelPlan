@@ -63,6 +63,18 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  fonts:
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces-600.ttf
+          weight: 600
+        - asset: assets/fonts/Fraunces-700.ttf
+          weight: 700
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/Lora-400.ttf
+          weight: 400
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

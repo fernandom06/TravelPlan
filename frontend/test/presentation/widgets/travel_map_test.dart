@@ -1,16 +1,21 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/data/category_icon_catalog.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/place.dart';
 import 'package:frontend/data/models/place_draft.dart';
 import 'package:frontend/data/models/place_update.dart';
-import 'package:frontend/presentation/widgets/category_dropdown.dart';
+import 'package:frontend/presentation/widgets/category_chip_strip.dart';
 import 'package:frontend/presentation/widgets/import_url_dialog.dart';
 import 'package:frontend/presentation/widgets/map_constants.dart';
 import 'package:frontend/presentation/widgets/place_form.dart';
+import 'package:frontend/presentation/widgets/place_label_layer.dart';
+import 'package:frontend/presentation/widgets/place_pin.dart';
 import 'package:frontend/presentation/widgets/travel_map.dart';
 
 const _naturaleza = Category(id: 1, name: 'Naturaleza');
@@ -71,13 +76,21 @@ Widget _map({
   );
 }
 
+Future<void> _pump(WidgetTester tester, Widget widget) async {
+  tester.view.physicalSize = const Size(1200, 800);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(widget);
+}
+
 List<Marker> _markers(WidgetTester tester) =>
     tester.widget<MarkerLayer>(find.byType(MarkerLayer).first).markers;
 
-Icon _markerIcon(Marker marker) {
-  final child = marker.child;
-  if (child is Icon) return child;
-  return (child as GestureDetector).child as Icon;
+PlacePin _pinOf(Marker marker) {
+  var child = marker.child;
+  if (child is GestureDetector && child.child != null) child = child.child!;
+  if (child is PinHoverTooltip) child = child.child;
+  return child as PlacePin;
 }
 
 double _labelOpacity(WidgetTester tester, int id) {
@@ -96,34 +109,119 @@ void main() {
   testWidgets('renders FlutterMap with no markers when there are no places', (
     tester,
   ) async {
-    await tester.pumpWidget(_map());
+    await _pump(tester, _map());
 
     expect(find.byType(FlutterMap), findsOneWidget);
     expect(_markers(tester), isEmpty);
   });
 
-  testWidgets('renders a blue marker per place', (tester) async {
-    await tester.pumpWidget(_map(places: [_place]));
+  testWidgets('uses OSM tiles with visible attribution', (tester) async {
+    await _pump(tester, _map());
+
+    final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer).first);
+    expect(tileLayer.urlTemplate, kOsmTileUrlTemplate);
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is RichAttributionWidget &&
+            w.attributions.any(
+              (a) =>
+                  a is TextSourceAttribution &&
+                  a.text.contains('OpenStreetMap contributors'),
+            ),
+      ),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('renders a teardrop pin per place with its category icon', (
+    tester,
+  ) async {
+    await _pump(tester, _map(places: [_place]));
 
     expect(_markers(tester), hasLength(1));
-    expect(_markerIcon(_markers(tester).first).color, Colors.blue);
+    final pin = _pinOf(_markers(tester).first);
+    expect(pin.color, AppColors.primary);
+    expect(pin.icon, categoryIconFor(_place.category.icon));
+    expect(pin.halo, isFalse);
+  });
+
+  testWidgets('hovering a saved pin shows a name tooltip on desktop', (
+    tester,
+  ) async {
+    await _pump(tester, _map(places: [_place]));
+
+    expect(find.byKey(const Key('place-pin-tooltip')), findsNothing);
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: const Offset(10, 10));
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(find.byType(PlacePin).first));
+    await tester.pump();
+
+    expect(find.byKey(const Key('place-pin-tooltip')), findsOneWidget);
+
+    await gesture.removePointer();
+    await tester.pump();
+    expect(find.byKey(const Key('place-pin-tooltip')), findsNothing);
+  });
+
+  testWidgets('hovering a pin with a long name shows the full name tooltip', (
+    tester,
+  ) async {
+    final longPlace = Place(
+      id: 1,
+      name: 'x' * 60,
+      description: null,
+      latitude: 42.0414,
+      longitude: -3.0428,
+      category: _naturaleza,
+    );
+    await _pump(tester, _map(places: [longPlace]));
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: const Offset(10, 10));
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(find.byType(PlacePin).first));
+    await tester.pump();
+
+    expect(find.text('x' * 60), findsOneWidget);
+    final tooltipSize = tester.getSize(
+      find.byKey(const Key('place-pin-tooltip')),
+    );
+    expect(tooltipSize.width, greaterThan(40));
+
+    await gesture.removePointer();
+    await tester.pump();
+  });
+
+  testWidgets('tapping a wrapped pin still opens the details', (tester) async {
+    await _pump(tester, _map(places: [_place]));
+
+    await tester.tap(find.byType(PlacePin).first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlaceDetails), findsOneWidget);
   });
 
   testWidgets('tap on empty map shows a red marker and opens the form', (
     tester,
   ) async {
-    await tester.pumpWidget(_map());
+    await _pump(tester, _map());
 
     await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(_markers(tester), hasLength(1));
-    expect(_markerIcon(_markers(tester).first).color, Colors.red);
+    final pin = _pinOf(_markers(tester).first);
+    expect(pin.color, AppColors.accent);
+    expect(pin.icon, Icons.add);
+    expect(pin.halo, isTrue);
     expect(find.byType(PlaceForm), findsOneWidget);
   });
 
   testWidgets('autofocus on Nombre when creating via tap', (tester) async {
-    await tester.pumpWidget(_map());
+    await _pump(tester, _map());
 
     await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
     await tester.pump(const Duration(milliseconds: 350));
@@ -137,9 +235,9 @@ void main() {
   });
 
   testWidgets('autofocus on Nombre when editing', (tester) async {
-    await tester.pumpWidget(_map(places: [_place]));
+    await _pump(tester, _map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -153,7 +251,8 @@ void main() {
   });
 
   testWidgets('autofocus on Nombre when importing', (tester) async {
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _map(
         onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
       ),
@@ -178,7 +277,7 @@ void main() {
   testWidgets(
     'second tap while the form is open closes it without a new marker',
     (tester) async {
-      await tester.pumpWidget(_map());
+      await _pump(tester, _map());
 
       await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
       await tester.pump(const Duration(milliseconds: 350));
@@ -195,20 +294,20 @@ void main() {
   );
 
   testWidgets('tapping a blue marker opens a read-only form', (tester) async {
-    await tester.pumpWidget(_map(places: [_place]));
+    await _pump(tester, _map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(PlaceDetails), findsOneWidget);
     expect(find.text('Cerrar'), findsOneWidget);
-    expect(find.text('Guardar'), findsNothing);
+    expect(find.text('Guardar Lugar'), findsNothing);
   });
 
   testWidgets('tapping outside the form closes and discards it', (
     tester,
   ) async {
-    await tester.pumpWidget(_map());
+    await _pump(tester, _map());
 
     await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
     await tester.pump(const Duration(milliseconds: 350));
@@ -227,7 +326,8 @@ void main() {
     tester,
   ) async {
     String? createdName;
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _map(
         onCreateCategory: (name, icon) async {
           createdName = name;
@@ -242,9 +342,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.byType(PlaceForm), findsOneWidget);
 
-    await tester.tap(find.byType(CategoryDropdown));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Nueva categoría'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(CategoryChipStrip),
+        matching: find.byIcon(Icons.add),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Nombre de la categoría'),
@@ -254,8 +357,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(createdName, 'Playa');
-    // 'Playa' is autoselected and appears in the open menu.
-    expect(find.text('Playa'), findsNWidgets(2));
+    // 'Playa' is autoselected and appears as a chip.
+    expect(find.text('Playa'), findsOneWidget);
   });
 
   testWidgets('wires rename and delete callbacks to the form on the map', (
@@ -263,7 +366,8 @@ void main() {
   ) async {
     String? renamedId;
     String? renamedName;
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _map(
         onRenameCategory: (id, name, icon) async {
           renamedId = '$id';
@@ -282,17 +386,11 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'Mirador');
     await tester.pump();
-    await tester.tap(find.byType(CategoryDropdown));
+    await tester.longPress(find.text('Naturaleza'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Editar'));
     await tester.pumpAndSettle();
 
-    final row = find.ancestor(
-      of: find.text('Naturaleza'),
-      matching: find.byType(ListTile),
-    );
-    await tester.tap(
-      find.descendant(of: row, matching: find.byIcon(Icons.edit)),
-    );
-    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Nuevo nombre'),
       'Costa',
@@ -307,23 +405,23 @@ void main() {
   testWidgets('marker tap opens PlaceDetails with Editar and Cerrar', (
     tester,
   ) async {
-    await tester.pumpWidget(_map(places: [_place]));
+    await _pump(tester, _map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(PlaceDetails), findsOneWidget);
     expect(find.text('Editar'), findsOneWidget);
     expect(find.text('Cerrar'), findsOneWidget);
-    expect(find.text('Guardar'), findsNothing);
+    expect(find.text('Guardar Lugar'), findsNothing);
   });
 
   testWidgets('Editar opens a prefilled PlaceForm with Eliminar', (
     tester,
   ) async {
-    await tester.pumpWidget(_map(places: [_place]));
+    await _pump(tester, _map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -337,7 +435,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Eliminar'), findsOneWidget);
-    expect(find.text('Guardar'), findsOneWidget);
+    expect(find.text('Guardar Lugar'), findsOneWidget);
   });
 
   testWidgets('Guardar in edit calls onUpdatePlace and closes the panel', (
@@ -345,7 +443,8 @@ void main() {
   ) async {
     int? updatedId;
     PlaceUpdate? sentUpdate;
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _map(
         places: [_place],
         onUpdatePlace: (id, update) async {
@@ -355,11 +454,11 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
-    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(updatedId, 1);
@@ -373,7 +472,8 @@ void main() {
     tester,
   ) async {
     var updated = false;
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _map(
         places: [_place],
         onUpdatePlace: (_, _) async {
@@ -382,7 +482,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -398,7 +498,8 @@ void main() {
     tester,
   ) async {
     int? deletedId;
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _map(
         places: [_place],
         onDeletePlace: (id) async {
@@ -407,7 +508,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -424,7 +525,8 @@ void main() {
     tester,
   ) async {
     var deleted = false;
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _map(
         places: [_place],
         onDeletePlace: (_) async {
@@ -433,7 +535,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -455,7 +557,8 @@ void main() {
     'offline Guardar in edit shows SnackBar and keeps the panel open',
     (tester) async {
       var updated = false;
-      await tester.pumpWidget(
+      await _pump(
+        tester,
         _map(
           places: [_place],
           isOnline: false,
@@ -465,12 +568,12 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.tap(find.text('Editar'));
       await tester.pump(const Duration(milliseconds: 350));
       await tester.enterText(find.byType(TextField).first, 'Nuevo nombre');
-      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
       await tester.pump(const Duration(milliseconds: 350));
 
       expect(find.text('Sin conexión'), findsOneWidget);
@@ -484,7 +587,8 @@ void main() {
     'offline Eliminar keeps the panel open after the confirmation dialog',
     (tester) async {
       var deleted = false;
-      await tester.pumpWidget(
+      await _pump(
+        tester,
         _map(
           places: [_place],
           isOnline: false,
@@ -494,7 +598,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.tap(find.text('Editar'));
       await tester.pump(const Duration(milliseconds: 350));
@@ -510,9 +614,9 @@ void main() {
   );
 
   testWidgets('tapping the map closes the edit panel', (tester) async {
-    await tester.pumpWidget(_map(places: [_place]));
+    await _pump(tester, _map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -536,15 +640,15 @@ void main() {
       longitude: -3.02,
       category: _naturaleza,
     );
-    await tester.pumpWidget(_map(places: [_place, other]));
+    await _pump(tester, _map(places: [_place, other]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.byType(PlaceForm), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.location_on).last);
+    await tester.tap(find.byType(PlacePin).last);
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(PlaceForm), findsNothing);
@@ -552,9 +656,9 @@ void main() {
   });
 
   testWidgets('dragging the map closes the edit panel', (tester) async {
-    await tester.pumpWidget(_map(places: [_place]));
+    await _pump(tester, _map(places: [_place]));
 
-    await tester.tap(find.byIcon(Icons.location_on).first);
+    await tester.tap(find.byType(PlacePin).first);
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Editar'));
     await tester.pump(const Duration(milliseconds: 350));
@@ -566,28 +670,26 @@ void main() {
     expect(find.byType(PlaceForm), findsNothing);
   });
 
-  testWidgets(
-    'PlaceDetails overlay is positioned near the marker, not origin',
-    (tester) async {
-      await tester.pumpWidget(_map(places: [_place]));
+  testWidgets('PlaceDetails is shown inside the right panel on desktop', (
+    tester,
+  ) async {
+    await _pump(tester, _map(places: [_place]));
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
-      await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.byType(PlacePin).first);
+    await tester.pump(const Duration(milliseconds: 350));
 
-      final positioned = tester.widget<Positioned>(
-        find.ancestor(
-          of: find.byType(PlaceDetails),
-          matching: find.byType(Positioned),
-        ),
-      );
-      expect(positioned.left, isNot(0));
-      expect(positioned.top, isNot(0));
-    },
-  );
+    expect(
+      find.ancestor(
+        of: find.byType(PlaceDetails),
+        matching: find.byKey(const Key('place-form-panel')),
+      ),
+      findsOneWidget,
+    );
+  });
 
   group('import from Google Maps', () {
     testWidgets('no FAB when onResolveMapUrl is not provided', (tester) async {
-      await tester.pumpWidget(_map());
+      await _pump(tester, _map());
 
       expect(find.byIcon(Icons.link), findsNothing);
     });
@@ -595,7 +697,8 @@ void main() {
     testWidgets('shows the FAB when onResolveMapUrl is provided', (
       tester,
     ) async {
-      await tester.pumpWidget(
+      await _pump(
+        tester,
         _map(
           onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
         ),
@@ -611,7 +714,8 @@ void main() {
     testWidgets('offline tap shows SnackBar and does not open the dialog', (
       tester,
     ) async {
-      await tester.pumpWidget(
+      await _pump(
+        tester,
         _map(
           isOnline: false,
           onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
@@ -628,7 +732,8 @@ void main() {
     testWidgets(
       'resolved URL centers the map and opens the create form with red marker',
       (tester) async {
-        await tester.pumpWidget(
+        await _pump(
+          tester,
           _map(
             onResolveMapUrl: (url) async =>
                 const LatLng(41.6474339, -0.8861451),
@@ -649,14 +754,17 @@ void main() {
         expect(find.byType(ImportUrlDialog), findsNothing);
         expect(find.byType(PlaceForm), findsOneWidget);
         expect(_markers(tester), hasLength(1));
-        expect(_markerIcon(_markers(tester).first).color, Colors.red);
+        final pin = _pinOf(_markers(tester).first);
+        expect(pin.color, AppColors.accent);
+        expect(pin.icon, Icons.add);
       },
     );
 
     testWidgets('resolve error shows SnackBar and does not open the form', (
       tester,
     ) async {
-      await tester.pumpWidget(
+      await _pump(
+        tester,
         _map(
           onResolveMapUrl: (url) async =>
               throw MapUrlResolveTestException('No se pudo resolver el enlace'),
@@ -682,7 +790,8 @@ void main() {
     testWidgets('Cancelar after import closes the form without creating', (
       tester,
     ) async {
-      await tester.pumpWidget(
+      await _pump(
+        tester,
         _map(
           onResolveMapUrl: (url) async => const LatLng(41.6474339, -0.8861451),
         ),
@@ -710,17 +819,101 @@ void main() {
     testWidgets('label is visible with the place name at default zoom', (
       tester,
     ) async {
-      await tester.pumpWidget(_map(places: [_place]));
+      await _pump(tester, _map(places: [_place]));
 
       expect(_labelOpacity(tester, 1), 1.0);
       expect(find.text('Mirador'), findsOneWidget);
     });
 
+    testWidgets('long label renders the truncated name, not the full one', (
+      tester,
+    ) async {
+      final name = 'x' * 30;
+      final longPlace = Place(
+        id: 1,
+        name: name,
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await _pump(tester, _map(places: [longPlace]));
+
+      expect(find.text(truncatePlaceLabel(name)), findsOneWidget);
+      expect(find.text(name), findsNothing);
+    });
+
+    testWidgets('label of exactly 20 characters is read in full', (
+      tester,
+    ) async {
+      final name = 'y' * 20;
+      final twentyCharPlace = Place(
+        id: 1,
+        name: name,
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await _pump(tester, _map(places: [twentyCharPlace]));
+
+      expect(find.text(name), findsOneWidget);
+    });
+
+    testWidgets('label marker width matches the truncated text geometry', (
+      tester,
+    ) async {
+      final longPlace = Place(
+        id: 1,
+        name: 'x' * 30,
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await _pump(tester, _map(places: [longPlace]));
+
+      final labelMarkers = tester
+          .widget<MarkerLayer>(find.byType(MarkerLayer).last)
+          .markers;
+      expect(labelMarkers, hasLength(1));
+      final expectedWidth =
+          measureLabelSize(
+            truncatePlaceLabel('x' * 30),
+            kPlaceLabelStyle,
+          ).width +
+          2 * kLabelHPadding;
+      expect(labelMarkers.first.width, expectedWidth);
+    });
+
+    testWidgets('overlap hides the second label with a long first name', (
+      tester,
+    ) async {
+      final longFirst = Place(
+        id: 1,
+        name: 'x' * 30,
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      const shortSecond = Place(
+        id: 2,
+        name: 'Otro',
+        description: null,
+        latitude: 42.0414,
+        longitude: -3.0428,
+        category: _naturaleza,
+      );
+      await _pump(tester, _map(places: [longFirst, shortSecond]));
+
+      expect(_labelOpacity(tester, 1), 1.0);
+      expect(_labelOpacity(tester, 2), 0.0);
+    });
+
     testWidgets('label is hidden below zoom 9', (tester) async {
       final controller = MapController();
-      await tester.pumpWidget(
-        _map(places: [_place], mapController: controller),
-      );
+      await _pump(tester, _map(places: [_place], mapController: controller));
       await tester.pumpAndSettle();
 
       controller.move(kDefaultCenter, 8.0);
@@ -731,9 +924,7 @@ void main() {
 
     testWidgets('label fades at intermediate zoom', (tester) async {
       final controller = MapController();
-      await tester.pumpWidget(
-        _map(places: [_place], mapController: controller),
-      );
+      await _pump(tester, _map(places: [_place], mapController: controller));
       await tester.pumpAndSettle();
 
       controller.move(kDefaultCenter, 10.0);
@@ -753,7 +944,7 @@ void main() {
         longitude: -3.0428,
         category: _naturaleza,
       );
-      await tester.pumpWidget(_map(places: [_place, other]));
+      await _pump(tester, _map(places: [_place, other]));
 
       expect(_labelOpacity(tester, 1), 1.0);
       expect(_labelOpacity(tester, 2), 0.0);
@@ -768,9 +959,9 @@ void main() {
         longitude: -3.02,
         category: _naturaleza,
       );
-      await tester.pumpWidget(_map(places: [_place, other]));
+      await _pump(tester, _map(places: [_place, other]));
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
 
       expect(find.byType(PlaceDetails), findsOneWidget);
@@ -787,9 +978,9 @@ void main() {
         longitude: -3.02,
         category: _naturaleza,
       );
-      await tester.pumpWidget(_map(places: [_place, other]));
+      await _pump(tester, _map(places: [_place, other]));
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.tap(find.text('Editar'));
       await tester.pump(const Duration(milliseconds: 350));
@@ -807,9 +998,9 @@ void main() {
         longitude: -3.02,
         category: _naturaleza,
       );
-      await tester.pumpWidget(_map(places: [_place, other]));
+      await _pump(tester, _map(places: [_place, other]));
 
-      await tester.tap(find.byIcon(Icons.location_on).first);
+      await tester.tap(find.byType(PlacePin).first);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.tap(find.text('Cerrar'));
       await tester.pump(const Duration(milliseconds: 350));
@@ -819,7 +1010,7 @@ void main() {
     });
 
     testWidgets('creating a place does not add a label', (tester) async {
-      await tester.pumpWidget(_map());
+      await _pump(tester, _map());
 
       await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
       await tester.pump(const Duration(milliseconds: 350));
@@ -837,10 +1028,10 @@ void main() {
         longitude: -3.02,
         category: _naturaleza,
       );
-      await tester.pumpWidget(_map(places: [_place]));
+      await _pump(tester, _map(places: [_place]));
       expect(find.byKey(const ValueKey('place-label-1')), findsOneWidget);
 
-      await tester.pumpWidget(_map(places: [_place, other]));
+      await _pump(tester, _map(places: [_place, other]));
       expect(find.byKey(const ValueKey('place-label-1')), findsOneWidget);
       expect(find.byKey(const ValueKey('place-label-2')), findsOneWidget);
     });

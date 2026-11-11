@@ -2,14 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/itinerary_item.dart';
 import '../../data/models/itinerary_slot.dart';
 import '../../data/models/place.dart';
 import '../../data/models/trip.dart';
 import '../controllers/itinerary_controller.dart';
 import '../controllers/places_controller.dart';
+import '../widgets/dashed_action_card.dart';
+import '../widgets/day_pill_strip.dart';
 import '../widgets/general_items_section.dart';
 import '../widgets/itinerary_slot_section.dart';
+import '../widgets/itinerary_two_column_layout.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/place_picker_dialog.dart';
 
@@ -36,8 +40,10 @@ class ItineraryScreen extends StatefulWidget {
 class _ItineraryScreenState extends State<ItineraryScreen>
     with SingleTickerProviderStateMixin {
   static const _dayHoverDelay = Duration(milliseconds: 500);
+  static const _twoColumnBreakpoint = 900.0;
+  static const _dayTimelineMaxWidth = 680.0;
 
-  late final TabController _tabController;
+  late TabController _tabController;
   late List<DateTime> _days;
   Timer? _dayHoverTimer;
 
@@ -45,8 +51,18 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   void initState() {
     super.initState();
     _days = _deriveDays(widget.trip);
-    _tabController = TabController(length: _days.length, vsync: this);
+    _tabController = _createTabController();
     _load();
+  }
+
+  TabController _createTabController() {
+    final controller = TabController(length: _days.length, vsync: this);
+    controller.addListener(_onTabChanged);
+    return controller;
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -57,7 +73,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
         widget.trip.startDate != oldWidget.trip.startDate) {
       _days = newDays;
       _tabController.dispose();
-      _tabController = TabController(length: _days.length, vsync: this);
+      _tabController = _createTabController();
       _load();
     }
   }
@@ -152,7 +168,15 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.trip.name)),
+      appBar: AppBar(
+        title: Text(
+          widget.trip.name,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontSize: 28),
+        ),
+        centerTitle: false,
+      ),
       body: ValueListenableBuilder<bool>(
         valueListenable: widget.online,
         builder: (_, isOnline, _) => Column(
@@ -167,11 +191,6 @@ class _ItineraryScreenState extends State<ItineraryScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'itinerary-add-fab',
-        onPressed: _openPicker,
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
@@ -181,52 +200,94 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     }
     final general = state.items.where((i) => i.isUnassigned).toList()
       ..sort((a, b) => a.position.compareTo(b.position));
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _twoColumnBreakpoint) {
+          return _buildTwoColumn(state, general);
+        }
+        return _buildStacked(state, general);
+      },
+    );
+  }
+
+  Widget _buildStacked(ItineraryState state, List<ItineraryItem> general) {
     return Column(
       children: [
-        GeneralItemsSection(
-          items: general,
-          onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
-          onDeleteItem: _removeItem,
-        ),
+        _buildDayPillStrip(centered: false),
+        _buildGeneralSection(general),
+        Expanded(child: _buildDayTimeline(state, centered: false)),
+      ],
+    );
+  }
+
+  Widget _buildTwoColumn(ItineraryState state, List<ItineraryItem> general) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildDayPillStrip(centered: true),
         Expanded(
-          child: Column(
-            children: [
-              TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabs: [for (var i = 0; i < _days.length; i++) _dayTab(i)],
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    for (final day in _days) _daySections(day, state.items),
-                  ],
-                ),
-              ),
-            ],
+          child: ItineraryTwoColumnLayout(
+            leftChild: _buildGeneralSection(general, vertical: true),
+            rightChild: _buildDayTimeline(state, centered: true),
           ),
         ),
       ],
     );
   }
 
-  Widget _dayTab(int index) {
-    final day = _days[index];
-    final label =
-        'Día ${index + 1} · ${_twoDigits(day.day)}/${_twoDigits(day.month)}';
-    return DragTarget<ItineraryItem>(
-      onMove: (details) => _scheduleDayOpen(index),
-      onLeave: (data) => _cancelDayOpen(),
-      onAcceptWithDetails: (details) {
-        _cancelDayOpen();
-        _dropOnDay(details.data, day);
-      },
-      builder: (context, candidateData, rejectedData) => Tab(text: label),
+  Widget _buildGeneralSection(
+    List<ItineraryItem> general, {
+    bool vertical = false,
+  }) {
+    return GeneralItemsSection(
+      layout: vertical
+          ? GeneralItemsLayout.vertical
+          : GeneralItemsLayout.carousel,
+      items: general,
+      onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
+      onDeleteItem: _removeItem,
+      trailing: DashedActionCard(
+        label: '¿Añadimos un lugar?',
+        onTap: _openPicker,
+        compact: true,
+      ),
     );
   }
 
-  Widget _daySections(DateTime day, List<ItineraryItem> items) {
+  Widget _buildDayPillStrip({required bool centered}) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.muted)),
+      ),
+      child: DayPillStrip(
+        days: _days,
+        selectedIndex: _tabController.index,
+        onSelect: (index) => _tabController.animateTo(index),
+        onDropOnDay: _dropOnDay,
+        onHoverStart: _scheduleDayOpen,
+        onHoverEnd: _cancelDayOpen,
+        centered: centered,
+      ),
+    );
+  }
+
+  Widget _buildDayTimeline(ItineraryState state, {required bool centered}) {
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        for (final day in _days)
+          _daySections(day, state.items, centered: centered),
+      ],
+    );
+  }
+
+  Widget _daySections(
+    DateTime day,
+    List<ItineraryItem> items, {
+    bool centered = false,
+  }) {
     Widget section(ItinerarySlot slot) {
       final slotItems =
           items.where((i) => i.dayDate == day && i.slot == slot).toList()
@@ -235,21 +296,37 @@ class _ItineraryScreenState extends State<ItineraryScreen>
         title: slot.label,
         slot: slot,
         items: slotItems,
+        isLast: slot == ItinerarySlot.night,
         onAcceptItem: (item, slot, index) =>
             _moveItem(item.id, day, slot, index),
         onDeleteItem: _removeItem,
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      children: [
-        section(ItinerarySlot.morning),
-        section(ItinerarySlot.afternoon),
-        section(ItinerarySlot.night),
-      ],
+    final sections = [
+      section(ItinerarySlot.morning),
+      section(ItinerarySlot.afternoon),
+      section(ItinerarySlot.night),
+    ];
+    if (!centered) {
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: sections,
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _dayTimelineMaxWidth),
+              child: Column(children: sections),
+            ),
+          ),
+        ),
+      ),
     );
   }
-
-  static String _twoDigits(int value) => value.toString().padLeft(2, '0');
 }

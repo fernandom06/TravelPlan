@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/zone_point.dart';
 import '../controllers/zone_controller.dart';
 import 'map_constants.dart';
 
 class ZoneMap extends StatefulWidget {
-  const ZoneMap({
-    super.key,
-    required this.controller,
-    this.mapController,
-  });
+  const ZoneMap({super.key, required this.controller, this.mapController});
 
   final ZoneController controller;
   final MapController? mapController;
@@ -72,14 +69,23 @@ class _ZoneMapState extends State<ZoneMap> {
               urlTemplate: kOsmTileUrlTemplate,
               userAgentPackageName: 'dev.travelplan.frontend',
             ),
+            RichAttributionWidget(
+              attributions: const [
+                TextSourceAttribution(
+                  'OpenStreetMap contributors',
+                  prependCopyright: false,
+                ),
+              ],
+            ),
             if (vertices.length >= 3)
               PolygonLayer(
                 polygons: [
                   Polygon(
                     points: vertices,
-                    color: Colors.blue.withValues(alpha: 0.2),
-                    borderColor: Colors.blue,
+                    color: AppColors.accent.withValues(alpha: 0.2),
+                    borderColor: AppColors.accent,
                     borderStrokeWidth: 2,
+                    pattern: StrokePattern.dashed(segments: [8, 4]),
                   ),
                 ],
               ),
@@ -92,7 +98,7 @@ class _ZoneMapState extends State<ZoneMap> {
                     height: 20,
                     child: const Icon(
                       Icons.circle,
-                      color: Colors.blue,
+                      color: AppColors.accent,
                       size: 16,
                     ),
                   ),

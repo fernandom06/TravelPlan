@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/presentation/widgets/import_url_dialog.dart';
 
 Future<void> _pumpDialog(
@@ -125,6 +126,38 @@ void main() {
     completer.complete(const LatLng(41.6474339, -0.8861451));
     await tester.pumpAndSettle();
     expect(find.byType(ImportUrlDialog), findsNothing);
+  });
+
+  testWidgets('inherits the Artisanal Wanderer dialog theme', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Builder(
+          builder: (context) => Center(
+            child: ElevatedButton(
+              onPressed: () {
+                showDialog<LatLng>(
+                  context: context,
+                  builder: (_) => ImportUrlDialog(
+                    onResolve: (url) async => const LatLng(1, 2),
+                  ),
+                );
+              },
+              child: const Text('Abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    final effective = DefaultTextStyle.of(
+      tester.element(find.text('Importar desde Google Maps')),
+    );
+    expect(effective.style.fontFamily, 'Fraunces');
+    final theme = Theme.of(tester.element(find.text('Importar')));
+    expect(theme.dialogTheme.shape, isNotNull);
   });
 }
 

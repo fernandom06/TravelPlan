@@ -34,7 +34,11 @@ class TripDraft {
       'end_date': _formatDate(endDate),
       'description': description,
       'image_url': imageUrl,
-      'zone': points == null ? null : {'points': [for (final p in points) p.toJson()]},
+      'zone': points == null
+          ? null
+          : {
+              'points': [for (final p in points) p.toJson()],
+            },
     };
   }
 

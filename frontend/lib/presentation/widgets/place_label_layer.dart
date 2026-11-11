@@ -1,26 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/models/place.dart';
 
 const kLabelFadeStartZoom = 9.0;
 
 const kLabelFadeEndZoom = 11.0;
 
-const kLabelFontSize = 12.0;
+const kLabelFontSize = 13.0;
 
 const kLabelHeight = 18.0;
 
 const kLabelHPadding = 4.0;
 
-const kLabelMaxWidth = 120.0;
+const kLabelMaxChars = 20;
+
+const kLabelTruncatedChars = 17;
 
 const kLabelEdgeMargin = 8.0;
+
+/// Sketchbook-style label: Lora italic in navy with a strong white halo for
+/// readability over the busy OSM standard tiles.
+const kPlaceLabelStyle = TextStyle(
+  fontFamily: 'Lora',
+  fontSize: kLabelFontSize,
+  fontStyle: FontStyle.italic,
+  fontWeight: FontWeight.w600,
+  color: AppColors.text,
+  shadows: [
+    Shadow(color: Colors.white, blurRadius: 2),
+    Shadow(color: Colors.white, blurRadius: 2, offset: Offset(1, 1)),
+    Shadow(color: Colors.white, blurRadius: 2, offset: Offset(-1, 1)),
+    Shadow(color: Colors.white, blurRadius: 2, offset: Offset(1, -1)),
+    Shadow(color: Colors.white, blurRadius: 2, offset: Offset(-1, -1)),
+  ],
+);
 
 double placeLabelOpacity(double zoom) {
   final progress =
       (zoom - kLabelFadeStartZoom) / (kLabelFadeEndZoom - kLabelFadeStartZoom);
   return progress.clamp(0.0, 1.0);
+}
+
+String truncatePlaceLabel(String name) {
+  if (name.length <= kLabelMaxChars) return name;
+  return '${name.substring(0, kLabelTruncatedChars)}…';
 }
 
 Set<int> hiddenLabelIndexes(List<Rect> rects) {
@@ -70,7 +95,7 @@ Size measureLabelSize(String name, TextStyle style) {
   final painter = TextPainter(
     text: TextSpan(text: name, style: style),
     textDirection: TextDirection.ltr,
-  )..layout(maxWidth: kLabelMaxWidth);
+  )..layout();
   return painter.size;
 }
 
@@ -88,16 +113,12 @@ class PlaceLabelsLayer extends StatelessWidget {
     final effectiveViewport = firstFrame
         ? const Size(double.infinity, double.infinity)
         : viewport;
-    final style = TextStyle(
-      fontSize: kLabelFontSize,
-      fontWeight: FontWeight.w600,
-      color: Colors.black87,
-      shadows: const [Shadow(color: Colors.white, blurRadius: 3)],
-    );
+    final style = kPlaceLabelStyle;
 
     final geometries = <({Size markerSize, Alignment alignment, Rect rect})>[];
     for (final place in places) {
-      final labelSize = measureLabelSize(place.name, style);
+      final displayName = truncatePlaceLabel(place.name);
+      final labelSize = measureLabelSize(displayName, style);
       final markerSize = Size(
         labelSize.width + 2 * kLabelHPadding,
         kLabelHeight,
@@ -142,10 +163,9 @@ class PlaceLabelsLayer extends StatelessWidget {
                     horizontal: kLabelHPadding,
                   ),
                   child: Text(
-                    places[i].name,
+                    truncatePlaceLabel(places[i].name),
                     style: style,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),

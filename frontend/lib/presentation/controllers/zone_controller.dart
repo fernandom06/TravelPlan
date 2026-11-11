@@ -19,9 +19,7 @@ class ZoneController extends ValueNotifier<ZoneState> {
 
   void undoLast() {
     if (value.points.isEmpty) return;
-    value = ZoneState(
-      points: value.points.sublist(0, value.points.length - 1),
-    );
+    value = ZoneState(points: value.points.sublist(0, value.points.length - 1));
   }
 
   void clear() {

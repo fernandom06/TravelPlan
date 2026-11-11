@@ -144,9 +144,9 @@ void main() {
     expect(find.text('Costas'), findsOneWidget);
     expect(find.text('/uploads/x.jpg'), findsOneWidget);
     expect(
-      tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Guardar'),
-      ).onPressed,
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Guardar'))
+          .onPressed,
       isNotNull,
     );
   });

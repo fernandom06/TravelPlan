@@ -1,44 +1,56 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/category_palette.dart';
 import '../../data/category_icon_catalog.dart';
 import '../../data/models/itinerary_item.dart';
 
+/// Mini-card for itinerary items: tinted category-icon circle, place name and
+/// a trash button, wrapped in a [Draggable] (immediate on desktop, long-press
+/// elsewhere) that carries the [ItineraryItem].
 class ItineraryPlaceCard extends StatelessWidget {
   const ItineraryPlaceCard({
     super.key,
     required this.item,
     required this.onDelete,
+    this.horizontal = true,
+    this.width,
   });
 
   final ItineraryItem item;
   final VoidCallback onDelete;
+  final bool horizontal;
+
+  /// Optional width for the vertical (non-horizontal) card and its drag
+  /// feedback. When null the vertical card keeps its default 104 width.
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
-    final place = item.place;
-    final content = Card(
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      child: ListTile(
-        dense: true,
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.drag_indicator,
-              size: 20,
-              color: Theme.of(context).colorScheme.outline,
+    final content = _MiniCard(
+      item: item,
+      onDelete: onDelete,
+      showDragHandle: true,
+      horizontal: horizontal,
+      width: width,
+    );
+    final feedback = Material(
+      elevation: 4,
+      color: Colors.transparent,
+      child: horizontal
+          ? SizedBox(
+              width: 260,
+              child: _MiniCard(item: item, onDelete: () {}),
+            )
+          : SizedBox(
+              width: width,
+              child: _MiniCard(
+                item: item,
+                onDelete: () {},
+                horizontal: false,
+                width: width,
+              ),
             ),
-            const SizedBox(width: 4),
-            Icon(categoryIconFor(place.category.icon)),
-          ],
-        ),
-        title: Text(place.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline),
-          tooltip: 'Quitar del itinerario',
-          onPressed: onDelete,
-        ),
-      ),
     );
     final isDesktop = switch (Theme.of(context).platform) {
       TargetPlatform.linux ||
@@ -46,21 +58,6 @@ class ItineraryPlaceCard extends StatelessWidget {
       TargetPlatform.windows => true,
       _ => false,
     };
-    final feedback = Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(categoryIconFor(place.category.icon)),
-            const SizedBox(width: 8),
-            Text(place.name),
-          ],
-        ),
-      ),
-    );
     return isDesktop
         ? Draggable<ItineraryItem>(
             data: item,
@@ -74,5 +71,144 @@ class ItineraryPlaceCard extends StatelessWidget {
             childWhenDragging: Opacity(opacity: 0.4, child: content),
             child: content,
           );
+  }
+}
+
+class _MiniCard extends StatelessWidget {
+  const _MiniCard({
+    required this.item,
+    required this.onDelete,
+    this.showDragHandle = false,
+    this.horizontal = true,
+    this.width,
+  });
+
+  final ItineraryItem item;
+  final VoidCallback onDelete;
+  final bool showDragHandle;
+  final bool horizontal;
+  final double? width;
+
+  @override
+  Widget build(BuildContext context) {
+    final place = item.place;
+    final iconCircle = CircleAvatar(
+      radius: 17,
+      backgroundColor: categoryColorFor(place.category),
+      child: Icon(
+        categoryIconFor(place.category.icon),
+        size: 18,
+        color: Colors.white,
+      ),
+    );
+    final deleteButton = IconButton(
+      icon: const Icon(Icons.delete_outline, size: 16),
+      tooltip: 'Quitar del itinerario',
+      onPressed: onDelete,
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      color: AppColors.textSecondary,
+    );
+
+    final Widget content;
+    if (horizontal) {
+      content = Row(
+        children: [
+          if (showDragHandle) ...[
+            const Icon(
+              Icons.drag_indicator,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+          ],
+          iconCircle,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  place.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  place.category.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          deleteButton,
+        ],
+      );
+    } else {
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showDragHandle) ...[
+            const Icon(
+              Icons.drag_indicator,
+              size: 14,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 2),
+          ],
+          iconCircle,
+          const SizedBox(height: 5),
+          Text(
+            place.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            place.category.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          deleteButton,
+        ],
+      );
+    }
+
+    return Container(
+      width: horizontal ? null : (width ?? 104),
+      padding: EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: horizontal ? 8 : 5,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadii.organic,
+        boxShadow: const [AppShadows.soft],
+      ),
+      child: content,
+    );
   }
 }
