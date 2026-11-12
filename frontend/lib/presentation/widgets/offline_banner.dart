@@ -20,12 +20,12 @@ class OfflineBanner extends StatelessWidget {
           children: [
             const Icon(Icons.wifi_off, size: 18, color: AppColors.primary),
             const SizedBox(width: 8),
-            const Text(
-              'Sin conexión con el servidor',
-              style: TextStyle(
-                fontFamily: 'Lora',
-                fontSize: 13,
-                color: AppColors.text,
+            Expanded(
+              child: Text(
+                'Sin conexión con el servidor',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.text,
+                ),
               ),
             ),
           ],

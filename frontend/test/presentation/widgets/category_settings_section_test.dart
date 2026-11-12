@@ -158,6 +158,27 @@ void main() {
     expect(find.byIcon(Icons.restaurant), findsOneWidget);
   });
 
+  testWidgets('an empty category list shows a guidance hint', (tester) async {
+    await tester.pumpWidget(_Harness(record: _Record(), categories: const []));
+
+    expect(
+      find.text('Aún no hay categorías. Crea una para clasificar tus lugares.'),
+      findsOneWidget,
+    );
+    expect(find.text('Añadir categoría'), findsOneWidget);
+  });
+
+  testWidgets('the guidance hint is hidden once categories exist', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_Harness(record: _Record()));
+
+    expect(
+      find.text('Aún no hay categorías. Crea una para clasificar tus lugares.'),
+      findsNothing,
+    );
+  });
+
   testWidgets('long-pressing a row opens the Editar and Borrar actions', (
     tester,
   ) async {

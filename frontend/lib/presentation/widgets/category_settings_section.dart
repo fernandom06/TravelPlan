@@ -139,7 +139,7 @@ class _CategorySettingsSectionState extends State<CategorySettingsSection> {
       leading: Icon(categoryIconFor(category.icon), color: AppColors.text),
       title: Text(
         category.name,
-        style: const TextStyle(fontFamily: 'Lora', color: AppColors.text),
+        style: Theme.of(context).textTheme.bodyLarge,
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -176,6 +176,16 @@ class _CategorySettingsSectionState extends State<CategorySettingsSection> {
           ).textTheme.titleMedium?.copyWith(color: AppColors.text),
         ),
         const SizedBox(height: AppSpacing.sm),
+        if (widget.categories.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'Aún no hay categorías. Crea una para clasificar tus lugares.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
         for (final category in widget.categories) _buildRow(category),
         const SizedBox(height: AppSpacing.sm),
         TextButton.icon(

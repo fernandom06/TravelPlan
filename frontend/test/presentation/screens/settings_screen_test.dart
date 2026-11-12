@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/presentation/screens/settings_screen.dart';
+import 'package:frontend/presentation/widgets/offline_banner.dart';
 
 Widget _screen({
   List<Category> categories = const [
@@ -34,5 +35,20 @@ void main() {
     expect(find.text('Categorías'), findsOneWidget);
     expect(find.text('Playa'), findsOneWidget);
     expect(find.text('Restaurante'), findsOneWidget);
+  });
+
+  testWidgets('shows the offline banner when there is no connection', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_screen(isOnline: false));
+
+    expect(find.byType(OfflineBanner), findsOneWidget);
+    expect(find.text('Ajustes'), findsOneWidget);
+  });
+
+  testWidgets('hides the offline banner when online', (tester) async {
+    await tester.pumpWidget(_screen(isOnline: true));
+
+    expect(find.byType(OfflineBanner), findsNothing);
   });
 }

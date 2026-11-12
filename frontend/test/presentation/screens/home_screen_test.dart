@@ -102,6 +102,7 @@ Future<void> _pumpHome(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
+      theme: AppTheme.light(),
       home: _homeScreen(online, controller, tripsController: tripsController),
     ),
   );
@@ -311,7 +312,7 @@ void main() {
     expect(find.byType(SettingsScreen).hitTestable(), findsOneWidget);
     expect(find.text('Categorías'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'Playa'), findsOneWidget);
-    expect(find.byType(OfflineBanner).hitTestable(), findsNothing);
+    expect(find.byType(OfflineBanner).hitTestable(), findsOneWidget);
   });
 
   testWidgets('a category created in Ajustes appears in the map form strip', (
