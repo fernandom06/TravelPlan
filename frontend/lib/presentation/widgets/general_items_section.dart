@@ -6,7 +6,7 @@ import 'itinerary_place_card.dart';
 
 /// Layout mode for the section: a horizontal carousel or a vertical list.
 enum GeneralItemsLayout {
-  /// Horizontal [ListView] carousel with a fixed 176px-tall container.
+  /// Horizontal [ListView] carousel with a fixed 200px-tall container.
   carousel,
 
   /// Full-width vertical list of cards, one per row.
@@ -31,6 +31,7 @@ class GeneralItemsSection extends StatelessWidget {
     required this.onAcceptItem,
     required this.onDeleteItem,
     this.trailing,
+    this.onOpenItem,
     this.layout = GeneralItemsLayout.carousel,
   });
 
@@ -46,10 +47,13 @@ class GeneralItemsSection extends StatelessWidget {
   /// current layout.
   final Widget? trailing;
 
+  /// Invoked when a card is plain-tapped (non-drag move alternative).
+  final void Function(ItineraryItem item)? onOpenItem;
+
   /// How the cards are laid out inside the container.
   final GeneralItemsLayout layout;
 
-  static const _carouselHeight = 176.0;
+  static const _carouselHeight = 200.0;
   static const _trailingHeight = 72.0;
 
   @override
@@ -162,7 +166,7 @@ class GeneralItemsSection extends StatelessWidget {
   Widget _buildContent(BuildContext context) {
     final trailing = this.trailing;
     if (items.isEmpty) {
-      if (trailing == null) return _emptyState();
+      if (trailing == null) return _emptyState(context);
       return Center(child: SizedBox(width: 104, child: trailing));
     }
     return ListView.separated(
@@ -181,6 +185,7 @@ class GeneralItemsSection extends StatelessWidget {
           builder: (context, _, _) => ItineraryPlaceCard(
             item: item,
             onDelete: () => onDeleteItem(item.id),
+            onTap: onOpenItem == null ? null : () => onOpenItem!(item),
             horizontal: false,
           ),
         );
@@ -193,7 +198,7 @@ class GeneralItemsSection extends StatelessWidget {
     bool scrollable = false,
     Widget? header,
   }) {
-    final content = _verticalContent(header: header);
+    final content = _verticalContent(context, header: header);
     if (!scrollable) return content;
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
@@ -205,11 +210,11 @@ class GeneralItemsSection extends StatelessWidget {
     );
   }
 
-  Widget _verticalContent({Widget? header}) {
+  Widget _verticalContent(BuildContext context, {Widget? header}) {
     final trailing = this.trailing;
     if (items.isEmpty) {
       final body = trailing == null
-          ? SizedBox(height: _trailingHeight, child: _emptyState())
+          ? SizedBox(height: _trailingHeight, child: _emptyState(context))
           : SizedBox(height: _trailingHeight, child: trailing);
       if (header == null) return body;
       return Column(
@@ -232,6 +237,7 @@ class GeneralItemsSection extends StatelessWidget {
               child: ItineraryPlaceCard(
                 item: items[i],
                 onDelete: () => onDeleteItem(items[i].id),
+                onTap: onOpenItem == null ? null : () => onOpenItem!(items[i]),
               ),
             ),
           ),
@@ -241,12 +247,21 @@ class GeneralItemsSection extends StatelessWidget {
     );
   }
 
-  Widget _emptyState() {
+  Widget _emptyState(BuildContext context) {
     return Container(
       alignment: Alignment.center,
-      child: const Text(
-        'Añade lugares al viaje',
-        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.travel_explore, size: 24, color: AppColors.muted),
+          const SizedBox(height: 6),
+          Text(
+            'Añade lugares al viaje',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

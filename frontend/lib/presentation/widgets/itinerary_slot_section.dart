@@ -19,6 +19,7 @@ class ItinerarySlotSection extends StatelessWidget {
     required this.items,
     required this.onAcceptItem,
     required this.onDeleteItem,
+    this.onOpenItem,
     this.isLast = false,
   });
 
@@ -36,11 +37,31 @@ class ItinerarySlotSection extends StatelessWidget {
   onAcceptItem;
   final void Function(int itemId) onDeleteItem;
 
-  static IconData _iconFor(ItinerarySlot slot) => switch (slot) {
-    ItinerarySlot.morning => Icons.light_mode,
+  /// Invoked when a card is plain-tapped (non-drag move alternative).
+  final void Function(ItineraryItem item)? onOpenItem;
+
+  /// Icons picked so the three slots read apart at a glance: dawn light for
+  /// morning, a full sun for afternoon and the moon for night. Public so the
+  /// move sheet can reuse the exact same vocabulary.
+  static IconData iconFor(ItinerarySlot slot) => switch (slot) {
+    ItinerarySlot.morning => Icons.wb_twilight,
     ItinerarySlot.afternoon => Icons.wb_sunny,
     ItinerarySlot.night => Icons.dark_mode,
   };
+
+  /// The empty-slot hint names the real gesture: on touch platforms items
+  /// move by long-press, on desktop by an immediate drag.
+  static String dragHint(BuildContext context) {
+    final isDesktop = switch (Theme.of(context).platform) {
+      TargetPlatform.linux ||
+      TargetPlatform.macOS ||
+      TargetPlatform.windows => true,
+      _ => false,
+    };
+    return isDesktop
+        ? 'Arrastra lugares aquí'
+        : 'Mantén pulsado y arrastra lugares aquí';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +110,7 @@ class ItinerarySlotSection extends StatelessWidget {
                       child: Row(
                         children: [
                           Icon(
-                            _iconFor(slot),
+                            iconFor(slot),
                             size: 16,
                             color: AppColors.primary,
                           ),
@@ -97,11 +118,7 @@ class ItinerarySlotSection extends StatelessWidget {
                           Text(
                             title,
                             style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontFamily: 'Fraunces',
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.text,
-                                ),
+                                ?.copyWith(color: AppColors.text),
                           ),
                         ],
                       ),
@@ -111,7 +128,7 @@ class ItinerarySlotSection extends StatelessWidget {
                       highlighted,
                       items.isEmpty,
                       items.isEmpty
-                          ? _emptyHint(highlighted)
+                          ? _emptyHint(context, highlighted)
                           : Column(
                               children: [
                                 for (var i = 0; i < items.length; i++)
@@ -125,6 +142,9 @@ class ItinerarySlotSection extends StatelessWidget {
                                         item: items[i],
                                         onDelete: () =>
                                             onDeleteItem(items[i].id),
+                                        onTap: onOpenItem == null
+                                            ? null
+                                            : () => onOpenItem!(items[i]),
                                       ),
                                     ),
                                   ),
@@ -167,7 +187,7 @@ class ItinerarySlotSection extends StatelessWidget {
     );
   }
 
-  Widget _emptyHint(bool highlighted) {
+  Widget _emptyHint(BuildContext context, bool highlighted) {
     return SizedBox(
       height: 100,
       child: Row(
@@ -181,10 +201,9 @@ class ItinerarySlotSection extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'Arrastra lugares aquí',
+              dragHint(context),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: highlighted ? AppColors.accent : AppColors.textSecondary,
               ),
             ),

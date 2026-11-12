@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/day_label.dart';
 import '../../data/models/itinerary_item.dart';
 
 /// Horizontally scrollable strip of day pills for the itinerary header.
@@ -10,6 +11,10 @@ import '../../data/models/itinerary_item.dart';
 /// stays in view. Each pill is a [DragTarget<ItineraryItem>] so hovering a
 /// pill while dragging can switch the visible day and dropping assigns the
 /// item to that day. Wrapped in a [Scrollbar] for desktop platforms.
+///
+/// When [counts] is provided it must match [days] in length; each pill then
+/// shows how many items that day holds, so the strip doubles as a plan
+/// overview.
 class DayPillStrip extends StatefulWidget {
   const DayPillStrip({
     super.key,
@@ -19,6 +24,7 @@ class DayPillStrip extends StatefulWidget {
     required this.onDropOnDay,
     required this.onHoverStart,
     required this.onHoverEnd,
+    this.counts,
     this.centered = false,
   });
 
@@ -28,6 +34,10 @@ class DayPillStrip extends StatefulWidget {
   final void Function(ItineraryItem item, DateTime day) onDropOnDay;
   final void Function(int index) onHoverStart;
   final VoidCallback onHoverEnd;
+
+  /// Items assigned per day (same order and length as [days]). A pill with
+  /// zero items omits the count. Null keeps the label without a count.
+  final List<int>? counts;
 
   /// Whether the pill row is centered when it fits the viewport (desktop
   /// layouts). When false the pills start at the left edge.
@@ -102,8 +112,11 @@ class _DayPillStripState extends State<DayPillStrip> {
                       _DayPill(
                         key: _pillKeys[i],
                         index: i,
-                        label:
-                            'Día ${i + 1} · ${_dayMonthLabel(widget.days[i])}',
+                        label: _pillLabel(
+                          index: i,
+                          day: widget.days[i],
+                          count: widget.counts?[i],
+                        ),
                         active: i == widget.selectedIndex,
                         day: widget.days[i],
                         onSelect: () => widget.onSelect(i),
@@ -121,25 +134,14 @@ class _DayPillStripState extends State<DayPillStrip> {
     );
   }
 
-  static const _months = [
-    'Ene',
-    'Feb',
-    'Mar',
-    'Abr',
-    'May',
-    'Jun',
-    'Jul',
-    'Ago',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dic',
-  ];
-
-  static String _dayMonthLabel(DateTime day) =>
-      '${_twoDigits(day.day)} ${_months[day.month - 1]}';
-
-  static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+  static String _pillLabel({
+    required int index,
+    required DateTime day,
+    int? count,
+  }) {
+    final label = 'Día ${index + 1} · ${dayLabel(day)}';
+    return count == null || count == 0 ? label : '$label · $count';
+  }
 }
 
 class _DayPill extends StatelessWidget {

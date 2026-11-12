@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/day_label.dart';
 import '../../data/models/itinerary_item.dart';
 import '../../data/models/itinerary_slot.dart';
 import '../../data/models/place.dart';
@@ -97,14 +98,57 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       await widget.itineraryController.loadItinerary(widget.trip);
     } catch (e) {
       if (!mounted) return;
-      _showSaveError(e);
+      // With an empty itinerary the error view takes over instead of letting
+      // the failure masquerade as an empty plan; with visible items the
+      // screen keeps them usable and just notifies.
+      if (widget.itineraryController.value.items.isEmpty) return;
+      _showNotice(
+        'No se pudo actualizar el itinerario. Revisa tu conexión.',
+        _load,
+      );
     }
   }
 
+  /// Runs an optimistic operation; on success any lingering error snackbar
+  /// is dismissed, on failure a persistent one offers a real retry.
+  Future<void> _attempt(Future<void> Function() operation) async {
+    try {
+      await operation();
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    } catch (_) {
+      _showSaveError(operation);
+    }
+  }
+
+  void _showSaveError(Future<void> Function() retry) {
+    _showNotice('No se pudo guardar el cambio. Revisa tu conexión.', retry);
+  }
+
+  void _showNotice(String message, Future<void> Function() retry) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          // Stays until the user retries or dismisses it: on an unreliable
+          // field connection a 4-second snackbar would vanish unheard.
+          duration: const Duration(days: 1),
+          showCloseIcon: true,
+          action: SnackBarAction(
+            label: 'Reintentar',
+            onPressed: () => unawaited(_attempt(retry)),
+          ),
+        ),
+      );
+  }
+
   void _moveItem(int itemId, DateTime? day, ItinerarySlot? slot, int index) {
-    widget.itineraryController
-        .moveItem(itemId, day, slot, index)
-        .catchError((Object error) => _showSaveError(error));
+    unawaited(
+      _attempt(
+        () => widget.itineraryController.moveItem(itemId, day, slot, index),
+      ),
+    );
   }
 
   void _dropOnDay(ItineraryItem item, DateTime day) {
@@ -129,22 +173,13 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   }
 
   void _removeItem(int itemId) {
-    widget.itineraryController
-        .removeItem(itemId)
-        .catchError((Object error) => _showSaveError(error));
+    unawaited(
+      _attempt(() => widget.itineraryController.removeItem(itemId)),
+    );
   }
 
   void _addPlace(Place place) {
-    widget.itineraryController
-        .addPlace(place)
-        .catchError((Object error) => _showSaveError(error));
-  }
-
-  void _showSaveError(Object error) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('No se pudo guardar: $error')));
+    unawaited(_attempt(() => widget.itineraryController.addPlace(place)));
   }
 
   Future<void> _openPicker() async {
@@ -171,6 +206,8 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       appBar: AppBar(
         title: Text(
           widget.trip.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(
             context,
           ).textTheme.titleLarge?.copyWith(fontSize: 28),
@@ -185,7 +222,23 @@ class _ItineraryScreenState extends State<ItineraryScreen>
             Expanded(
               child: ValueListenableBuilder<ItineraryState>(
                 valueListenable: widget.itineraryController,
-                builder: (_, state, _) => _buildContent(state),
+                builder: (_, state, _) {
+                  final content = _buildContent(state);
+                  if (!state.isMutating) return content;
+                  return Column(
+                    children: [
+                      Semantics(
+                        label: 'Guardando cambios',
+                        child: const LinearProgressIndicator(
+                          minHeight: 2,
+                          color: AppColors.primary,
+                          backgroundColor: Colors.transparent,
+                        ),
+                      ),
+                      Expanded(child: content),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -197,6 +250,9 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   Widget _buildContent(ItineraryState state) {
     if (state.isLoading && state.items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (state.loadError != null && state.items.isEmpty) {
+      return _buildLoadError();
     }
     final general = state.items.where((i) => i.isUnassigned).toList()
       ..sort((a, b) => a.position.compareTo(b.position));
@@ -210,10 +266,46 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     );
   }
 
+  /// Explicit failure state for a load that left the itinerary empty: it
+  /// must be impossible to mistake a network failure for an empty plan.
+  Widget _buildLoadError() {
+    final textTheme = Theme.of(context).textTheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off, size: 40, color: AppColors.primary),
+            const SizedBox(height: 12),
+            Text(
+              'No se pudo cargar el itinerario',
+              style: textTheme.titleMedium?.copyWith(color: AppColors.text),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Comprueba tu conexión con el servidor.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => unawaited(_load()),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStacked(ItineraryState state, List<ItineraryItem> general) {
     return Column(
       children: [
-        _buildDayPillStrip(centered: false),
+        _buildDayPillStrip(centered: false, state: state),
         _buildGeneralSection(general),
         Expanded(child: _buildDayTimeline(state, centered: false)),
       ],
@@ -224,7 +316,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildDayPillStrip(centered: true),
+        _buildDayPillStrip(centered: true, state: state),
         Expanded(
           child: ItineraryTwoColumnLayout(
             leftChild: _buildGeneralSection(general, vertical: true),
@@ -246,6 +338,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       items: general,
       onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
       onDeleteItem: _removeItem,
+      onOpenItem: _openMoveSheet,
       trailing: DashedActionCard(
         label: '¿Añadimos un lugar?',
         onTap: _openPicker,
@@ -254,7 +347,10 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     );
   }
 
-  Widget _buildDayPillStrip({required bool centered}) {
+  Widget _buildDayPillStrip({
+    required bool centered,
+    required ItineraryState state,
+  }) {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -264,6 +360,10 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       child: DayPillStrip(
         days: _days,
         selectedIndex: _tabController.index,
+        counts: [
+          for (final day in _days)
+            state.items.where((item) => item.dayDate == day).length,
+        ],
         onSelect: (index) => _tabController.animateTo(index),
         onDropOnDay: _dropOnDay,
         onHoverStart: _scheduleDayOpen,
@@ -300,6 +400,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
         onAcceptItem: (item, slot, index) =>
             _moveItem(item.id, day, slot, index),
         onDeleteItem: _removeItem,
+        onOpenItem: _openMoveSheet,
       );
     }
 
@@ -329,4 +430,107 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       ),
     );
   }
+
+  /// Non-drag alternative for reordering: a plain tap on a card opens a
+  /// sheet with explicit move targets plus remove, so touch, keyboard and
+  /// screen-reader users all have a path that is not a drag gesture.
+  void _openMoveSheet(ItineraryItem item) {
+    final textTheme = Theme.of(context).textTheme;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  'Mover "${item.place.name}"',
+                  style: textTheme.titleMedium?.copyWith(color: AppColors.text),
+                ),
+              ),
+              for (final target in _moveTargets(item))
+                ListTile(
+                  leading: Icon(target.icon, color: AppColors.primary),
+                  title: Text(target.label),
+                  subtitle: target.subtitle == null
+                      ? null
+                      : Text(target.subtitle!),
+                  onTap: () =>
+                      _applyMoveFromSheet(sheetContext, item, target),
+                ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.textSecondary,
+                ),
+                title: const Text('Quitar del itinerario'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _removeItem(item.id);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  List<_MoveTarget> _moveTargets(ItineraryItem item) {
+    final targets = <_MoveTarget>[];
+    final assignedDay = item.dayDate;
+    if (assignedDay != null) {
+      targets.add(
+        const _MoveTarget('Por asignar', Icons.archive_outlined),
+      );
+    }
+    final targetDay = assignedDay ?? _days[_tabController.index];
+    final daySubtitle =
+        'Día ${_days.indexOf(targetDay) + 1} · ${dayLabel(targetDay)}';
+    for (final slot in ItinerarySlot.values) {
+      if (assignedDay != null && slot == item.slot) continue;
+      targets.add(
+        _MoveTarget(
+          slot.label,
+          ItinerarySlotSection.iconFor(slot),
+          day: targetDay,
+          slot: slot,
+          subtitle: assignedDay == null ? daySubtitle : null,
+        ),
+      );
+    }
+    return targets;
+  }
+
+  void _applyMoveFromSheet(
+    BuildContext sheetContext,
+    ItineraryItem item,
+    _MoveTarget target,
+  ) {
+    Navigator.pop(sheetContext);
+    final items = widget.itineraryController.value.items;
+    final count = items
+        .where(
+          (other) =>
+              other.dayDate == target.day && other.slot == target.slot,
+        )
+        .length;
+    _moveItem(item.id, target.day, target.slot, count);
+  }
+}
+
+/// One destination row inside the move sheet. [day]/[slot] are null for the
+/// unassigned container; [daySubtitle] labels a cross-day destination.
+class _MoveTarget {
+  const _MoveTarget(this.label, this.icon, {this.day, this.slot, this.subtitle});
+
+  final String label;
+  final IconData icon;
+  final DateTime? day;
+  final ItinerarySlot? slot;
+  final String? subtitle;
 }

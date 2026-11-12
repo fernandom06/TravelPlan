@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,12 +26,21 @@ import 'package:frontend/presentation/widgets/offline_banner.dart';
 import 'package:frontend/presentation/widgets/place_picker_dialog.dart';
 
 class _FakeItineraryApi extends ItineraryApi {
-  _FakeItineraryApi({this.items = const [], this.createdItem, this.moveError})
-    : super(baseUrl: 'http://fake');
+  _FakeItineraryApi({
+    this.items = const [],
+    this.createdItem,
+    this.moveError,
+    this.loadError,
+  }) : super(baseUrl: 'http://fake');
 
-  final List<ItineraryItem> items;
-  final ItineraryItem? createdItem;
-  final Object? moveError;
+  List<ItineraryItem> items;
+  ItineraryItem? createdItem;
+  Object? moveError;
+  Object? loadError;
+
+  /// When set, [moveItem] blocks on the completer so a test can inspect the
+  /// optimistic state while the request is in flight.
+  Completer<void>? hangMove;
 
   final List<int> moveCalls = [];
   final List<ItineraryMove> movePayloads = [];
@@ -37,7 +48,10 @@ class _FakeItineraryApi extends ItineraryApi {
   final List<int> removeCalls = [];
 
   @override
-  Future<List<ItineraryItem>> fetchItinerary(String tripId) async => items;
+  Future<List<ItineraryItem>> fetchItinerary(String tripId) async {
+    if (loadError != null) throw loadError!;
+    return items;
+  }
 
   @override
   Future<ItineraryItem> addPlace(String tripId, int placeId) async {
@@ -52,6 +66,7 @@ class _FakeItineraryApi extends ItineraryApi {
     ItineraryMove move,
   ) async {
     if (moveError != null) throw moveError!;
+    if (hangMove != null) await hangMove!.future;
     moveCalls.add(itemId);
     movePayloads.add(move);
     return items.firstWhere((i) => i.id == itemId);
@@ -284,8 +299,7 @@ void main() {
     expect(find.text('Día 1 · 01 Jun'), findsOneWidget);
   });
 
-  testWidgets('shows empty states for general list and slots', (tester) async {
-    tester.view.physicalSize = const Size(800, 1000);
+  testWidgets('shows empty states for general list and slots', (tester) async {    tester.view.physicalSize = const Size(800, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     final api = _FakeItineraryApi();
@@ -301,7 +315,9 @@ void main() {
 
     expect(find.text('Añade lugares al viaje'), findsNothing);
     expect(find.text('¿Añadimos un lugar?'), findsOneWidget);
-    expect(find.text('Arrastra lugares aquí'), findsNWidgets(3));
+    // Tests run on the Android target platform, so the hint names the
+    // long-press gesture.
+    expect(find.text('Mantén pulsado y arrastra lugares aquí'), findsNWidgets(3));
   });
 
   testWidgets('dragging a general card to a slot moves it (no copy)', (
@@ -979,5 +995,200 @@ void main() {
     );
     expect(stripScrollable, findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a failed load shows an explicit error state, not an empty '
+      'plan', (tester) async {
+    final api = _FakeItineraryApi(loadError: Exception('boom'));
+    final controller = ItineraryController(api);
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No se pudo cargar el itinerario'), findsOneWidget);
+    expect(find.text('Comprueba tu conexión con el servidor.'), findsOneWidget);
+    // The failure must not read as an empty itinerary.
+    expect(find.text('Mantén pulsado y arrastra lugares aquí'), findsNothing);
+    expect(find.text('¿Añadimos un lugar?'), findsNothing);
+
+    api.loadError = null;
+    await tester.tap(find.text('Reintentar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No se pudo cargar el itinerario'), findsNothing);
+    expect(find.text('¿Añadimos un lugar?'), findsOneWidget);
+  });
+
+  testWidgets('day pills show how many items each day holds', (tester) async {
+    final api = _FakeItineraryApi(
+      items: [
+        _item(
+          1,
+          position: 0,
+          day: DateTime(2026, 6, 1),
+          slot: ItinerarySlot.morning,
+        ),
+        _item(
+          2,
+          position: 0,
+          day: DateTime(2026, 6, 1),
+          slot: ItinerarySlot.afternoon,
+        ),
+        _item(
+          3,
+          position: 0,
+          day: DateTime(2026, 6, 2),
+          slot: ItinerarySlot.morning,
+        ),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Día 1 · 01 Jun · 2'), findsOneWidget);
+    expect(find.text('Día 2 · 02 Jun · 1'), findsOneWidget);
+    expect(find.text('Día 3 · 03 Jun'), findsOneWidget);
+  });
+
+  testWidgets('tapping a card opens the move sheet and moving calls the '
+      'controller', (tester) async {
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Lugar 1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mover "Lugar 1"'), findsOneWidget);
+
+    // Unassigned item: the slots target the selected day.
+    final sheet = find.byType(BottomSheet);
+    await tester.tap(find.descendant(of: sheet, matching: find.text('Mañana')));
+    await tester.pumpAndSettle();
+
+    expect(api.moveCalls, [1]);
+    expect(api.movePayloads.single.dayDate, DateTime(2026, 6, 1));
+    expect(api.movePayloads.single.slot, ItinerarySlot.morning);
+  });
+
+  testWidgets('the failure snackbar persists and Reintentar saves the move', (
+    tester,
+  ) async {
+    final api = _FakeItineraryApi(
+      items: [_item(1, position: 0)],
+      moveError: Exception('boom'),
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    await _dragCard(
+      tester,
+      find.text('Lugar 1'),
+      tester.getCenter(find.text('Mañana')),
+    );
+
+    expect(find.text('No se pudo guardar el cambio. Revisa tu conexión.'),
+        findsOneWidget);
+    expect(find.text('Reintentar'), findsOneWidget);
+
+    api.moveError = null;
+    await tester.tap(find.text('Reintentar'));
+    await tester.pumpAndSettle();
+
+    expect(api.moveCalls, [1]);
+    expect(api.movePayloads.single.dayDate, DateTime(2026, 6, 1));
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('the picker allows adding the same place twice', (tester) async {
+    final api = _FakeItineraryApi(
+      items: [_item(1, position: 0)],
+      createdItem: _item(9, position: 1),
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([_place(1)]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('¿Añadimos un lugar?'));
+    await tester.pumpAndSettle();
+
+    final dialog = find.byType(AlertDialog);
+    // Visiting the same spot twice is a legitimate plan: the picker must
+    // not block repeated adds.
+    await tester.tap(find.descendant(of: dialog, matching: find.text('Lugar 1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: dialog, matching: find.text('Lugar 1')));
+    await tester.pumpAndSettle();
+
+    expect(api.addCalls, [1, 1]);
+    expect(find.text('2 añadidos'), findsOneWidget);
+  });
+
+  testWidgets('shows the saving indicator while a mutation is in flight', (
+    tester,
+  ) async {
+    final api = _FakeItineraryApi(items: [_item(1, position: 0)])
+      ..hangMove = Completer<void>();
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.text('Guardando cambios'), findsNothing);
+
+    final future = controller.moveItem(
+      1,
+      DateTime(2026, 6, 1),
+      ItinerarySlot.morning,
+      0,
+    );
+    await tester.pump();
+
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.bySemanticsLabel('Guardando cambios'), findsOneWidget);
+
+    api.hangMove!.complete();
+    await future;
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 }

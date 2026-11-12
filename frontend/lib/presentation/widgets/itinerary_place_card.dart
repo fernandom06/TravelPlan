@@ -8,17 +8,26 @@ import '../../data/models/itinerary_item.dart';
 /// Mini-card for itinerary items: tinted category-icon circle, place name and
 /// a trash button, wrapped in a [Draggable] (immediate on desktop, long-press
 /// elsewhere) that carries the [ItineraryItem].
+///
+/// When [onTap] is provided a plain tap opens the move sheet, giving the
+/// reordering a non-drag alternative for touch, keyboard and screen-reader
+/// users.
 class ItineraryPlaceCard extends StatelessWidget {
   const ItineraryPlaceCard({
     super.key,
     required this.item,
     required this.onDelete,
+    this.onTap,
     this.horizontal = true,
     this.width,
   });
 
   final ItineraryItem item;
   final VoidCallback onDelete;
+
+  /// Invoked on a plain tap (as opposed to a drag). Null keeps the card
+  /// non-interactive.
+  final VoidCallback? onTap;
   final bool horizontal;
 
   /// Optional width for the vertical (non-horizontal) card and its drag
@@ -34,6 +43,14 @@ class ItineraryPlaceCard extends StatelessWidget {
       horizontal: horizontal,
       width: width,
     );
+    final interactive =
+        onTap != null
+            ? GestureDetector(
+              onTap: onTap,
+              behavior: HitTestBehavior.opaque,
+              child: content,
+            )
+            : content;
     final feedback = Material(
       elevation: 4,
       color: Colors.transparent,
@@ -58,18 +75,21 @@ class ItineraryPlaceCard extends StatelessWidget {
       TargetPlatform.windows => true,
       _ => false,
     };
+    final draggableChild = onTap == null
+        ? interactive
+        : MouseRegion(cursor: SystemMouseCursors.click, child: interactive);
     return isDesktop
         ? Draggable<ItineraryItem>(
             data: item,
             feedback: feedback,
-            childWhenDragging: Opacity(opacity: 0.4, child: content),
-            child: content,
+            childWhenDragging: Opacity(opacity: 0.4, child: interactive),
+            child: draggableChild,
           )
         : LongPressDraggable<ItineraryItem>(
             data: item,
             feedback: feedback,
-            childWhenDragging: Opacity(opacity: 0.4, child: content),
-            child: content,
+            childWhenDragging: Opacity(opacity: 0.4, child: interactive),
+            child: draggableChild,
           );
   }
 }
@@ -106,11 +126,12 @@ class _MiniCard extends StatelessWidget {
       tooltip: 'Quitar del itinerario',
       onPressed: onDelete,
       padding: EdgeInsets.zero,
-      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       color: AppColors.textSecondary,
     );
 
     final Widget content;
+    final textTheme = Theme.of(context).textTheme;
     if (horizontal) {
       content = Row(
         children: [
@@ -133,8 +154,7 @@ class _MiniCard extends StatelessWidget {
                   place.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.text,
                   ),
@@ -144,8 +164,7 @@ class _MiniCard extends StatelessWidget {
                   place.category.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -175,8 +194,7 @@ class _MiniCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
+            style: textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: AppColors.text,
             ),
@@ -187,8 +205,7 @@ class _MiniCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 11,
+            style: textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
             ),
           ),

@@ -74,7 +74,7 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.light_mode), findsOneWidget);
+    expect(find.byIcon(Icons.wb_twilight), findsOneWidget);
     expect(find.byIcon(Icons.wb_sunny), findsNothing);
     expect(find.byIcon(Icons.dark_mode), findsNothing);
   });
@@ -170,7 +170,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Arrastra lugares aquí'), findsOneWidget);
+    // Tests run on the Android target platform, so the hint names the
+    // long-press gesture.
+    expect(find.text('Mantén pulsado y arrastra lugares aquí'), findsOneWidget);
   });
 
   testWidgets('dropping a card on the empty section appends to the end', (

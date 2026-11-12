@@ -74,11 +74,32 @@ void main() {
       await tester.tap(find.text('Playa de la Concha'));
       await tester.pump();
 
+      // The same place can be added twice: visiting a spot again is a
+      // legitimate plan.
       expect(selected, [2, 2]);
       expect(find.byType(PlacePickerDialog), findsOneWidget);
       expect(find.text('2 añadidos'), findsOneWidget);
     },
   );
+
+  testWidgets('an empty trip shows "no places yet" guidance', (tester) async {
+    await tester.pumpWidget(wrap(const [], (_) {}));
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Todavía no hay lugares en el viaje'), findsOneWidget);
+  });
+
+  testWidgets('an empty search shows "no matches" guidance', (tester) async {
+    await tester.pumpWidget(wrap(_places, (_) {}));
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'zzz');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ningún lugar coincide con la búsqueda'), findsOneWidget);
+  });
 
   testWidgets('close button dismisses the dialog', (tester) async {
     await tester.pumpWidget(wrap(_places, (_) {}));

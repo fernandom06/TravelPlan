@@ -47,7 +47,7 @@ class _FakeItineraryApi extends ItineraryApi {
   }) : super(baseUrl: 'http://fake');
 
   final List<ItineraryItem> items;
-  final Object? fetchError;
+  Object? fetchError;
   final Object? addError;
   final Object? moveError;
   final Object? removeError;
@@ -380,6 +380,62 @@ void main() {
       await controller.loadItinerary(_trip);
 
       expect(controller.value.items.map((i) => i.id), [1, 2]);
+    });
+
+    test('a failed load records loadError and a retry clears it', () async {
+      final api = _FakeItineraryApi(
+        fetchError: Exception('boom'),
+        items: [],
+      );
+      final controller = ItineraryController(api);
+      addTearDown(controller.dispose);
+
+      await expectLater(
+        controller.loadItinerary(_trip),
+        throwsA(isA<Exception>()),
+      );
+      expect(controller.value.loadError, isA<Exception>());
+
+      api.items.add(_item(1, position: 0));
+      api.fetchError = null;
+      await controller.loadItinerary(_trip);
+
+      expect(controller.value.loadError, isNull);
+      expect(controller.value.items.map((i) => i.id), [1]);
+    });
+
+    test('mutations toggle isMutating while in flight', () async {
+      final api = _FakeItineraryApi(
+        items: [_item(1, position: 0)],
+        addedItem: _item(9, position: 0),
+      );
+      final controller = ItineraryController(api);
+      addTearDown(controller.dispose);
+      await controller.loadItinerary(_trip);
+      expect(controller.value.isMutating, isFalse);
+
+      final future = controller.addPlace(_place(1));
+      expect(controller.value.isMutating, isTrue);
+
+      await future;
+      expect(controller.value.isMutating, isFalse);
+    });
+
+    test('a failed mutation clears isMutating along with the rollback', () async {
+      final api = _FakeItineraryApi(
+        items: [_item(1, position: 0)],
+        moveError: Exception('boom'),
+      );
+      final controller = ItineraryController(api);
+      addTearDown(controller.dispose);
+      await controller.loadItinerary(_trip);
+
+      await expectLater(
+        controller.moveItem(1, _day1, ItinerarySlot.morning, 0),
+        throwsA(isA<Exception>()),
+      );
+
+      expect(controller.value.isMutating, isFalse);
     });
   });
 }

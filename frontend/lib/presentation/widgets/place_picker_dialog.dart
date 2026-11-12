@@ -12,6 +12,9 @@ class PlacePickerDialog extends StatefulWidget {
   });
 
   final List<Place> places;
+
+  /// Called on every tap: the same place may be added more than once —
+  /// visiting a spot twice on different days is a legitimate plan.
   final void Function(int placeId) onPlaceSelected;
 
   @override
@@ -61,15 +64,7 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
             const SizedBox(height: 8),
             Expanded(
               child: _filtered.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No hay lugares',
-                        style: TextStyle(
-                          fontFamily: 'Lora',
-                          color: AppColors.muted,
-                        ),
-                      ),
-                    )
+                  ? _emptyMessage()
                   : ListView.builder(
                       itemCount: _filtered.length,
                       itemBuilder: (context, index) {
@@ -88,10 +83,8 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
                           ),
                           title: Text(
                             place.name,
-                            style: const TextStyle(
-                              fontFamily: 'Lora',
-                              color: AppColors.text,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(color: AppColors.text),
                           ),
                           onTap: () => _select(place),
                         );
@@ -106,10 +99,8 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
                 borderRadius: AppRadii.pill,
               ),
               child: Text(
-                '$_addedCount añadidos',
-                style: const TextStyle(
-                  fontFamily: 'Lora',
-                  fontSize: 12,
+                _addedCountLabel(),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppColors.text,
                 ),
@@ -126,4 +117,50 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
       ],
     );
   }
+
+  /// Distinguishes "no places in the trip yet" from "the search found
+  /// nothing"; both need a different next step.
+  Widget _emptyMessage() {
+    final textTheme = Theme.of(context).textTheme;
+    if (widget.places.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.travel_explore, size: 24, color: AppColors.muted),
+            const SizedBox(height: 6),
+            Text(
+              'Todavía no hay lugares en el viaje',
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.search_off, size: 24, color: AppColors.muted),
+          const SizedBox(height: 6),
+          Text(
+            'Ningún lugar coincide con la búsqueda',
+            textAlign: TextAlign.center,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _addedCountLabel() => switch (_addedCount) {
+    0 => '0 añadidos',
+    1 => '1 añadido',
+    _ => '$_addedCount añadidos',
+  };
 }

@@ -97,11 +97,22 @@ class ItineraryState {
     required this.trip,
     required this.items,
     required this.isLoading,
+    this.loadError,
+    this.isMutating = false,
   });
 
   final Trip? trip;
   final List<ItineraryItem> items;
   final bool isLoading;
+
+  /// Error of the last failed load. While items are visible the screen keeps
+  /// working and only notifies; when the list is empty the screen shows an
+  /// explicit error state instead of looking like an empty itinerary.
+  final Object? loadError;
+
+  /// True while at least one optimistic mutation is in flight, so the screen
+  /// can say "guardando" instead of looking settled while a request runs.
+  final bool isMutating;
 }
 
 class ItineraryController extends ValueNotifier<ItineraryState> {
@@ -114,13 +125,40 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
 
   int _nextTempId() => -(_tempIdCounter++ + 1);
 
+  int _pendingMutations = 0;
+
+  ItineraryState _copy(
+    ItineraryState base, {
+    List<ItineraryItem>? items,
+    bool? isLoading,
+    Object? loadError,
+    required bool isMutating,
+  }) => ItineraryState(
+    trip: base.trip,
+    items: items ?? base.items,
+    isLoading: isLoading ?? base.isLoading,
+    loadError: loadError, // null clears the error on the next success.
+    isMutating: isMutating,
+  );
+
   Future<void> loadItinerary(Trip trip) async {
-    value = ItineraryState(trip: trip, items: value.items, isLoading: true);
+    value = ItineraryState(
+      trip: trip,
+      items: value.items,
+      isLoading: true,
+      loadError: value.loadError,
+      isMutating: value.isMutating,
+    );
     try {
       final items = await _api.fetchItinerary(trip.id);
-      value = ItineraryState(trip: trip, items: items, isLoading: false);
-    } catch (_) {
-      value = ItineraryState(trip: trip, items: value.items, isLoading: false);
+      value = _copy(value, items: items, isLoading: false, isMutating: value.isMutating);
+    } catch (e) {
+      value = _copy(
+        value,
+        isLoading: false,
+        loadError: e,
+        isMutating: value.isMutating,
+      );
       rethrow;
     }
   }
@@ -138,21 +176,24 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
       place: place,
     );
     final previous = value;
-    value = ItineraryState(
-      trip: previous.trip,
+    _pendingMutations++;
+    value = _copy(
+      value,
       items: [...value.items, tempItem],
-      isLoading: previous.isLoading,
+      isMutating: true,
     );
     try {
       final created = await _api.addPlace(_tripId, place.id);
-      value = ItineraryState(
-        trip: previous.trip,
+      _pendingMutations--;
+      value = _copy(
+        value,
         items: [
           for (final item in value.items) item.id == tempId ? created : item,
         ],
-        isLoading: previous.isLoading,
+        isMutating: _pendingMutations > 0,
       );
     } catch (_) {
+      _pendingMutations--;
       value = previous;
       rethrow;
     }
@@ -166,6 +207,7 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
     int targetIndex,
   ) async {
     final previous = value;
+    _pendingMutations++;
     final newItems = computeMove(
       value.items,
       itemId,
@@ -173,10 +215,10 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
       targetSlot,
       targetIndex,
     );
-    value = ItineraryState(
-      trip: previous.trip,
+    value = _copy(
+      previous,
       items: newItems,
-      isLoading: previous.isLoading,
+      isMutating: true,
     );
     try {
       await _api.moveItem(
@@ -188,7 +230,10 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
           position: targetIndex,
         ),
       );
+      _pendingMutations--;
+      value = _copy(value, isMutating: _pendingMutations > 0);
     } catch (_) {
+      _pendingMutations--;
       value = previous;
       rethrow;
     }
@@ -197,14 +242,18 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
   /// Borra una instancia de forma optimista y la persiste.
   Future<void> removeItem(int itemId) async {
     final previous = value;
-    value = ItineraryState(
-      trip: previous.trip,
+    _pendingMutations++;
+    value = _copy(
+      value,
       items: value.items.where((item) => item.id != itemId).toList(),
-      isLoading: previous.isLoading,
+      isMutating: true,
     );
     try {
       await _api.removeItem(_tripId, itemId);
+      _pendingMutations--;
+      value = _copy(value, isMutating: _pendingMutations > 0);
     } catch (_) {
+      _pendingMutations--;
       value = previous;
       rethrow;
     }
