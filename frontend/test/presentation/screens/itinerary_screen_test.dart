@@ -163,11 +163,38 @@ Future<PlacesController> _placesWith(List<Place> places) async {
   return controller;
 }
 
-Future<void> _dragCard(WidgetTester tester, Finder card, Offset to) async {
-  final gesture = await tester.startGesture(tester.getCenter(card));
+Future<TestGesture> _startDrag(
+  WidgetTester tester,
+  Finder card,
+  Offset to,
+) async {
+  final from = tester.getCenter(card);
+  final gesture = await tester.startGesture(from);
   await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+  for (var step = 1; step <= 6; step++) {
+    await gesture.moveTo(Offset.lerp(from, to, step / 6)!);
+    await tester.pump();
+  }
   await gesture.moveTo(to);
   await tester.pump();
+  return gesture;
+}
+
+Future<void> _dragCard(WidgetTester tester, Finder card, Offset to) async {
+  final gesture = await _startDrag(tester, card, to);
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
+/// Drags [card] onto [target] and drops, re-aiming at the target's live
+/// centre: the preview hole changes the section height, which re-centres the
+/// wide timeline, exactly like a user adjusting the drag.
+Future<void> _dragOnto(WidgetTester tester, Finder card, Finder target) async {
+  final gesture = await _startDrag(tester, card, tester.getCenter(target));
+  for (var attempt = 0; attempt < 2; attempt++) {
+    await gesture.moveTo(tester.getCenter(target));
+    await tester.pump();
+  }
   await gesture.up();
   await tester.pumpAndSettle();
 }
@@ -931,6 +958,53 @@ void main() {
     expect(api.movePayloads.single.position, 0);
   });
 
+  testWidgets('wide drag inside a day section reorders and clears the '
+      'preview', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 1);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0, day: day, slot: ItinerarySlot.morning),
+        _item(2, position: 1, day: day, slot: ItinerarySlot.morning),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    const placeholder = ValueKey('itinerary-drop-placeholder');
+    final cards = find.descendant(
+      of: find.byType(ItinerarySlotSection).first,
+      matching: find.byType(ItineraryPlaceCard),
+    );
+
+    final gesture = await _startDrag(
+      tester,
+      cards.at(1),
+      tester.getCenter(cards.at(0)),
+    );
+
+    // La sesión llega a la sección de la columna derecha a través del layout.
+    expect(find.byKey(placeholder), findsOneWidget);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(api.moveCalls, [2]);
+    expect(api.movePayloads.single.dayDate, day);
+    expect(api.movePayloads.single.slot, ItinerarySlot.morning);
+    expect(api.movePayloads.single.position, 0);
+    expect(find.byKey(placeholder), findsNothing);
+  });
+
   testWidgets('wide drag from the timeline back to the grid unassigns', (
     tester,
   ) async {
@@ -1000,6 +1074,487 @@ void main() {
 
     await gesture.up();
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('wide dragging a night card over the first one reorders it '
+      'with the preview on the target (EJ-1, AC-2)', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 3);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0, day: day, slot: ItinerarySlot.night),
+        _item(2, position: 1, day: day, slot: ItinerarySlot.night),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Día 3 · 03 Jun'));
+    await tester.pumpAndSettle();
+
+    final nightSection = find.ancestor(
+      of: find.text('Noche'),
+      matching: find.byType(ItinerarySlotSection),
+    );
+    final cards = find.descendant(
+      of: nightSection,
+      matching: find.byType(ItineraryPlaceCard),
+    );
+
+    const placeholder = ValueKey('itinerary-drop-placeholder');
+    final gesture = await _startDrag(
+      tester,
+      cards.at(1),
+      tester.getCenter(cards.at(0)),
+    );
+
+    // AC-2: el hueco se ve en la posición destino, encima de la primera
+    // tarjeta, mientras se arrastra.
+    expect(find.byKey(placeholder), findsOneWidget);
+    expect(
+      tester.getCenter(find.byKey(placeholder)).dy,
+      lessThan(tester.getCenter(find.text('Lugar 1')).dy),
+    );
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(api.moveCalls, [2]);
+    expect(api.movePayloads.single.dayDate, day);
+    expect(api.movePayloads.single.slot, ItinerarySlot.night);
+    expect(api.movePayloads.single.position, 0);
+    expect(find.byKey(placeholder), findsNothing);
+    // Noche queda [Lugar 2, Lugar 1].
+    expect(
+      tester.getCenter(find.text('Lugar 2')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 1')).dy),
+    );
+  });
+
+  testWidgets('wide dragging the first morning card into the gap after the '
+      'second one reorders it (EJ-2)', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 1);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0, day: day, slot: ItinerarySlot.morning),
+        _item(2, position: 1, day: day, slot: ItinerarySlot.morning),
+        _item(3, position: 2, day: day, slot: ItinerarySlot.morning),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final morningSection = find.ancestor(
+      of: find.text('Mañana'),
+      matching: find.byType(ItinerarySlotSection),
+    );
+    final cards = find.descendant(
+      of: morningSection,
+      matching: find.byType(ItineraryPlaceCard),
+    );
+    expect(cards, findsNWidgets(3));
+
+    // Punto medio entre la 2ª y la 3ª tarjeta: dos centros quedan por encima
+    // del drop, así que el índice "insertar antes" es 2.
+    Offset gap() => Offset(
+      tester.getCenter(cards.at(0)).dx,
+      (tester.getCenter(cards.at(1)).dy + tester.getCenter(cards.at(2)).dy) / 2,
+    );
+
+    final gesture = await _startDrag(tester, cards.at(0), gap());
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await gesture.moveTo(gap());
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(api.moveCalls, [1]);
+    expect(api.movePayloads.single.dayDate, day);
+    expect(api.movePayloads.single.slot, ItinerarySlot.morning);
+    expect(api.movePayloads.single.position, 2);
+    // Mañana queda [Lugar 2, Lugar 1, Lugar 3].
+    expect(
+      tester.getCenter(find.text('Lugar 2')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 1')).dy),
+    );
+    expect(
+      tester.getCenter(find.text('Lugar 1')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 3')).dy),
+    );
+  });
+
+  testWidgets('wide dropping a general card on a night card inserts it '
+      'before that card (EJ-4)', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 3);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0),
+        _item(2, position: 0, day: day, slot: ItinerarySlot.night),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Día 3 · 03 Jun'));
+    await tester.pumpAndSettle();
+
+    final nightSection = find.ancestor(
+      of: find.text('Noche'),
+      matching: find.byType(ItinerarySlotSection),
+    );
+    final nightCard = find.descendant(
+      of: nightSection,
+      matching: find.byType(ItineraryPlaceCard),
+    );
+
+    await _dragCard(
+      tester,
+      find.descendant(
+        of: find.byType(GeneralItemsSection),
+        matching: find.text('Lugar 1'),
+      ),
+      tester.getCenter(nightCard),
+    );
+
+    expect(api.moveCalls, [1]);
+    expect(api.movePayloads.single.dayDate, day);
+    expect(api.movePayloads.single.slot, ItinerarySlot.night);
+    // Insertado antes de la tarjeta destino, no al final.
+    expect(api.movePayloads.single.position, 0);
+  });
+
+  testWidgets('wide dropping a general card below the last one appends it '
+      '(EJ-5)', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final api = _FakeItineraryApi(
+      items: [_item(1, position: 0), _item(2, position: 1)],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    final general = find.byType(GeneralItemsSection);
+    final cards = find.descendant(
+      of: general,
+      matching: find.byType(ItineraryPlaceCard),
+    );
+    expect(cards, findsNWidgets(2));
+
+    // Zona vacía por debajo de la última tarjeta: todos los centros quedan por
+    // encima del drop, así que el índice "insertar antes" es `items.length`.
+    Offset belowLast() => Offset(
+      tester.getCenter(cards.at(1)).dx,
+      tester.getBottomLeft(cards.at(1)).dy + 24,
+    );
+
+    final gesture = await _startDrag(tester, cards.at(0), belowLast());
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await gesture.moveTo(belowLast());
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(api.moveCalls, [1]);
+    expect(api.movePayloads.single.dayDate, isNull);
+    expect(api.movePayloads.single.slot, isNull);
+    expect(api.movePayloads.single.position, 2);
+    // La general queda [Lugar 2, Lugar 1].
+    expect(
+      tester.getCenter(find.text('Lugar 2')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 1')).dy),
+    );
+  });
+
+  testWidgets('wide dropping a night card on its own place does nothing '
+      '(EJ-6)', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 3);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0, day: day, slot: ItinerarySlot.night),
+        _item(2, position: 1, day: day, slot: ItinerarySlot.night),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Día 3 · 03 Jun'));
+    await tester.pumpAndSettle();
+
+    final card = find.descendant(
+      of: find.ancestor(
+        of: find.text('Noche'),
+        matching: find.byType(ItinerarySlotSection),
+      ),
+      matching: find.byType(ItineraryPlaceCard),
+    );
+    await _dragCard(tester, card.first, tester.getCenter(card.first));
+
+    expect(api.moveCalls, isEmpty);
+    expect(
+      tester.getCenter(find.text('Lugar 1')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 2')).dy),
+    );
+  });
+
+  testWidgets('wide a single-item section can send its card away and back '
+      '(CC-3)', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 1);
+    final api = _FakeItineraryApi(
+      items: [_item(1, position: 0, day: day, slot: ItinerarySlot.morning)],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+
+    Finder section(String title) => find.ancestor(
+      of: find.text(title),
+      matching: find.byType(ItinerarySlotSection),
+    );
+
+    // Mañana (solo el lugar 1) -> Noche vacía: se añade al final (índice 0).
+    await _dragCard(
+      tester,
+      find.text('Lugar 1'),
+      tester.getCenter(
+        find.descendant(
+          of: section('Noche'),
+          matching: find.text('Mantén pulsado y arrastra lugares aquí'),
+        ),
+      ),
+    );
+
+    expect(api.movePayloads.first.slot, ItinerarySlot.night);
+    expect(api.movePayloads.first.position, 0);
+
+    // De vuelta a la Mañana, ahora vacía: índice 0 y orden restaurado.
+    await _dragCard(
+      tester,
+      find.text('Lugar 1'),
+      tester.getCenter(
+        find.descendant(
+          of: section('Mañana'),
+          matching: find.text('Mantén pulsado y arrastra lugares aquí'),
+        ),
+      ),
+    );
+
+    expect(api.moveCalls, [1, 1]);
+    expect(api.movePayloads.last.dayDate, day);
+    expect(api.movePayloads.last.slot, ItinerarySlot.morning);
+    expect(api.movePayloads.last.position, 0);
+  });
+
+  testWidgets('wide two consecutive night drags produce one move each '
+      '(CC-4)', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 3);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0, day: day, slot: ItinerarySlot.night),
+        _item(2, position: 1, day: day, slot: ItinerarySlot.night),
+        _item(3, position: 2, day: day, slot: ItinerarySlot.night),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Día 3 · 03 Jun'));
+    await tester.pumpAndSettle();
+
+    Finder nightCards() => find.descendant(
+      of: find.ancestor(
+        of: find.text('Noche'),
+        matching: find.byType(ItinerarySlotSection),
+      ),
+      matching: find.byType(ItineraryPlaceCard),
+    );
+
+    // Lugar 3 al principio: [3, 1, 2].
+    await _dragOnto(tester, nightCards().last, nightCards().first);
+    // Lugar 2 (ahora último) al principio: [2, 3, 1].
+    await _dragOnto(tester, nightCards().last, nightCards().first);
+
+    expect(api.moveCalls, [3, 2]);
+    expect(api.movePayloads.map((move) => move.position), [0, 0]);
+    expect(
+      api.movePayloads.every((move) => move.slot == ItinerarySlot.night),
+      isTrue,
+    );
+    expect(
+      tester.getCenter(find.text('Lugar 2')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 3')).dy),
+    );
+    expect(
+      tester.getCenter(find.text('Lugar 3')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 1')).dy),
+    );
+  });
+
+  testWidgets('wide a failing move rolls the night order back (EJ-8)', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 3);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0, day: day, slot: ItinerarySlot.night),
+        _item(2, position: 1, day: day, slot: ItinerarySlot.night),
+      ],
+      moveError: Exception('boom'),
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Día 3 · 03 Jun'));
+    await tester.pumpAndSettle();
+
+    final nightCards = find.descendant(
+      of: find.ancestor(
+        of: find.text('Noche'),
+        matching: find.byType(ItinerarySlotSection),
+      ),
+      matching: find.byType(ItineraryPlaceCard),
+    );
+
+    await _dragOnto(tester, nightCards.last, nightCards.first);
+
+    expect(
+      find.text('No se pudo guardar el cambio. Revisa tu conexión.'),
+      findsOneWidget,
+    );
+    // Rollback: la vista vuelve al orden previo.
+    expect(
+      tester.getCenter(find.text('Lugar 1')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 2')).dy),
+    );
+  });
+
+  testWidgets('wide the new night order comes back when reopening the '
+      'itinerary (EJ-7)', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final day = DateTime(2026, 6, 3);
+    final api = _FakeItineraryApi(
+      items: [
+        _item(1, position: 0, day: day, slot: ItinerarySlot.night),
+        _item(2, position: 1, day: day, slot: ItinerarySlot.night),
+      ],
+    );
+    final controller = await _controllerWith(api, _trip());
+    addTearDown(controller.dispose);
+    final places = await _placesWith([]);
+    addTearDown(places.dispose);
+
+    await tester.pumpWidget(
+      _wrap(controller: controller, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Día 3 · 03 Jun'));
+    await tester.pumpAndSettle();
+
+    Finder nightCards() => find.descendant(
+      of: find.ancestor(
+        of: find.text('Noche'),
+        matching: find.byType(ItinerarySlotSection),
+      ),
+      matching: find.byType(ItineraryPlaceCard),
+    );
+
+    await _dragOnto(tester, nightCards().last, nightCards().first);
+    expect(api.moveCalls, [2]);
+
+    // El servidor aplica el PATCH: al reabrir el itinerario la verdad viene
+    // de la API, no del estado optimista anterior.
+    api.items = [
+      _item(2, position: 0, day: day, slot: ItinerarySlot.night),
+      _item(1, position: 1, day: day, slot: ItinerarySlot.night),
+    ];
+    final reopened = await _controllerWith(api, _trip());
+    addTearDown(reopened.dispose);
+    await tester.pumpWidget(
+      _wrap(controller: reopened, places: places, trip: _trip()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Día 3 · 03 Jun'));
+    await tester.pumpAndSettle();
+
+    expect(nightCards(), findsNWidgets(2));
+    expect(
+      tester.getCenter(find.text('Lugar 2')).dy,
+      lessThan(tester.getCenter(find.text('Lugar 1')).dy),
+    );
   });
 
   testWidgets('resizing across the breakpoint keeps the selected day', (

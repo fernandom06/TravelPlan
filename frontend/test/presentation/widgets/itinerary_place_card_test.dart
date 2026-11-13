@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' hide Category;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -425,5 +426,42 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('reports the drag lifecycle through its drag hooks', (
+    tester,
+  ) async {
+    var started = 0;
+    var ended = 0;
+    var anchor = Offset.zero;
+    await tester.pumpWidget(
+      _wrap(
+        ItineraryPlaceCard(
+          item: _item(),
+          onDelete: () {},
+          onDragStarted: (value) {
+            started++;
+            anchor = value;
+          },
+          onDragEnd: () => ended++,
+        ),
+      ),
+    );
+
+    final cardCenter = tester.getCenter(find.byType(ItineraryPlaceCard));
+    final gesture = await tester.startGesture(cardCenter);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await gesture.moveTo(const Offset(240, 400));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(started, 1);
+    expect(ended, 1);
+    // The anchor is where the pointer grabbed the card, so drag targets can
+    // recover the pointer position from the feedback offset.
+    final cardSize = tester.getSize(find.byType(ItineraryPlaceCard));
+    expect(anchor.dx, closeTo(cardSize.width / 2, 0.5));
+    expect(anchor.dy, closeTo(cardSize.height / 2, 0.5));
   });
 }

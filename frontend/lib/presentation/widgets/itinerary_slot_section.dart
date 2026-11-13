@@ -3,29 +3,39 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/itinerary_item.dart';
 import '../../data/models/itinerary_slot.dart';
+import '../controllers/itinerary_drag_session.dart';
 import 'dashed_border_container.dart';
 import 'itinerary_place_card.dart';
+import 'section_drag_drop.dart';
 
 /// Timeline-style slot section: a terracotta rail with a circular marker per
 /// slot, a Fraunces header with a per-slot icon, and either a dashed drop zone
 /// ("Arrastra lugares aquí", highlighted while dragging) or the assigned
 /// [ItineraryPlaceCard]s. The empty drop zone is also tappable via
 /// [onAddPlace], which opens the picker pre-targeted to this day+slot.
-/// Drag semantics (append + insert-before) are unchanged.
-class ItinerarySlotSection extends StatelessWidget {
+///
+/// One single [DragTarget] covers the whole section: the insert index is
+/// computed from the pointer position over the visible cards, so the preview
+/// hole and the drop always agree and no nested target can override the drop.
+class ItinerarySlotSection extends StatefulWidget {
   const ItinerarySlotSection({
     super.key,
+    required this.day,
     required this.title,
     required this.slot,
     required this.items,
     required this.onAcceptItem,
     required this.onDeleteItem,
+    this.dragSession,
     this.onOpenItem,
     this.onAddPlace,
     this.dayLabel,
     this.isLast = false,
   });
 
+  /// Day this section belongs to. With [slot] it identifies the drag container
+  /// the section accepts drops for.
+  final DateTime day;
   final String title;
   final ItinerarySlot slot;
   final List<ItineraryItem> items;
@@ -39,6 +49,10 @@ class ItinerarySlotSection extends StatelessWidget {
   final void Function(ItineraryItem item, ItinerarySlot slot, int index)
   onAcceptItem;
   final void Function(int itemId) onDeleteItem;
+
+  /// Shared drag state: when present, the section reports the hovered insert
+  /// index and renders the translucent hole there.
+  final ItineraryDragSession? dragSession;
 
   /// Invoked when a card is plain-tapped (non-drag move alternative).
   final void Function(ItineraryItem item)? onOpenItem;
@@ -77,12 +91,36 @@ class ItinerarySlotSection extends StatelessWidget {
   }
 
   @override
+  State<ItinerarySlotSection> createState() => _ItinerarySlotSectionState();
+}
+
+class _ItinerarySlotSectionState extends State<ItinerarySlotSection>
+    with SectionDragDrop<ItinerarySlotSection> {
+  @override
+  List<ItineraryItem> get items => widget.items;
+
+  @override
+  ItineraryDragSession? get dragSession => widget.dragSession;
+
+  @override
+  ItineraryDragContainer get dragContainer =>
+      (day: widget.day, slot: widget.slot);
+
+  @override
+  Axis get stackAxis => Axis.vertical;
+
+  @override
+  void acceptItem(ItineraryItem item, int index) {
+    widget.onAcceptItem(item, widget.slot, index);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    syncCardKeys();
     return DragTarget<ItineraryItem>(
-      onAcceptWithDetails: (details) {
-        onAcceptItem(details.data, slot, items.length);
-      },
-      builder: (context, candidateData, rejectedData) {
+      onMove: onSectionMove,
+      onAcceptWithDetails: onSectionAccept,
+      builder: (context, candidateData, _) {
         final highlighted = candidateData.isNotEmpty;
         return IntrinsicHeight(
           child: Row(
@@ -103,7 +141,7 @@ class ItinerarySlotSection extends StatelessWidget {
                         border: Border.all(color: AppColors.primary, width: 2),
                       ),
                     ),
-                    if (!isLast)
+                    if (!widget.isLast)
                       Expanded(
                         child: Container(
                           width: 2,
@@ -123,47 +161,20 @@ class ItinerarySlotSection extends StatelessWidget {
                       child: Row(
                         children: [
                           Icon(
-                            iconFor(slot),
+                            ItinerarySlotSection.iconFor(widget.slot),
                             size: 16,
                             color: AppColors.primary,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            title,
+                            widget.title,
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(color: AppColors.text),
                           ),
                         ],
                       ),
                     ),
-                    _content(
-                      context,
-                      highlighted,
-                      items.isEmpty,
-                      items.isEmpty
-                          ? _emptyHint(context)
-                          : Column(
-                              children: [
-                                for (var i = 0; i < items.length; i++)
-                                  DragTarget<ItineraryItem>(
-                                    onAcceptWithDetails: (details) {
-                                      onAcceptItem(details.data, slot, i);
-                                    },
-                                    builder: (context, _, _) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: ItineraryPlaceCard(
-                                        item: items[i],
-                                        onDelete: () =>
-                                            onDeleteItem(items[i].id),
-                                        onTap: onOpenItem == null
-                                            ? null
-                                            : () => onOpenItem!(items[i]),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                    ),
+                    _content(context, highlighted),
                   ],
                 ),
               ),
@@ -178,17 +189,86 @@ class ItinerarySlotSection extends StatelessWidget {
   /// content at rest; the dashed drop zone is only shown while the slot is
   /// empty or being dragged over, so the dashed border keeps its "drop here"
   /// meaning instead of framing every filled group.
-  Widget _content(
-    BuildContext context,
-    bool highlighted,
-    bool isEmpty,
-    Widget child,
-  ) {
-    if (highlighted || isEmpty) return _dropZone(context, highlighted, child);
+  Widget _content(BuildContext context, bool highlighted) {
+    if (widget.items.isEmpty) {
+      return _dropZone(highlighted, _emptyContent(context));
+    }
+    final child = _cards();
+    if (highlighted) return _dropZone(highlighted, child);
     return child;
   }
 
-  Widget _dropZone(BuildContext context, bool highlighted, Widget child) {
+  /// Content of the empty drop zone: the hint, plus the preview hole above it
+  /// while a drag points here. Without cards the insert index is always 0, so
+  /// the hole sits at the top of the dashed zone like in a filled section.
+  Widget _emptyContent(BuildContext context) {
+    final session = widget.dragSession;
+    if (session == null) return _emptyHint(context);
+    return ListenableBuilder(
+      listenable: session,
+      builder: (context, _) {
+        final hint = _emptyHint(context);
+        if (previewIndexFor(session) != 0) return hint;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: ItineraryDropPlaceholder(),
+            ),
+            hint,
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _cards() {
+    final session = widget.dragSession;
+    if (session == null) return _cardsColumn(previewIndex: null);
+    return ListenableBuilder(
+      listenable: session,
+      builder: (context, _) {
+        return _cardsColumn(previewIndex: previewIndexFor(session));
+      },
+    );
+  }
+
+  Widget _cardsColumn({int? previewIndex}) {
+    final items = widget.items;
+    final keys = measurementKeys();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i <= items.length; i++) ...[
+          if (previewIndex == i)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: ItineraryDropPlaceholder(),
+            ),
+          if (i < items.length) _card(items[i], i, keys[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _card(ItineraryItem item, int index, Key? key) {
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ItineraryPlaceCard(
+        item: item,
+        onDelete: () => widget.onDeleteItem(item.id),
+        onTap: widget.onOpenItem == null
+            ? null
+            : () => widget.onOpenItem!(item),
+        onDragStarted: (anchor) => widget.dragSession?.start(item, anchor),
+        onDragEnd: () => widget.dragSession?.end(),
+      ),
+    );
+  }
+
+  Widget _dropZone(bool highlighted, Widget child) {
     final zone = DashedBorderContainer(
       color: highlighted ? AppColors.accent : AppColors.muted,
       backgroundColor: highlighted
@@ -198,11 +278,11 @@ class ItinerarySlotSection extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: child,
     );
-    final onTap = highlighted ? null : onAddPlace;
+    final onTap = highlighted ? null : widget.onAddPlace;
     if (onTap == null) return zone;
-    final label = dayLabel == null
-        ? 'Añadir lugar en $title'
-        : 'Añadir lugar en $title · $dayLabel';
+    final label = widget.dayLabel == null
+        ? 'Añadir lugar en ${widget.title}'
+        : 'Añadir lugar en ${widget.title} · ${widget.dayLabel}';
     return Semantics(
       button: true,
       label: label,
@@ -224,7 +304,7 @@ class ItinerarySlotSection extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              dragHint(context),
+              ItinerarySlotSection.dragHint(context),
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,

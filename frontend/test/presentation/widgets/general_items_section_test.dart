@@ -4,15 +4,22 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/itinerary_item.dart';
+import 'package:frontend/data/models/itinerary_slot.dart';
 import 'package:frontend/data/models/place.dart';
+import 'package:frontend/presentation/controllers/itinerary_drag_session.dart';
 import 'package:frontend/presentation/widgets/general_items_section.dart';
 import 'package:frontend/presentation/widgets/itinerary_place_card.dart';
 
-ItineraryItem _item(int id, {required int position}) {
+ItineraryItem _item(
+  int id, {
+  required int position,
+  DateTime? day,
+  ItinerarySlot? slot,
+}) {
   return ItineraryItem(
     id: id,
-    dayDate: null,
-    slot: null,
+    dayDate: day,
+    slot: slot,
     position: position,
     place: Place(
       id: id,
@@ -46,11 +53,25 @@ ItineraryItem _longItem(int id) {
   );
 }
 
-Future<void> _dragCard(WidgetTester tester, Finder card, Offset to) async {
-  final gesture = await tester.startGesture(tester.getCenter(card));
+Future<TestGesture> _startDrag(
+  WidgetTester tester,
+  Finder card,
+  Offset to,
+) async {
+  final from = tester.getCenter(card);
+  final gesture = await tester.startGesture(from);
   await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+  for (var step = 1; step <= 6; step++) {
+    await gesture.moveTo(Offset.lerp(from, to, step / 6)!);
+    await tester.pump();
+  }
   await gesture.moveTo(to);
   await tester.pump();
+  return gesture;
+}
+
+Future<void> _dragCard(WidgetTester tester, Finder card, Offset to) async {
+  final gesture = await _startDrag(tester, card, to);
   await gesture.up();
   await tester.pumpAndSettle();
 }
@@ -122,7 +143,17 @@ void main() {
       wrap(
         Column(
           children: [
-            ItineraryPlaceCard(item: _item(1, position: 0), onDelete: () {}),
+            // Viene de un bloque del día: al llegar a la lista general vacía
+            // se coloca al final (índice 0), no es un no-op sobre sí mismo.
+            ItineraryPlaceCard(
+              item: _item(
+                1,
+                position: 0,
+                day: DateTime(2026, 6, 1),
+                slot: ItinerarySlot.morning,
+              ),
+              onDelete: () {},
+            ),
             GeneralItemsSection(
               items: const [],
               onAcceptItem: (item, index) {
@@ -336,14 +367,18 @@ void main() {
     expect(acceptedIndex, 0);
   });
 
-  testWidgets('dropping a card on the vertical header appends', (tester) async {
+  testWidgets('dropping a card on the vertical header inserts at the top', (
+    tester,
+  ) async {
     ItineraryItem? accepted;
     int? acceptedIndex;
     await tester.pumpWidget(
       wrap(
         Column(
           children: [
-            ItineraryPlaceCard(item: _item(1, position: 0), onDelete: () {}),
+            // Posición 2: el arrastrado no ocupaba ya el hueco superior, así
+            // que el drop no es un no-op.
+            ItineraryPlaceCard(item: _item(1, position: 2), onDelete: () {}),
             SizedBox(
               width: 340,
               child: GeneralItemsSection(
@@ -369,7 +404,221 @@ void main() {
     );
 
     expect(accepted?.id, 1);
+    expect(acceptedIndex, 0);
+  });
+
+  testWidgets('the carousel inserts by horizontal position', (tester) async {
+    int? acceptedIndex;
+    await tester.pumpWidget(
+      wrap(
+        GeneralItemsSection(
+          items: [_item(1, position: 0), _item(2, position: 1)],
+          onAcceptItem: (_, index) => acceptedIndex = index,
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    // Arrastrar la primera tarjeta sobre el centro de la segunda: el hueco
+    // cae entre ambas (índice 1), medido en el eje horizontal.
+    final cards = find.byType(ItineraryPlaceCard);
+    await _dragCard(tester, cards.at(0), tester.getCenter(cards.at(1)));
+
+    expect(acceptedIndex, 1);
+  });
+
+  testWidgets('dropping below the last vertical card appends', (tester) async {
+    int? acceptedIndex;
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          child: GeneralItemsSection(
+            items: [_item(1, position: 0), _item(2, position: 1)],
+            onAcceptItem: (_, index) => acceptedIndex = index,
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+          ),
+        ),
+      ),
+    );
+
+    await _dragCard(
+      tester,
+      find.byType(ItineraryPlaceCard).first,
+      tester.getBottomLeft(find.byType(GeneralItemsSection)) +
+          const Offset(60, -2),
+    );
+
     expect(acceptedIndex, 2);
+  });
+
+  testWidgets('dropping a card on its own place does not move it', (
+    tester,
+  ) async {
+    var accepted = 0;
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 340,
+          child: GeneralItemsSection(
+            items: [_item(1, position: 0), _item(2, position: 1)],
+            onAcceptItem: (_, _) => accepted++,
+            onDeleteItem: (_) {},
+            layout: GeneralItemsLayout.vertical,
+          ),
+        ),
+      ),
+    );
+
+    final card = find.byType(ItineraryPlaceCard).first;
+    await _dragCard(tester, card, tester.getCenter(card));
+
+    expect(accepted, 0);
+  });
+
+  testWidgets(
+    'shows the drop placeholder in the vertical list while dragging',
+    (tester) async {
+      final session = ItineraryDragSession();
+      addTearDown(session.dispose);
+      await tester.pumpWidget(
+        wrap(
+          SizedBox(
+            width: 340,
+            child: GeneralItemsSection(
+              items: [_item(1, position: 0), _item(2, position: 1)],
+              onAcceptItem: (_, _) {},
+              onDeleteItem: (_) {},
+              layout: GeneralItemsLayout.vertical,
+              dragSession: session,
+            ),
+          ),
+        ),
+      );
+
+      const placeholder = ValueKey('itinerary-drop-placeholder');
+      expect(find.byKey(placeholder), findsNothing);
+
+      final cards = find.byType(ItineraryPlaceCard);
+      final gesture = await _startDrag(
+        tester,
+        cards.at(1),
+        tester.getCenter(cards.at(0)),
+      );
+
+      expect(find.byKey(placeholder), findsOneWidget);
+      expect(session.previewContainer, (day: null, slot: null));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(placeholder), findsNothing);
+    },
+  );
+
+  testWidgets('shows the drop placeholder in the empty vertical list', (
+    tester,
+  ) async {
+    final session = ItineraryDragSession();
+    addTearDown(session.dispose);
+    final external = _item(
+      1,
+      position: 0,
+      day: DateTime(2026, 6, 1),
+      slot: ItinerarySlot.morning,
+    );
+    await tester.pumpWidget(
+      wrap(
+        Column(
+          children: [
+            ItineraryPlaceCard(
+              item: external,
+              onDelete: () {},
+              onDragStarted: (anchor) => session.start(external, anchor),
+              onDragEnd: session.end,
+            ),
+            SizedBox(
+              width: 340,
+              child: GeneralItemsSection(
+                items: const [],
+                onAcceptItem: (_, _) {},
+                onDeleteItem: (_) {},
+                layout: GeneralItemsLayout.vertical,
+                dragSession: session,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    const placeholder = ValueKey('itinerary-drop-placeholder');
+    expect(find.byKey(placeholder), findsNothing);
+
+    final gesture = await _startDrag(
+      tester,
+      find.byType(ItineraryPlaceCard).first,
+      tester.getCenter(find.byType(GeneralItemsSection)),
+    );
+
+    expect(session.previewIndex, 0);
+    expect(find.byKey(placeholder), findsOneWidget);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(placeholder), findsNothing);
+  });
+
+  testWidgets('shows the drop placeholder in the empty carousel', (
+    tester,
+  ) async {
+    final session = ItineraryDragSession();
+    addTearDown(session.dispose);
+    final external = _item(
+      1,
+      position: 0,
+      day: DateTime(2026, 6, 1),
+      slot: ItinerarySlot.morning,
+    );
+    await tester.pumpWidget(
+      wrap(
+        Column(
+          children: [
+            ItineraryPlaceCard(
+              item: external,
+              onDelete: () {},
+              onDragStarted: (anchor) => session.start(external, anchor),
+              onDragEnd: session.end,
+            ),
+            GeneralItemsSection(
+              items: const [],
+              onAcceptItem: (_, _) {},
+              onDeleteItem: (_) {},
+              dragSession: session,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    const placeholder = ValueKey('itinerary-drop-placeholder');
+    expect(find.byKey(placeholder), findsNothing);
+
+    final gesture = await _startDrag(
+      tester,
+      find.byType(ItineraryPlaceCard).first,
+      tester.getCenter(find.byType(GeneralItemsSection)),
+    );
+
+    expect(session.previewIndex, 0);
+    expect(find.byKey(placeholder), findsOneWidget);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(placeholder), findsNothing);
   });
 
   testWidgets('vertical delete button calls onDeleteItem with its id', (

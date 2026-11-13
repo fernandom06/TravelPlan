@@ -9,6 +9,7 @@ import '../../data/models/itinerary_slot.dart';
 import '../../data/models/place.dart';
 import '../../data/models/trip.dart';
 import '../controllers/itinerary_controller.dart';
+import '../controllers/itinerary_drag_session.dart';
 import '../controllers/places_controller.dart';
 import '../widgets/day_pill_strip.dart';
 import '../widgets/error_notice.dart';
@@ -48,6 +49,10 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   late List<DateTime> _days;
   Timer? _dayHoverTimer;
 
+  /// One drag session for the whole screen: every section shares it so only
+  /// one preview hole is visible and it is cleared when the drag ends.
+  final ItineraryDragSession _dragSession = ItineraryDragSession();
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +87,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   @override
   void dispose() {
     _dayHoverTimer?.cancel();
+    _dragSession.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -138,6 +144,8 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   }
 
   void _dropOnDay(ItineraryItem item, DateTime day) {
+    // El drop en la pill de día termina el arrastre fuera de toda sección.
+    _dragSession.end();
     final morningCount = widget.itineraryController.value.items
         .where((i) => i.dayDate == day && i.slot == ItinerarySlot.morning)
         .length;
@@ -365,6 +373,7 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       layout: vertical
           ? GeneralItemsLayout.vertical
           : GeneralItemsLayout.carousel,
+      dragSession: _dragSession,
       items: general,
       onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
       onDeleteItem: _removeItem,
@@ -418,6 +427,8 @@ class _ItineraryScreenState extends State<ItineraryScreen>
           items.where((i) => i.dayDate == day && i.slot == slot).toList()
             ..sort((a, b) => a.position.compareTo(b.position));
       return ItinerarySlotSection(
+        day: day,
+        dragSession: _dragSession,
         title: slot.label,
         slot: slot,
         items: slotItems,

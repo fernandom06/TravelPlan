@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/itinerary_item.dart';
+import '../controllers/itinerary_drag_session.dart';
 import 'itinerary_place_card.dart';
+import 'section_drag_drop.dart';
 
 /// Layout mode for the section: a horizontal carousel or a vertical list.
 enum GeneralItemsLayout {
@@ -20,10 +22,13 @@ enum GeneralItemsLayout {
 /// [ItineraryPlaceCard] mini-cards ([GeneralItemsLayout.carousel]) or a
 /// full-width vertical list ([GeneralItemsLayout.vertical]). When it fills a
 /// bounded height, the vertical list centers the header together with its
-/// cards and scrolls once they overflow. Dropping anywhere on the container
-/// appends; dropping on a card inserts before that card's index. Adding new
-/// places lives on the screen's FAB, not here.
-class GeneralItemsSection extends StatelessWidget {
+/// cards and scrolls once they overflow.
+///
+/// One single [DragTarget] covers the whole section: the insert index comes
+/// from the pointer position over the visible cards (dx on the carousel, dy on
+/// the vertical list), so the preview hole and the drop always agree. Adding
+/// new places lives on the screen's FAB, not here.
+class GeneralItemsSection extends StatefulWidget {
   const GeneralItemsSection({
     super.key,
     required this.items,
@@ -31,12 +36,13 @@ class GeneralItemsSection extends StatelessWidget {
     required this.onDeleteItem,
     this.onOpenItem,
     this.layout = GeneralItemsLayout.carousel,
+    this.dragSession,
   });
 
   final List<ItineraryItem> items;
 
   /// Called when an item is dropped on the general list (null destination)
-  /// with the horizontal insert index already computed.
+  /// with the insert index already computed.
   final void Function(ItineraryItem item, int index) onAcceptItem;
   final void Function(int itemId) onDeleteItem;
 
@@ -46,52 +52,93 @@ class GeneralItemsSection extends StatelessWidget {
   /// How the cards are laid out inside the container.
   final GeneralItemsLayout layout;
 
+  /// Shared drag state: when present, the section reports the hovered insert
+  /// index and renders the translucent hole there.
+  final ItineraryDragSession? dragSession;
+
   static const _carouselHeight = 200.0;
 
   @override
+  State<GeneralItemsSection> createState() => _GeneralItemsSectionState();
+}
+
+class _GeneralItemsSectionState extends State<GeneralItemsSection>
+    with SectionDragDrop<GeneralItemsSection> {
+  bool get _isVertical => widget.layout == GeneralItemsLayout.vertical;
+
+  @override
+  List<ItineraryItem> get items => widget.items;
+
+  @override
+  ItineraryDragSession? get dragSession => widget.dragSession;
+
+  @override
+  ItineraryDragContainer get dragContainer => kGeneralDragContainer;
+
+  @override
+  Axis get stackAxis => _isVertical ? Axis.vertical : Axis.horizontal;
+
+  @override
+  void acceptItem(ItineraryItem item, int index) {
+    widget.onAcceptItem(item, index);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    syncCardKeys();
     return DragTarget<ItineraryItem>(
-      onAcceptWithDetails: (details) {
-        onAcceptItem(details.data, items.length);
-      },
-      builder: (context, candidateData, rejectedData) {
+      onMove: onSectionMove,
+      onAcceptWithDetails: onSectionAccept,
+      builder: (context, candidateData, _) {
         final highlighted = candidateData.isNotEmpty;
-        final isVertical = layout == GeneralItemsLayout.vertical;
-        final header = _header(context);
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final fillsHeight = isVertical && constraints.hasBoundedHeight;
-            if (fillsHeight) {
-              // The header joins the cards inside the panel so the whole
-              // group stays vertically centered in the tall column.
+        return _withPreview(
+          (previewIndex) => LayoutBuilder(
+            builder: (context, constraints) {
+              final fillsHeight = _isVertical && constraints.hasBoundedHeight;
+              final header = _header(context);
+              if (fillsHeight) {
+                // The header joins the cards inside the panel so the whole
+                // group stays vertically centered in the tall column.
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _panel(
+                        context,
+                        highlighted: highlighted,
+                        fillsHeight: true,
+                        previewIndex: previewIndex,
+                        header: header,
+                      ),
+                    ),
+                  ],
+                );
+              }
+              final panel = _panel(
+                context,
+                highlighted: highlighted,
+                fillsHeight: false,
+                previewIndex: previewIndex,
+              );
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _panel(
-                      context,
-                      isVertical: true,
-                      highlighted: highlighted,
-                      fillsHeight: true,
-                      header: header,
-                    ),
-                  ),
-                ],
+                children: [header, panel],
               );
-            }
-            final panel = _panel(
-              context,
-              isVertical: isVertical,
-              highlighted: highlighted,
-              fillsHeight: false,
-            );
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [header, panel],
-            );
-          },
+            },
+          ),
         );
       },
+    );
+  }
+
+  /// Rebuilds the panel while a drag hovers this section, with the preview
+  /// index (null when the hole is not here).
+  Widget _withPreview(Widget Function(int? previewIndex) builder) {
+    final session = widget.dragSession;
+    if (session == null) return builder(null);
+    return ListenableBuilder(
+      listenable: session,
+      builder: (context, _) => builder(previewIndexFor(session)),
     );
   }
 
@@ -111,21 +158,21 @@ class GeneralItemsSection extends StatelessWidget {
 
   Widget _panel(
     BuildContext context, {
-    required bool isVertical,
     required bool highlighted,
     required bool fillsHeight,
+    int? previewIndex,
     Widget? header,
   }) {
     return Padding(
-      padding: isVertical
+      padding: _isVertical
           ? const EdgeInsets.fromLTRB(12, 0, 12, 16)
           : const EdgeInsets.symmetric(horizontal: 12),
       child: AnimatedContainer(
         key: const ValueKey('general-items-panel'),
         duration: const Duration(milliseconds: 120),
-        height: isVertical ? null : _carouselHeight,
-        constraints: isVertical ? const BoxConstraints(minHeight: 120) : null,
-        decoration: isVertical
+        height: _isVertical ? null : GeneralItemsSection._carouselHeight,
+        constraints: _isVertical ? const BoxConstraints(minHeight: 120) : null,
+        decoration: _isVertical
             // The vertical panel mirrors the timeline: no framed box at rest,
             // only a subtle fill while a drag is hovering over it.
             ? (highlighted
@@ -143,49 +190,83 @@ class GeneralItemsSection extends StatelessWidget {
                   color: AppColors.muted.withValues(alpha: 0.5),
                 ),
               ),
-        padding: isVertical
+        padding: _isVertical
             ? const EdgeInsets.symmetric(vertical: 8)
             : const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: isVertical
+        child: _isVertical
             ? _buildVerticalContent(
                 context,
                 scrollable: fillsHeight,
+                previewIndex: previewIndex,
                 header: header,
               )
-            : _buildContent(context),
+            : _buildContent(context, previewIndex: previewIndex),
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context) {
-    if (items.isEmpty) return _emptyState(context);
+  Widget _buildContent(BuildContext context, {int? previewIndex}) {
+    if (widget.items.isEmpty) {
+      final empty = _emptyState(context);
+      // Without cards the insert index is always 0: the hole previews that
+      // spot next to the empty state.
+      if (previewIndex == null) return empty;
+      return Row(
+        children: [
+          const ItineraryDropPlaceholder(width: kItineraryPlaceholderWidth),
+          const SizedBox(width: 8),
+          Expanded(child: empty),
+        ],
+      );
+    }
+    final itemCount = widget.items.length + (previewIndex == null ? 0 : 1);
+    final keys = measurementKeys();
     return ListView.separated(
       scrollDirection: Axis.horizontal,
-      itemCount: items.length,
+      itemCount: itemCount,
       separatorBuilder: (_, _) => const SizedBox(width: 8),
-      itemBuilder: (_, i) {
-        final item = items[i];
-        return DragTarget<ItineraryItem>(
-          onAcceptWithDetails: (details) {
-            onAcceptItem(details.data, i);
-          },
-          builder: (context, _, _) => ItineraryPlaceCard(
-            item: item,
-            onDelete: () => onDeleteItem(item.id),
-            onTap: onOpenItem == null ? null : () => onOpenItem!(item),
-            horizontal: false,
-          ),
-        );
+      itemBuilder: (_, slot) {
+        if (previewIndex != null && slot == previewIndex) {
+          return const ItineraryDropPlaceholder(
+            width: kItineraryPlaceholderWidth,
+          );
+        }
+        final index = previewIndex != null && slot > previewIndex
+            ? slot - 1
+            : slot;
+        return _carouselCard(index, keys[index]);
       },
+    );
+  }
+
+  Widget _carouselCard(int index, Key? key) {
+    final item = widget.items[index];
+    return KeyedSubtree(
+      key: key,
+      child: ItineraryPlaceCard(
+        item: item,
+        onDelete: () => widget.onDeleteItem(item.id),
+        onTap: widget.onOpenItem == null
+            ? null
+            : () => widget.onOpenItem!(item),
+        horizontal: false,
+        onDragStarted: (anchor) => widget.dragSession?.start(item, anchor),
+        onDragEnd: () => widget.dragSession?.end(),
+      ),
     );
   }
 
   Widget _buildVerticalContent(
     BuildContext context, {
     bool scrollable = false,
+    int? previewIndex,
     Widget? header,
   }) {
-    final content = _verticalContent(context, header: header);
+    final content = _verticalContent(
+      context,
+      previewIndex: previewIndex,
+      header: header,
+    );
     if (!scrollable) return content;
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
@@ -197,40 +278,69 @@ class GeneralItemsSection extends StatelessWidget {
     );
   }
 
-  Widget _verticalContent(BuildContext context, {Widget? header}) {
-    if (items.isEmpty) {
+  Widget _verticalContent(
+    BuildContext context, {
+    int? previewIndex,
+    Widget? header,
+  }) {
+    if (widget.items.isEmpty) {
       // The hint text is two lines at panel width: it must size itself, not
       // fit a fixed trailing slot.
       final body = Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: _emptyState(context),
       );
-      if (header == null) return body;
+      final withHole = previewIndex == null
+          ? body
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: ItineraryDropPlaceholder(),
+                ),
+                body,
+              ],
+            );
+      if (header == null) return withHole;
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [header, body],
+        children: [header, withHole],
       );
     }
+    final keys = measurementKeys();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ?header,
-        for (var i = 0; i < items.length; i++)
-          DragTarget<ItineraryItem>(
-            onAcceptWithDetails: (details) {
-              onAcceptItem(details.data, i);
-            },
-            builder: (context, _, _) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ItineraryPlaceCard(
-                item: items[i],
-                onDelete: () => onDeleteItem(items[i].id),
-                onTap: onOpenItem == null ? null : () => onOpenItem!(items[i]),
-              ),
+        for (var i = 0; i <= widget.items.length; i++) ...[
+          if (previewIndex == i)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: ItineraryDropPlaceholder(),
             ),
-          ),
+          if (i < widget.items.length) _verticalCard(i, keys[i]),
+        ],
       ],
+    );
+  }
+
+  Widget _verticalCard(int index, Key? key) {
+    final item = widget.items[index];
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ItineraryPlaceCard(
+        item: item,
+        onDelete: () => widget.onDeleteItem(item.id),
+        onTap: widget.onOpenItem == null
+            ? null
+            : () => widget.onOpenItem!(item),
+        onDragStarted: (anchor) => widget.dragSession?.start(item, anchor),
+        onDragEnd: () => widget.dragSession?.end(),
+      ),
     );
   }
 

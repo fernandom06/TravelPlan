@@ -5,6 +5,37 @@ import '../../core/theme/category_palette.dart';
 import '../../data/category_icon_catalog.dart';
 import '../../data/models/itinerary_item.dart';
 
+/// Height of a horizontal itinerary card. The drop placeholder uses it so
+/// showing the hole does not shift the card centres enough to change the
+/// computed insert index.
+const double kItineraryPlaceholderHeight = 64;
+
+/// Width of a vertical itinerary card, reused by the carousel placeholder.
+const double kItineraryPlaceholderWidth = 104;
+
+/// Translucent card silhouette shown where a dragged item would land.
+class ItineraryDropPlaceholder extends StatelessWidget {
+  const ItineraryDropPlaceholder({super.key, this.width});
+
+  /// Fixed width for the horizontal carousel; null fills the available width
+  /// (vertical lists).
+  final double? width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('itinerary-drop-placeholder'),
+      width: width,
+      height: width == null ? kItineraryPlaceholderHeight : null,
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.55),
+        borderRadius: AppRadii.organic,
+        border: Border.all(color: AppColors.muted.withValues(alpha: 0.7)),
+      ),
+    );
+  }
+}
+
 /// Mini-card for itinerary items: tinted category-icon circle, place name and
 /// a trash button, wrapped in a [Draggable] (immediate on desktop, long-press
 /// elsewhere) that carries the [ItineraryItem].
@@ -20,6 +51,8 @@ class ItineraryPlaceCard extends StatelessWidget {
     this.onTap,
     this.horizontal = true,
     this.width,
+    this.onDragStarted,
+    this.onDragEnd,
   });
 
   final ItineraryItem item;
@@ -31,11 +64,41 @@ class ItineraryPlaceCard extends StatelessWidget {
   final bool horizontal;
 
   /// Optional width for the vertical (non-horizontal) card and its drag
-  /// feedback. When null the vertical card keeps its default 104 width.
+  /// feedback. When null the vertical card keeps its default 104 width, the
+  /// same as [kItineraryPlaceholderWidth].
   final double? width;
+
+  /// Invoked when a drag of this card starts (immediate on desktop,
+  /// long-press elsewhere), with the pointer's offset inside the card at that
+  /// moment.
+  ///
+  /// The drag targets receive the dragged feedback's top-left corner, so this
+  /// anchor lets them recover the pointer position and keep the drop index
+  /// under the finger instead of half a card above it.
+  final ValueChanged<Offset>? onDragStarted;
+
+  /// Invoked when the drag ends, whether it was dropped on a target or
+  /// cancelled.
+  final VoidCallback? onDragEnd;
 
   @override
   Widget build(BuildContext context) {
+    final item = this.item;
+    // Same anchor as the default [childDragAnchorStrategy], captured per build
+    // so the drag hooks can report where the pointer grabbed the card. The
+    // anchor lives in the drag session (not in the card), which keeps every
+    // section's insert index on the real pointer, even across sections.
+    var dragAnchor = Offset.zero;
+    Offset recordAnchor(
+      Draggable<Object> draggable,
+      BuildContext context,
+      Offset position,
+    ) {
+      final box = context.findRenderObject()! as RenderBox;
+      dragAnchor = box.globalToLocal(position);
+      return dragAnchor;
+    }
+
     final content = _MiniCard(
       item: item,
       onDelete: onDelete,
@@ -70,16 +133,28 @@ class ItineraryPlaceCard extends StatelessWidget {
       TargetPlatform.windows => true,
       _ => false,
     };
+    final startedHook = onDragStarted;
+    final started = startedHook == null ? null : () => startedHook(dragAnchor);
+    final endedHook = onDragEnd;
+    final ended = endedHook == null
+        ? null
+        : (DraggableDetails _) => endedHook();
     return isDesktop
         ? Draggable<ItineraryItem>(
             data: item,
             feedback: feedback,
+            dragAnchorStrategy: recordAnchor,
+            onDragStarted: started,
+            onDragEnd: ended,
             childWhenDragging: Opacity(opacity: 0.4, child: interactive),
             child: interactive,
           )
         : LongPressDraggable<ItineraryItem>(
             data: item,
             feedback: feedback,
+            dragAnchorStrategy: recordAnchor,
+            onDragStarted: started,
+            onDragEnd: ended,
             childWhenDragging: Opacity(opacity: 0.4, child: interactive),
             child: interactive,
           );
