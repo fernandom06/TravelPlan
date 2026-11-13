@@ -43,14 +43,9 @@ class ItineraryPlaceCard extends StatelessWidget {
       horizontal: horizontal,
       width: width,
     );
-    final interactive =
-        onTap != null
-            ? GestureDetector(
-              onTap: onTap,
-              behavior: HitTestBehavior.opaque,
-              child: content,
-            )
-            : content;
+    final interactive = onTap != null
+        ? _CardTapSurface(onTap: onTap!, child: content)
+        : content;
     final feedback = Material(
       elevation: 4,
       color: Colors.transparent,
@@ -75,22 +70,68 @@ class ItineraryPlaceCard extends StatelessWidget {
       TargetPlatform.windows => true,
       _ => false,
     };
-    final draggableChild = onTap == null
-        ? interactive
-        : MouseRegion(cursor: SystemMouseCursors.click, child: interactive);
     return isDesktop
         ? Draggable<ItineraryItem>(
             data: item,
             feedback: feedback,
             childWhenDragging: Opacity(opacity: 0.4, child: interactive),
-            child: draggableChild,
+            child: interactive,
           )
         : LongPressDraggable<ItineraryItem>(
             data: item,
             feedback: feedback,
             childWhenDragging: Opacity(opacity: 0.4, child: interactive),
-            child: draggableChild,
+            child: interactive,
           );
+  }
+}
+
+/// Focusable, semantics-announcing tap surface around the mini-card: a screen
+/// reader announces the whole card as one button (its own text as the label,
+/// with the delete button as a separate control) and keyboard users activate
+/// it with Space, so reaching the move sheet never requires a drag. The
+/// focus ring is drawn as a foreground border so the card's own decoration
+/// stays untouched.
+class _CardTapSurface extends StatefulWidget {
+  const _CardTapSurface({required this.onTap, required this.child});
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_CardTapSurface> createState() => _CardTapSurfaceState();
+}
+
+class _CardTapSurfaceState extends State<_CardTapSurface> {
+  bool _showFocusRing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      child: FocusableActionDetector(
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) => widget.onTap(),
+          ),
+        },
+        mouseCursor: SystemMouseCursors.click,
+        onShowFocusHighlight: (value) => setState(() => _showFocusRing = value),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            foregroundDecoration: _showFocusRing
+                ? BoxDecoration(
+                    borderRadius: AppRadii.organic,
+                    border: Border.all(color: AppColors.primary, width: 2),
+                  )
+                : null,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
   }
 }
 

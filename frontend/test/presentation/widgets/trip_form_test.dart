@@ -26,16 +26,37 @@ Trip _trip({
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-  testWidgets('renders name, dates, description and save button', (
+  final nameFieldFinder = find.byKey(const Key('trip-name-field'));
+
+  testWidgets('renders sketchbook name, date chips, description and save', (
     tester,
   ) async {
-    await tester.pumpWidget(wrap(TripForm(onSave: (_) {}, onCancel: () {})));
+    await tester.pumpWidget(
+      wrap(TripForm(onSave: (_) {}, onCancel: () {}, initialTrip: _trip())),
+    );
 
-    expect(find.text('Nombre'), findsOneWidget);
-    expect(find.textContaining('Fecha inicio'), findsOneWidget);
-    expect(find.textContaining('Fecha fin'), findsOneWidget);
+    expect(find.text('Nombra el viaje...'), findsOneWidget);
+    expect(find.text('Del 01 Jun'), findsOneWidget);
+    expect(find.text('Al 10 Jun 2026'), findsOneWidget);
     expect(find.text('Descripción'), findsOneWidget);
     expect(find.text('Guardar'), findsOneWidget);
+  });
+
+  testWidgets('date chips open the date picker', (tester) async {
+    await tester.pumpWidget(
+      wrap(TripForm(onSave: (_) {}, onCancel: () {}, initialTrip: _trip())),
+    );
+
+    await tester.tap(find.byKey(const Key('trip-end-date')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CalendarDatePicker), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CalendarDatePicker), findsNothing);
+    expect(find.text('Al 10 Jun 2026'), findsOneWidget);
   });
 
   testWidgets('save is disabled when name is empty', (tester) async {
@@ -68,12 +89,16 @@ void main() {
       find.widgetWithText(FilledButton, 'Guardar'),
     );
     expect(saveButton.onPressed, isNull);
+    expect(
+      find.text('La fecha de fin debe ser posterior a la de inicio'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('typing a name enables save', (tester) async {
     await tester.pumpWidget(wrap(TripForm(onSave: (_) {}, onCancel: () {})));
 
-    await tester.enterText(find.widgetWithText(TextField, 'Nombre'), 'Viaje');
+    await tester.enterText(nameFieldFinder, 'Viaje');
     await tester.pump();
 
     final saveButton = tester.widget<FilledButton>(
@@ -94,10 +119,7 @@ void main() {
       ),
     );
 
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre'),
-      'Viaje nuevo',
-    );
+    await tester.enterText(nameFieldFinder, 'Viaje nuevo');
     await tester.tap(find.text('Guardar'));
     await tester.pump();
 
@@ -200,7 +222,7 @@ void main() {
 
     expect(find.byType(Image), findsOneWidget);
 
-    await tester.enterText(find.widgetWithText(TextField, 'Nombre'), 'Viaje');
+    await tester.enterText(nameFieldFinder, 'Viaje');
     await tester.pump();
     await tester.tap(find.text('Guardar'));
     await tester.pump();
@@ -222,7 +244,7 @@ void main() {
 
     await tester.tap(find.text('Quitar imagen'));
     await tester.pump();
-    await tester.enterText(find.widgetWithText(TextField, 'Nombre'), 'Viaje');
+    await tester.enterText(nameFieldFinder, 'Viaje');
     await tester.tap(find.text('Guardar'));
     await tester.pump();
 

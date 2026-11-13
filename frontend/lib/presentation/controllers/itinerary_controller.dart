@@ -92,6 +92,29 @@ List<ItineraryItem> computeMove(
   return combined;
 }
 
+/// Inserta [newItem] (con posición ya clampeada) en su contenedor abriendo
+/// hueco, y devuelve la lista ordenada como la deja [computeMove].
+///
+/// Función pura: no muta la entrada.
+List<ItineraryItem> insertItem(
+  List<ItineraryItem> items,
+  ItineraryItem newItem,
+) {
+  final gapped = [
+    for (final item in items)
+      if (_sameContainer(item, newItem.dayDate, newItem.slot) &&
+          item.position >= newItem.position)
+        _copyWithPosition(item, item.position + 1)
+      else
+        item,
+  ];
+  return [...gapped, newItem]..sort((a, b) {
+    final container = _containerCompare(a, b);
+    if (container != 0) return container;
+    return a.position.compareTo(b.position);
+  });
+}
+
 class ItineraryState {
   const ItineraryState({
     required this.trip,
@@ -151,7 +174,12 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
     );
     try {
       final items = await _api.fetchItinerary(trip.id);
-      value = _copy(value, items: items, isLoading: false, isMutating: value.isMutating);
+      value = _copy(
+        value,
+        items: items,
+        isLoading: false,
+        isMutating: value.isMutating,
+      );
     } catch (e) {
       value = _copy(
         value,
@@ -163,28 +191,52 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
     }
   }
 
-  /// Añade un lugar al final de la lista general de forma optimista:
-  /// aparece al instante y, si el POST falla, se revierte el cambio.
-  Future<void> addPlace(Place place) async {
-    final generalCount = value.items.where((item) => item.isUnassigned).length;
+  /// Añade un lugar al itinerario de forma optimista: aparece al instante
+  /// y, si el POST falla, se revierte el cambio.
+  ///
+  /// Con [day]/[slot] el lugar se coloca directamente en ese contenedor
+  /// (al final, o en [position] al restaurar): el server lo crea en la lista
+  /// general, así que un segundo PATCH pide la colocación. Si ese PATCH
+  /// falla, el item ya existe en el server; el estado local refleja esa
+  /// verdad (item en la lista general) y el error se propaga.
+  Future<void> addPlace(
+    Place place, {
+    DateTime? day,
+    ItinerarySlot? slot,
+    int? position,
+  }) async {
+    final containerCount = value.items
+        .where((item) => _sameContainer(item, day, slot))
+        .length;
+    final targetPosition = (position ?? containerCount).clamp(
+      0,
+      containerCount,
+    );
     final tempId = _nextTempId();
     final tempItem = ItineraryItem(
       id: tempId,
-      dayDate: null,
-      slot: null,
-      position: generalCount,
+      dayDate: day,
+      slot: slot,
+      position: targetPosition,
       place: place,
     );
     final previous = value;
     _pendingMutations++;
     value = _copy(
       value,
-      items: [...value.items, tempItem],
+      items: insertItem(value.items, tempItem),
       isMutating: true,
     );
+    ItineraryItem created;
     try {
-      final created = await _api.addPlace(_tripId, place.id);
+      created = await _api.addPlace(_tripId, place.id);
+    } catch (_) {
       _pendingMutations--;
+      value = previous;
+      rethrow;
+    }
+    _pendingMutations--;
+    if (day == null && slot == null) {
       value = _copy(
         value,
         items: [
@@ -192,12 +244,58 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
         ],
         isMutating: _pendingMutations > 0,
       );
+      return;
+    }
+    _pendingMutations++;
+    value = _copy(
+      value,
+      items: [
+        for (final item in value.items)
+          item.id == tempId
+              ? ItineraryItem(
+                  id: created.id,
+                  dayDate: day,
+                  slot: slot,
+                  position: targetPosition,
+                  place: place,
+                )
+              : item,
+      ],
+      isMutating: true,
+    );
+    try {
+      await _api.moveItem(
+        _tripId,
+        created.id,
+        ItineraryMove(dayDate: day, slot: slot, position: targetPosition),
+      );
+      _pendingMutations--;
+      value = _copy(value, isMutating: _pendingMutations > 0);
     } catch (_) {
       _pendingMutations--;
-      value = previous;
+      // El server ya tiene el item (lista general): refleja esa verdad en
+      // lugar de hacerlo desaparecer de la vista. El item colocado ya lleva
+      // el id real, así que se reemplaza por la instancia general devuelta.
+      value = _copy(
+        value,
+        items: [
+          for (final item in value.items)
+            item.id == created.id ? created : item,
+        ],
+        isMutating: _pendingMutations > 0,
+      );
       rethrow;
     }
   }
+
+  /// Deshace una eliminación: vuelve a crear el lugar en el itinerario y lo
+  /// recoloca en el contenedor (día/slot/posición) que tenía al quitarse.
+  Future<void> restoreItem(ItineraryItem removed) => addPlace(
+    removed.place,
+    day: removed.dayDate,
+    slot: removed.slot,
+    position: removed.position,
+  );
 
   /// Mueve un item de forma optimista con la función pura y lo persiste.
   Future<void> moveItem(
@@ -215,11 +313,7 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
       targetSlot,
       targetIndex,
     );
-    value = _copy(
-      previous,
-      items: newItems,
-      isMutating: true,
-    );
+    value = _copy(previous, items: newItems, isMutating: true);
     try {
       await _api.moveItem(
         _tripId,
@@ -240,8 +334,15 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
   }
 
   /// Borra una instancia de forma optimista y la persiste.
-  Future<void> removeItem(int itemId) async {
+  ///
+  /// Devuelve el item quitado (con su día/slot/posición originales) para que
+  /// la UI pueda ofrecer "Deshacer"; null si no existía.
+  Future<ItineraryItem?> removeItem(int itemId) async {
     final previous = value;
+    final removed = value.items
+        .where((item) => item.id == itemId)
+        .toList()
+        .firstOrNull;
     _pendingMutations++;
     value = _copy(
       value,
@@ -252,6 +353,7 @@ class ItineraryController extends ValueNotifier<ItineraryState> {
       await _api.removeItem(_tripId, itemId);
       _pendingMutations--;
       value = _copy(value, isMutating: _pendingMutations > 0);
+      return removed;
     } catch (_) {
       _pendingMutations--;
       value = previous;

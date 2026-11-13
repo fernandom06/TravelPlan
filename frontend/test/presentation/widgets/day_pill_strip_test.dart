@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +40,7 @@ Widget _wrap({
   VoidCallback? onHoverEnd,
   bool withSource = false,
   bool centered = false,
+  List<int>? counts,
 }) {
   final strip = DayPillStrip(
     days: days,
@@ -47,6 +50,7 @@ Widget _wrap({
     onHoverStart: onHoverStart ?? (_) {},
     onHoverEnd: onHoverEnd ?? () {},
     centered: centered,
+    counts: counts,
   );
   if (!withSource) {
     return MaterialApp(home: Scaffold(body: strip));
@@ -81,9 +85,8 @@ void main() {
     expect(find.text('Día 3 · 03 Jun'), findsOneWidget);
   });
 
-  testWidgets('highlights the active pill in primary and the rest in sand', (
-    tester,
-  ) async {
+  testWidgets('highlights the active pill in deep terracotta and the rest in '
+      'sand', (tester) async {
     await tester.pumpWidget(_wrap(days: _days(3), selectedIndex: 0));
     await tester.pumpAndSettle();
 
@@ -99,8 +102,28 @@ void main() {
       return (container.decoration as BoxDecoration).color!;
     }
 
-    expect(pillColor('Día 1 · 01 Jun'), AppColors.primary);
+    // Deep terracotta, not plain primary: white 13px text on [primary] only
+    // reaches ~2.9:1, which fails AA for small text.
+    expect(pillColor('Día 1 · 01 Jun'), AppColors.primaryDeep);
     expect(pillColor('Día 2 · 02 Jun'), AppColors.muted.withValues(alpha: 0.6));
+  });
+
+  testWidgets('shows the per-day count as a badge, not a text segment', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(days: _days(3), selectedIndex: 0, counts: [2, 1, 0]),
+    );
+    await tester.pumpAndSettle();
+
+    // Labels keep a single "Día N · dd Mmm" rhythm; counts are separate
+    // badges and days with zero items show none.
+    expect(find.text('Día 1 · 01 Jun'), findsOneWidget);
+    expect(find.text('Día 2 · 02 Jun'), findsOneWidget);
+    expect(find.text('Día 3 · 03 Jun'), findsOneWidget);
+    expect(find.text('Día 1 · 01 Jun · 2'), findsNothing);
+    expect(find.text('2'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
   });
 
   testWidgets('centered strip centers the pill block in the viewport', (
@@ -182,6 +205,22 @@ void main() {
 
     await tester.tap(find.text('Día 2 · 02 Jun'));
     expect(selected, 1);
+  });
+
+  testWidgets('announces pills as selectable buttons', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(_wrap(days: _days(3), selectedIndex: 0));
+    await tester.pumpAndSettle();
+
+    final active = tester.getSemantics(find.text('Día 1 · 01 Jun'));
+    expect(active.flagsCollection.isButton, isTrue);
+    expect(active.flagsCollection.isSelected, Tristate.isTrue);
+    expect(active.label, 'Día 1 · 01 Jun');
+
+    final inactive = tester.getSemantics(find.text('Día 2 · 02 Jun'));
+    expect(inactive.flagsCollection.isButton, isTrue);
+    expect(inactive.flagsCollection.isSelected, Tristate.isFalse);
+    semantics.dispose();
   });
 
   testWidgets('wraps the strip in a Scrollbar', (tester) async {

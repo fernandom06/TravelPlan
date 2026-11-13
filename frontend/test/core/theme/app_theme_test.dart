@@ -91,7 +91,8 @@ void main() {
       expect(theme.cardTheme.elevation, 0);
       expect(
         theme.floatingActionButtonTheme.backgroundColor,
-        AppColors.primary,
+        // Deep terracotta: white labels on [primary] only reach ~2.9:1.
+        AppColors.primaryDeep,
       );
       expect(theme.navigationBarTheme.indicatorColor, AppColors.primary);
       expect(theme.dialogTheme.shape, isNotNull);

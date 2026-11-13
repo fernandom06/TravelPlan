@@ -48,6 +48,7 @@ Widget _map({
   List<Place> places = const [],
   bool isOnline = true,
   MapController? mapController,
+  Future<void> Function(PlaceDraft draft)? onCreatePlace,
   Future<void> Function(int id, PlaceUpdate update)? onUpdatePlace,
   Future<void> Function(int id)? onDeletePlace,
   Future<LatLng> Function(String url)? onResolveMapUrl,
@@ -57,7 +58,7 @@ Widget _map({
       body: TravelMap(
         places: places,
         categories: _categories,
-        onCreatePlace: _noopCreate,
+        onCreatePlace: onCreatePlace ?? _noopCreate,
         onUpdatePlace: onUpdatePlace ?? _noopUpdate,
         onDeletePlace: onDeletePlace ?? _noopDelete,
         isOnline: isOnline,
@@ -488,7 +489,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
       await tester.pump(const Duration(milliseconds: 350));
 
-      expect(find.text('Sin conexión'), findsOneWidget);
+      expect(
+        find.text('Sin conexión: el cambio no se ha guardado.'),
+        findsOneWidget,
+      );
       expect(updated, isFalse);
       expect(find.byType(PlaceForm), findsOneWidget);
       expect(find.text('Nuevo nombre'), findsOneWidget);
@@ -519,7 +523,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Sin conexión'), findsOneWidget);
+      expect(
+        find.text('Sin conexión: el lugar no se ha eliminado.'),
+        findsOneWidget,
+      );
       expect(deleted, isFalse);
       expect(find.byType(PlaceForm), findsOneWidget);
     },
@@ -541,6 +548,169 @@ void main() {
 
     expect(find.byType(PlaceForm), findsNothing);
     expect(find.byType(PlaceDetails), findsNothing);
+  });
+
+  group('offline and failed saves keep the draft', () {
+    testWidgets(
+      'offline Guardar keeps the form and draft, with a persistent retry',
+      (tester) async {
+        final drafts = <PlaceDraft>[];
+        await _pump(
+          tester,
+          _map(
+            isOnline: false,
+            onCreatePlace: (draft) async => drafts.add(draft),
+          ),
+        );
+
+        await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.enterText(find.byType(TextField).first, 'Mirador nuevo');
+        await tester.tap(find.text('Naturaleza'));
+        await tester.pump();
+        await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
+        // Let the snackbar's entrance animation settle so Reintentar is
+        // hittable (pumps without duration leave it mid-slide).
+        await tester.pumpAndSettle();
+
+        // Field-truthful: the error names what did NOT happen, the draft
+        // stays on screen and the notice does not vanish on its own.
+        expect(
+          find.text('Sin conexión: el lugar no se ha guardado.'),
+          findsOneWidget,
+        );
+        expect(find.text('Reintentar'), findsOneWidget);
+        expect(find.byType(PlaceForm), findsOneWidget);
+        expect(find.text('Mirador nuevo'), findsOneWidget);
+        expect(drafts, isEmpty);
+
+        // Back online, Reintentar recreates the exact draft and closes.
+        await tester.pumpWidget(
+          _map(
+            isOnline: true,
+            onCreatePlace: (draft) async => drafts.add(draft),
+          ),
+        );
+        await tester.tap(find.text('Reintentar'));
+        await tester.pumpAndSettle();
+
+        expect(drafts, hasLength(1));
+        expect(drafts.single.name, 'Mirador nuevo');
+        expect(find.byType(PlaceForm), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a failed save keeps the form open and Reintentar retries the draft',
+      (tester) async {
+        var fail = true;
+        final drafts = <PlaceDraft>[];
+        await _pump(
+          tester,
+          _map(
+            onCreatePlace: (draft) async {
+              if (fail) throw Exception('boom');
+              drafts.add(draft);
+            },
+          ),
+        );
+
+        await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.enterText(find.byType(TextField).first, 'Mirador nuevo');
+        await tester.tap(find.text('Naturaleza'));
+        await tester.pump();
+        await tester.tap(find.widgetWithText(FilledButton, 'Guardar Lugar'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('No se pudo guardar el lugar. Revisa tu conexión.'),
+          findsOneWidget,
+        );
+        expect(find.byType(PlaceForm), findsOneWidget);
+
+        fail = false;
+        await tester.tap(find.text('Reintentar'));
+        await tester.pumpAndSettle();
+
+        expect(drafts, hasLength(1));
+        expect(drafts.single.name, 'Mirador nuevo');
+        expect(find.byType(PlaceForm), findsNothing);
+      },
+    );
+  });
+
+  group('draft protection on the map', () {
+    testWidgets('panning while creating keeps the form and draft', (
+      tester,
+    ) async {
+      await _pump(tester, _map());
+
+      await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.enterText(find.byType(TextField).first, 'Mirador nuevo');
+      await tester.pump();
+
+      await tester.drag(find.byType(FlutterMap), const Offset(-50, 0));
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.byType(PlaceForm), findsOneWidget);
+      expect(find.text('Mirador nuevo'), findsOneWidget);
+    });
+
+    testWidgets(
+      'tapping the map with typed content asks before discarding the draft',
+      (tester) async {
+        await _pump(tester, _map());
+
+        await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.enterText(find.byType(TextField).first, 'Mirador nuevo');
+        await tester.pump();
+
+        await tester.tapAt(
+          tester.getCenter(find.byType(FlutterMap)) + const Offset(60, 60),
+        );
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(find.text('¿Descartar el lugar?'), findsOneWidget);
+
+        // Seguir editando keeps everything.
+        await tester.tap(find.text('Seguir editando'));
+        await tester.pumpAndSettle();
+        expect(find.byType(PlaceForm), findsOneWidget);
+        expect(find.text('Mirador nuevo'), findsOneWidget);
+
+        // Descartar closes and removes the marker.
+        await tester.tapAt(
+          tester.getCenter(find.byType(FlutterMap)) + const Offset(60, 60),
+        );
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.tap(find.text('Descartar'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(PlaceForm), findsNothing);
+        expect(_markers(tester), isEmpty);
+      },
+    );
+
+    testWidgets('tapping the map with an empty create form closes silently', (
+      tester,
+    ) async {
+      await _pump(tester, _map());
+
+      await tester.tapAt(tester.getCenter(find.byType(FlutterMap)));
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byType(PlaceForm), findsOneWidget);
+
+      await tester.tapAt(
+        tester.getCenter(find.byType(FlutterMap)) + const Offset(60, 60),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('¿Descartar el lugar?'), findsNothing);
+      expect(find.byType(PlaceForm), findsNothing);
+    });
   });
 
   testWidgets('tapping another marker closes the edit panel', (tester) async {
@@ -693,7 +863,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Error al importar: No se pudo resolver el enlace'),
+        find.text(
+          'No se pudo importar la ubicación. '
+          'Comprueba el enlace e inténtalo de nuevo.',
+        ),
         findsOneWidget,
       );
       expect(find.byType(PlaceForm), findsNothing);

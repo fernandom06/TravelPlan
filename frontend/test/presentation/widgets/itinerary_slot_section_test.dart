@@ -345,6 +345,72 @@ void main() {
     expect(find.byType(DashedBorderContainer), findsNothing);
   });
 
+  testWidgets('tapping the empty drop zone asks to open the picker', (
+    tester,
+  ) async {
+    var picked = 0;
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: const [],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+          onAddPlace: () => picked++,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.add_circle_outline));
+    await tester.pumpAndSettle();
+
+    expect(picked, 1);
+  });
+
+  testWidgets('without onAddPlace the empty zone stays drag-only', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: const [],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+        ),
+      ),
+    );
+
+    // No Semantics button wraps the zone when there is no tap handler.
+    expect(find.bySemanticsLabel('Añadir lugar en Mañana'), findsNothing);
+  });
+
+  testWidgets('the empty-zone label carries the day context', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      wrap(
+        ItinerarySlotSection(
+          title: 'Mañana',
+          slot: _slot,
+          items: const [],
+          onAcceptItem: (_, _, _) {},
+          onDeleteItem: (_) {},
+          onAddPlace: () {},
+          dayLabel: 'Día 2 · 02 Jun',
+        ),
+      ),
+    );
+
+    // "Mañana" alone is ambiguous across days; the label names the day too.
+    expect(
+      find.bySemanticsLabel(RegExp('Añadir lugar en Mañana · Día 2 · 02 Jun')),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
   testWidgets('dashed border turns accent while dragging over the slot', (
     tester,
   ) async {
@@ -390,6 +456,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(borderColor(), AppColors.muted);
+  });
+
+  testWidgets('the hint keeps its secondary color while the slot is dragged '
+      'over', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        Column(
+          children: [
+            ItineraryPlaceCard(item: _item(1, position: 0), onDelete: () {}),
+            ItinerarySlotSection(
+              title: 'Mañana',
+              slot: _slot,
+              items: const [],
+              onAcceptItem: (_, _, _) {},
+              onDeleteItem: (_) {},
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Color hintColor() => tester
+        .widget<Text>(find.text('Mantén pulsado y arrastra lugares aquí'))
+        .style!
+        .color!;
+
+    expect(hintColor(), AppColors.textSecondary);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(ItineraryPlaceCard).first),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+    await gesture.moveTo(tester.getCenter(find.byType(ItinerarySlotSection)));
+    await tester.pump();
+
+    // Mint accent text on the paper background is ~2.1:1 — the hint stays
+    // secondary even while the drop zone is highlighted.
+    expect(hintColor(), AppColors.textSecondary);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('slot with five or more items keeps cards on the timeline at '

@@ -21,15 +21,22 @@ final _places = [
 ];
 
 void main() {
-  Widget wrap(List<Place> places, void Function(int) onSelect) {
+  Widget wrap(
+    List<Place> places,
+    void Function(int) onSelect, {
+    String? subtitle,
+  }) {
     return MaterialApp(
       home: Scaffold(
         body: Builder(
           builder: (context) => TextButton(
             onPressed: () => showDialog<void>(
               context: context,
-              builder: (_) =>
-                  PlacePickerDialog(places: places, onPlaceSelected: onSelect),
+              builder: (_) => PlacePickerDialog(
+                places: places,
+                onPlaceSelected: onSelect,
+                subtitle: subtitle,
+              ),
             ),
             child: const Text('Abrir'),
           ),
@@ -37,6 +44,19 @@ void main() {
       ),
     );
   }
+
+  testWidgets('shows the target subtitle when the picker is pre-targeted', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(_places, (_) {}, subtitle: 'Mañana · Día 2 · 02 Jun'),
+    );
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Añadir lugares'), findsOneWidget);
+    expect(find.text('Mañana · Día 2 · 02 Jun'), findsOneWidget);
+  });
 
   testWidgets('lists every place', (tester) async {
     await tester.pumpWidget(wrap(_places, (_) {}));
@@ -110,6 +130,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(PlacePickerDialog), findsNothing);
+  });
+
+  testWidgets('rows picked this session show an Añadido badge, and stay '
+      'tappable', (tester) async {
+    await tester.pumpWidget(wrap(_places, (_) {}));
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+
+    // Nothing marked before the first pick.
+    expect(find.text('Añadido'), findsNothing);
+
+    await tester.tap(find.text('Playa de la Concha'));
+    await tester.pump();
+    expect(find.text('Añadido'), findsOneWidget);
+    expect(find.text('1 añadido'), findsOneWidget);
+
+    // A different pick marks only its own row.
+    await tester.tap(find.text('Casco Viejo'));
+    await tester.pump();
+    expect(find.text('Añadido'), findsNWidgets(2));
+
+    // Tapping the same place again stays legal (repeat visits) and does
+    // not duplicate the badge.
+    await tester.tap(find.text('Playa de la Concha'));
+    await tester.pump();
+    expect(find.text('Añadido'), findsNWidgets(2));
+    expect(find.text('3 añadidos'), findsOneWidget);
   });
 
   testWidgets('renders the title in Fraunces with an added-counter pill', (

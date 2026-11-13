@@ -10,8 +10,8 @@ import '../../data/models/place.dart';
 import '../../data/models/trip.dart';
 import '../controllers/itinerary_controller.dart';
 import '../controllers/places_controller.dart';
-import '../widgets/dashed_action_card.dart';
 import '../widgets/day_pill_strip.dart';
+import '../widgets/error_notice.dart';
 import '../widgets/general_items_section.dart';
 import '../widgets/itinerary_slot_section.dart';
 import '../widgets/itinerary_two_column_layout.dart';
@@ -102,7 +102,8 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       // the failure masquerade as an empty plan; with visible items the
       // screen keeps them usable and just notifies.
       if (widget.itineraryController.value.items.isEmpty) return;
-      _showNotice(
+      showErrorNotice(
+        context,
         'No se pudo actualizar el itinerario. Revisa tu conexión.',
         _load,
       );
@@ -121,26 +122,11 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   }
 
   void _showSaveError(Future<void> Function() retry) {
-    _showNotice('No se pudo guardar el cambio. Revisa tu conexión.', retry);
-  }
-
-  void _showNotice(String message, Future<void> Function() retry) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          // Stays until the user retries or dismisses it: on an unreliable
-          // field connection a 4-second snackbar would vanish unheard.
-          duration: const Duration(days: 1),
-          showCloseIcon: true,
-          action: SnackBarAction(
-            label: 'Reintentar',
-            onPressed: () => unawaited(_attempt(retry)),
-          ),
-        ),
-      );
+    showErrorNotice(
+      context,
+      'No se pudo guardar el cambio. Revisa tu conexión.',
+      retry,
+    );
   }
 
   void _moveItem(int itemId, DateTime? day, ItinerarySlot? slot, int index) {
@@ -172,26 +158,61 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     _dayHoverTimer = null;
   }
 
-  void _removeItem(int itemId) {
+  /// Removes an item and offers "Deshacer" in a snackbar: quitting a place
+  /// by accident must be reversible, not a delete-then-recreate chore. The
+  /// removed instance (with its day/slot/position) feeds the undo.
+  Future<void> _removeItem(int itemId) async {
+    final controller = widget.itineraryController;
+    ItineraryItem? removed;
+    try {
+      removed = await controller.removeItem(itemId);
+    } catch (_) {
+      _showSaveError(() => controller.removeItem(itemId));
+      return;
+    }
+    final removedItem = removed;
+    if (removedItem == null || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('"${removedItem.place.name}" quitado del itinerario'),
+          // Long enough to read the place name and react; shorter than the
+          // persistent error snackbars, which stay until dismissed.
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Deshacer',
+            onPressed: () =>
+                unawaited(_attempt(() => controller.restoreItem(removedItem))),
+          ),
+        ),
+      );
+  }
+
+  void _addPlace(Place place, {DateTime? day, ItinerarySlot? slot}) {
     unawaited(
-      _attempt(() => widget.itineraryController.removeItem(itemId)),
+      _attempt(
+        () => widget.itineraryController.addPlace(place, day: day, slot: slot),
+      ),
     );
   }
 
-  void _addPlace(Place place) {
-    unawaited(_attempt(() => widget.itineraryController.addPlace(place)));
-  }
-
-  Future<void> _openPicker() async {
+  /// Opens the place picker. With [day]/[slot] the picked places go straight
+  /// to that container (empty-slot tap); without, they land unassigned.
+  Future<void> _openPicker({DateTime? day, ItinerarySlot? slot}) async {
     final places = widget.placesController.value.places;
+    final subtitle = day == null || slot == null
+        ? null
+        : '${slot.label} · Día ${_days.indexOf(day) + 1} · ${dayLabel(day)}';
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => PlacePickerDialog(
         places: places,
+        subtitle: subtitle,
         onPlaceSelected: (placeId) {
           for (final place in places) {
             if (place.id == placeId) {
-              _addPlace(place);
+              _addPlace(place, day: day, slot: slot);
               return;
             }
           }
@@ -208,11 +229,18 @@ class _ItineraryScreenState extends State<ItineraryScreen>
           widget.trip.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontSize: 28),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 28),
         ),
         centerTitle: false,
+      ),
+      // Thumb-zone entry for the picker: adding a place is the most common
+      // action on this screen, and it is the single add affordance — the
+      // general section no longer duplicates it with an inline card.
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'itinerary-add-fab',
+        onPressed: () => unawaited(_openPicker()),
+        icon: const Icon(Icons.add),
+        label: const Text('Añadir lugar'),
       ),
       body: ValueListenableBuilder<bool>(
         valueListenable: widget.online,
@@ -331,6 +359,8 @@ class _ItineraryScreenState extends State<ItineraryScreen>
     List<ItineraryItem> general, {
     bool vertical = false,
   }) {
+    // The FAB owns the add affordance; the section keeps only its own
+    // drag/drop and move-sheet entry points.
     return GeneralItemsSection(
       layout: vertical
           ? GeneralItemsLayout.vertical
@@ -339,11 +369,6 @@ class _ItineraryScreenState extends State<ItineraryScreen>
       onAcceptItem: (item, index) => _moveItem(item.id, null, null, index),
       onDeleteItem: _removeItem,
       onOpenItem: _openMoveSheet,
-      trailing: DashedActionCard(
-        label: '¿Añadimos un lugar?',
-        onTap: _openPicker,
-        compact: true,
-      ),
     );
   }
 
@@ -397,10 +422,12 @@ class _ItineraryScreenState extends State<ItineraryScreen>
         slot: slot,
         items: slotItems,
         isLast: slot == ItinerarySlot.night,
+        dayLabel: 'Día ${_days.indexOf(day) + 1} · ${dayLabel(day)}',
         onAcceptItem: (item, slot, index) =>
             _moveItem(item.id, day, slot, index),
         onDeleteItem: _removeItem,
         onOpenItem: _openMoveSheet,
+        onAddPlace: () => unawaited(_openPicker(day: day, slot: slot)),
       );
     }
 
@@ -432,105 +459,180 @@ class _ItineraryScreenState extends State<ItineraryScreen>
   }
 
   /// Non-drag alternative for reordering: a plain tap on a card opens a
-  /// sheet with explicit move targets plus remove, so touch, keyboard and
-  /// screen-reader users all have a path that is not a drag gesture.
+  /// sheet with a day selector plus per-slot targets and remove, so touch,
+  /// keyboard and screen-reader users all have a path that is not a drag
+  /// gesture — and moving to *any* day needs no drag either.
   void _openMoveSheet(ItineraryItem item) {
-    final textTheme = Theme.of(context).textTheme;
+    final items = widget.itineraryController.value.items;
+    int countIn(DateTime? day, ItinerarySlot? slot) => items
+        .where((other) => other.dayDate == day && other.slot == slot)
+        .length;
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  'Mover "${item.place.name}"',
-                  style: textTheme.titleMedium?.copyWith(color: AppColors.text),
-                ),
-              ),
-              for (final target in _moveTargets(item))
-                ListTile(
-                  leading: Icon(target.icon, color: AppColors.primary),
-                  title: Text(target.label),
-                  subtitle: target.subtitle == null
-                      ? null
-                      : Text(target.subtitle!),
-                  onTap: () =>
-                      _applyMoveFromSheet(sheetContext, item, target),
-                ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(
-                  Icons.delete_outline,
-                  color: AppColors.textSecondary,
-                ),
-                title: const Text('Quitar del itinerario'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _removeItem(item.id);
-                },
-              ),
-            ],
-          ),
+        return _MoveSheet(
+          item: item,
+          days: _days,
+          initialDay: item.dayDate ?? _days[_tabController.index],
+          onMove: (day, slot) {
+            Navigator.pop(sheetContext);
+            _moveItem(item.id, day, slot, countIn(day, slot));
+          },
+          onRemove: () {
+            Navigator.pop(sheetContext);
+            unawaited(_removeItem(item.id));
+          },
         );
       },
     );
   }
-
-  List<_MoveTarget> _moveTargets(ItineraryItem item) {
-    final targets = <_MoveTarget>[];
-    final assignedDay = item.dayDate;
-    if (assignedDay != null) {
-      targets.add(
-        const _MoveTarget('Por asignar', Icons.archive_outlined),
-      );
-    }
-    final targetDay = assignedDay ?? _days[_tabController.index];
-    final daySubtitle =
-        'Día ${_days.indexOf(targetDay) + 1} · ${dayLabel(targetDay)}';
-    for (final slot in ItinerarySlot.values) {
-      if (assignedDay != null && slot == item.slot) continue;
-      targets.add(
-        _MoveTarget(
-          slot.label,
-          ItinerarySlotSection.iconFor(slot),
-          day: targetDay,
-          slot: slot,
-          subtitle: assignedDay == null ? daySubtitle : null,
-        ),
-      );
-    }
-    return targets;
-  }
-
-  void _applyMoveFromSheet(
-    BuildContext sheetContext,
-    ItineraryItem item,
-    _MoveTarget target,
-  ) {
-    Navigator.pop(sheetContext);
-    final items = widget.itineraryController.value.items;
-    final count = items
-        .where(
-          (other) =>
-              other.dayDate == target.day && other.slot == target.slot,
-        )
-        .length;
-    _moveItem(item.id, target.day, target.slot, count);
-  }
 }
 
-/// One destination row inside the move sheet. [day]/[slot] are null for the
-/// unassigned container; [daySubtitle] labels a cross-day destination.
-class _MoveTarget {
-  const _MoveTarget(this.label, this.icon, {this.day, this.slot, this.subtitle});
+/// Move sheet for one itinerary item: a day selector on top (same "Día N ·
+/// dd Mmm" vocabulary as the pill strip) and one target row per slot of the
+/// selected day, plus "Por asignar" and remove. Stateless regarding the
+/// controller — it reports the chosen target through callbacks.
+class _MoveSheet extends StatefulWidget {
+  const _MoveSheet({
+    required this.item,
+    required this.days,
+    required this.initialDay,
+    required this.onMove,
+    required this.onRemove,
+  });
 
-  final String label;
-  final IconData icon;
-  final DateTime? day;
-  final ItinerarySlot? slot;
-  final String? subtitle;
+  final ItineraryItem item;
+  final List<DateTime> days;
+  final DateTime initialDay;
+  final void Function(DateTime? day, ItinerarySlot? slot) onMove;
+  final VoidCallback onRemove;
+
+  @override
+  State<_MoveSheet> createState() => _MoveSheetState();
+}
+
+class _MoveSheetState extends State<_MoveSheet> {
+  late DateTime _selectedDay = widget.initialDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final item = widget.item;
+    final dayIndex = widget.days.indexOf(_selectedDay);
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Mover "${item.place.name}"',
+              style: textTheme.titleMedium?.copyWith(color: AppColors.text),
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  for (var i = 0; i < widget.days.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _dayChip(i),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final slot in ItinerarySlot.values)
+                    _slotTile(slot, dayIndex, item),
+                  if (item.dayDate != null)
+                    ListTile(
+                      leading: const Icon(
+                        Icons.archive_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text('Por asignar'),
+                      subtitle: const Text('Fuera de los días del itinerario'),
+                      onTap: () => widget.onMove(null, null),
+                    ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: AppColors.textSecondary,
+                    ),
+                    title: const Text('Quitar del itinerario'),
+                    onTap: widget.onRemove,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dayChip(int index) {
+    final day = widget.days[index];
+    final selected = day == _selectedDay;
+    final label = 'Día ${index + 1} · ${dayLabel(day)}';
+    // Same vocabulary as the pill strip: announced as a selectable button;
+    // the label comes from the chip text.
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedDay = day),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primaryDeep
+                : AppColors.muted.withValues(alpha: 0.6),
+            borderRadius: AppRadii.pill,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Lora',
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+              color: selected ? Colors.white : AppColors.text,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _slotTile(ItinerarySlot slot, int dayIndex, ItineraryItem item) {
+    final isCurrent = item.dayDate == _selectedDay && item.slot == slot;
+    return ListTile(
+      enabled: !isCurrent,
+      leading: Icon(
+        ItinerarySlotSection.iconFor(slot),
+        color: isCurrent ? AppColors.textSecondary : AppColors.primary,
+      ),
+      title: Text(slot.label),
+      subtitle: Text(
+        isCurrent
+            ? 'Ya está en este bloque'
+            : 'Día ${dayIndex + 1} · ${dayLabel(_selectedDay)}',
+      ),
+      onTap: isCurrent ? null : () => widget.onMove(_selectedDay, slot),
+    );
+  }
 }

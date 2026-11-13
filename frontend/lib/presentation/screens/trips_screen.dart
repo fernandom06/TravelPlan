@@ -10,6 +10,7 @@ import '../controllers/itinerary_controller.dart';
 import '../controllers/places_controller.dart';
 import '../controllers/trips_controller.dart';
 import '../widgets/dashed_action_card.dart';
+import '../widgets/error_notice.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/trip_card.dart';
 import '../widgets/trip_form.dart';
@@ -52,12 +53,6 @@ class _TripsScreenState extends State<TripsScreen> {
     super.dispose();
   }
 
-  void _showError(Object error, String action) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$action: $error')));
-  }
-
   Future<void> _loadTrips() async {
     try {
       await widget.tripsController.loadTrips();
@@ -65,7 +60,11 @@ class _TripsScreenState extends State<TripsScreen> {
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _showError(e, 'Error al cargar');
+        showErrorNotice(
+          context,
+          'No se pudieron cargar los viajes. Revisa tu conexión.',
+          _loadTrips,
+        );
       });
     }
   }
@@ -74,7 +73,14 @@ class _TripsScreenState extends State<TripsScreen> {
     try {
       await widget.tripsController.createTrip(draft);
     } catch (e) {
-      _showError(e, 'Error al crear');
+      if (!mounted) return;
+      // The failed draft is captured in the closure: Reintentar recreates
+      // the same trip, with its zone, without going through the form again.
+      showErrorNotice(
+        context,
+        'No se pudo crear el viaje. Revisa tu conexión.',
+        () => widget.tripsController.createTrip(draft),
+      );
     }
   }
 
@@ -82,7 +88,12 @@ class _TripsScreenState extends State<TripsScreen> {
     try {
       await widget.tripsController.updateTrip(id, update);
     } catch (e) {
-      _showError(e, 'Error al actualizar');
+      if (!mounted) return;
+      showErrorNotice(
+        context,
+        'No se pudo guardar el cambio. Revisa tu conexión.',
+        () => widget.tripsController.updateTrip(id, update),
+      );
     }
   }
 
@@ -90,7 +101,12 @@ class _TripsScreenState extends State<TripsScreen> {
     try {
       await widget.tripsController.deleteTrip(id);
     } catch (e) {
-      _showError(e, 'Error al borrar');
+      if (!mounted) return;
+      showErrorNotice(
+        context,
+        'No se pudo eliminar el viaje. Revisa tu conexión.',
+        () => widget.tripsController.deleteTrip(id),
+      );
     }
   }
 

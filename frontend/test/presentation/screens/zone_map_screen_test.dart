@@ -75,6 +75,43 @@ void main() {
     expect(find.text('Área de Viaje'), findsOneWidget);
   });
 
+  testWidgets('hint explains the tap gesture and the 3-point minimum', (
+    tester,
+  ) async {
+    await _openScreen(tester);
+
+    expect(
+      find.text('Toca el mapa para delimitar la zona · mínimo 3 puntos'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('hint counts points while below the minimum', (tester) async {
+    await _openScreen(tester);
+    await _drawPoint(tester, Offset.zero);
+
+    expect(
+      find.text('1/3 · Toca el mapa para añadir más puntos'),
+      findsOneWidget,
+    );
+
+    await _drawPoint(tester, const Offset(40, 0));
+    expect(
+      find.text('2/3 · Toca el mapa para añadir más puntos'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('hint announces the zone is ready at 3 points', (tester) async {
+    await _openScreen(tester);
+    await _drawThreePoints(tester);
+
+    expect(
+      find.text('3 puntos · Zona lista para crear el viaje'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Crear viaje is disabled with fewer than 3 points', (
     tester,
   ) async {
@@ -113,48 +150,39 @@ void main() {
     expect(result!.endDate, DateTime(2026, 6, 10));
   });
 
-  testWidgets('Omitir first dialog Cancelar does nothing', (tester) async {
+  testWidgets(
+    'Omitir shows one confirmation dialog and Cancelar does nothing',
+    (tester) async {
+      await _openScreen(tester);
+      await _drawThreePoints(tester);
+
+      await tester.tap(find.text('Omitir'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(
+        find.textContaining('Se descartarán los puntos dibujados'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('sin zona'), findsOneWidget);
+
+      await _tapInDialog(tester, 'Cancelar');
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(ZoneMapScreen), findsOneWidget);
+    },
+  );
+
+  testWidgets('skip dialog uses neutral wording with 0 points', (tester) async {
     await _openScreen(tester);
-    await _drawThreePoints(tester);
 
     await tester.tap(find.text('Omitir'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsOneWidget);
-    await _tapInDialog(tester, 'Cancelar');
-
-    expect(find.byType(AlertDialog), findsNothing);
-    expect(find.byType(ZoneMapScreen), findsOneWidget);
+    expect(find.text('El viaje se creará sin zona.'), findsOneWidget);
   });
 
-  testWidgets('confirming first dialog opens the second one', (tester) async {
-    await _openScreen(tester);
-    await _drawThreePoints(tester);
-
-    await tester.tap(find.text('Omitir'));
-    await tester.pumpAndSettle();
-    await _tapInDialog(tester, 'Continuar');
-
-    expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.textContaining('puntos dibujados'), findsOneWidget);
-  });
-
-  testWidgets('Cancelar on the second dialog does nothing', (tester) async {
-    await _openScreen(tester);
-    await _drawThreePoints(tester);
-
-    await tester.tap(find.text('Omitir'));
-    await tester.pumpAndSettle();
-    await _tapInDialog(tester, 'Continuar');
-    await _tapInDialog(tester, 'Cancelar');
-
-    expect(find.byType(AlertDialog), findsNothing);
-    expect(find.byType(ZoneMapScreen), findsOneWidget);
-  });
-
-  testWidgets('confirming second dialog pops draft without zone', (
-    tester,
-  ) async {
+  testWidgets('confirming Omitir pops draft without zone', (tester) async {
     TripDraft? result;
     await tester.pumpWidget(_Host(onResult: (r) => result = r));
     await tester.tap(find.text('abrir'));
@@ -163,25 +191,12 @@ void main() {
     await _drawThreePoints(tester);
     await tester.tap(find.text('Omitir'));
     await tester.pumpAndSettle();
-    await _tapInDialog(tester, 'Continuar');
     await _tapInDialog(tester, 'Omitir');
 
     expect(result, isNotNull);
     expect(result!.zone, isNull);
     expect(result!.name, 'Viaje a Galicia');
     expect(find.byType(ZoneMapScreen), findsNothing);
-  });
-
-  testWidgets('second dialog uses neutral wording with 0 points', (
-    tester,
-  ) async {
-    await _openScreen(tester);
-
-    await tester.tap(find.text('Omitir'));
-    await tester.pumpAndSettle();
-    await _tapInDialog(tester, 'Continuar');
-
-    expect(find.textContaining('polígono dibujado'), findsOneWidget);
   });
 
   testWidgets('system back pops with null', (tester) async {

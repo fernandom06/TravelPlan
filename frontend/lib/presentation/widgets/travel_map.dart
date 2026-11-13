@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,6 +10,7 @@ import '../../data/models/category.dart';
 import '../../data/models/place.dart';
 import '../../data/models/place_draft.dart';
 import '../../data/models/place_update.dart';
+import 'error_notice.dart';
 import 'import_url_dialog.dart';
 import 'map_constants.dart';
 import 'place_form.dart';
@@ -73,6 +76,18 @@ class _TravelMapState extends State<TravelMap> {
 
   _MapFormState _state = const _Idle();
 
+  /// Whether the open create/edit form holds typed content. While creating,
+  /// closing the form through a stray map tap must not silently destroy the
+  /// draft the user typed on a phone keyboard.
+  bool _draftDirty = false;
+
+  /// Last create attempt, kept so a failed or offline save can be retried
+  /// from the persistent snackbar without retyping anything.
+  (String, int, String?)? _lastSaveAttempt;
+
+  /// Last edit attempt, same retry contract as [_lastSaveAttempt].
+  (String, int, String?)? _lastUpdateAttempt;
+
   /// Keeps the form subtree alive when the layout crosses the breakpoint
   /// (bottom sheet ↔ right panel), preserving text controllers.
   final GlobalKey _formKey = GlobalKey();
@@ -103,23 +118,62 @@ class _TravelMapState extends State<TravelMap> {
   };
 
   void _closeForm() {
+    _draftDirty = false;
     setState(() => _state = const _Idle());
   }
 
   void _handleTap(TapPosition tapPosition, LatLng point) {
     switch (_state) {
       case _Idle():
-        setState(() => _state = _Creating(point: point));
+        setState(() {
+          _draftDirty = false;
+          _state = _Creating(point: point);
+        });
       case _Creating():
+        unawaited(_closeCreatingForm());
       case _Viewing():
       case _Editing():
         _closeForm();
     }
   }
 
+  /// Closing a create form with typed content is confirmed, never silent:
+  /// an accidental tap on the map would otherwise destroy the draft.
+  Future<void> _closeCreatingForm() async {
+    if (!_draftDirty) {
+      _closeForm();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('¿Descartar el lugar?'),
+          content: const Text(
+            'Se perderá el nombre y la descripción que has escrito.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Seguir editando'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Descartar'),
+            ),
+          ],
+        );
+      },
+    );
+    if (discard == true && mounted) _closeForm();
+  }
+
   void _handleImportedPoint(LatLng point) {
     _mapController.move(point, kDefaultZoom);
-    setState(() => _state = _Creating(point: point));
+    setState(() {
+      _draftDirty = false;
+      _state = _Creating(point: point);
+    });
   }
 
   Future<void> _handleImportPressed() async {
@@ -138,7 +192,12 @@ class _TravelMapState extends State<TravelMap> {
           } catch (error) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error al importar: $error')),
+                const SnackBar(
+                  content: Text(
+                    'No se pudo importar la ubicación. '
+                    'Comprueba el enlace e inténtalo de nuevo.',
+                  ),
+                ),
               );
             }
             rethrow;
@@ -155,6 +214,7 @@ class _TravelMapState extends State<TravelMap> {
       case _Idle():
         setState(() => _state = _Viewing(place: place));
       case _Creating():
+        unawaited(_closeCreatingForm());
       case _Viewing():
       case _Editing():
         _closeForm();
@@ -170,14 +230,27 @@ class _TravelMapState extends State<TravelMap> {
     int categoryId,
     String? description,
   ) async {
-    if (!widget.isOnline) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Sin conexión')));
-      return;
-    }
     final s = _state;
     if (s is! _Editing) return;
+    _lastUpdateAttempt = (name, categoryId, description);
+    await _attemptUpdate();
+  }
+
+  /// Re-attempts the stored edit; safe to call from the retry action of the
+  /// persistent error snackbar.
+  Future<void> _attemptUpdate() async {
+    final s = _state;
+    final attempt = _lastUpdateAttempt;
+    if (s is! _Editing || attempt == null) return;
+    final (name, categoryId, description) = attempt;
+    if (!widget.isOnline) {
+      showErrorNotice(
+        context,
+        'Sin conexión: el cambio no se ha guardado.',
+        _attemptUpdate,
+      );
+      return;
+    }
     try {
       await widget.onUpdatePlace(
         s.place.id,
@@ -187,34 +260,49 @@ class _TravelMapState extends State<TravelMap> {
           description: description,
         ),
       );
+      _lastUpdateAttempt = null;
       if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _closeForm();
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showErrorNotice(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error al guardar: $error')));
+        'No se pudo guardar el cambio. Revisa tu conexión.',
+        _attemptUpdate,
+      );
     }
   }
 
   Future<void> _handleDelete() async {
-    if (!widget.isOnline) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Sin conexión')));
-      return;
-    }
+    await _attemptDelete();
+  }
+
+  /// Re-attempts the delete; safe to call from the retry action of the
+  /// persistent error snackbar.
+  Future<void> _attemptDelete() async {
     final s = _state;
     if (s is! _Editing) return;
+    if (!widget.isOnline) {
+      showErrorNotice(
+        context,
+        'Sin conexión: el lugar no se ha eliminado.',
+        _attemptDelete,
+      );
+      return;
+    }
     try {
       await widget.onDeletePlace(s.place.id);
       if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _closeForm();
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showErrorNotice(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error al eliminar: $error')));
+        'No se pudo eliminar el lugar. Revisa tu conexión.',
+        _attemptDelete,
+      );
     }
   }
 
@@ -229,16 +317,30 @@ class _TravelMapState extends State<TravelMap> {
     int categoryId,
     String? description,
   ) async {
-    if (!widget.isOnline) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Sin conexión')));
-      _closeForm();
-      return;
-    }
     final s = _state;
     if (s is! _Creating) return;
+    // The draft is stored before attempting anything: saving without
+    // connection must never destroy what the user wrote (field-truthful).
+    _lastSaveAttempt = (name, categoryId, description);
+    await _attemptSave();
+  }
+
+  /// Re-attempts the stored create; safe to call from the retry action of
+  /// the persistent error snackbar.
+  Future<void> _attemptSave() async {
+    final s = _state;
+    final attempt = _lastSaveAttempt;
+    if (s is! _Creating || attempt == null) return;
+    final (name, categoryId, description) = attempt;
     final point = s.point;
+    if (!widget.isOnline) {
+      showErrorNotice(
+        context,
+        'Sin conexión: el lugar no se ha guardado.',
+        _attemptSave,
+      );
+      return;
+    }
     try {
       await widget.onCreatePlace(
         PlaceDraft(
@@ -249,13 +351,17 @@ class _TravelMapState extends State<TravelMap> {
           longitude: point.longitude,
         ),
       );
+      _lastSaveAttempt = null;
       if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _closeForm();
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showErrorNotice(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error al guardar: $error')));
+        'No se pudo guardar el lugar. Revisa tu conexión.',
+        _attemptSave,
+      );
     }
   }
 
@@ -301,8 +407,17 @@ class _TravelMapState extends State<TravelMap> {
             maxZoom: kMaxZoom,
             onTap: _handleTap,
             onPositionChanged: (camera, hasGesture) {
-              if (_state is! _Idle && hasGesture) {
-                _closeForm();
+              switch (_state) {
+                case _Idle():
+                  break;
+                // While creating, panning is how the user orients the map:
+                // closing the form — and destroying the typed draft — on a
+                // drag would punish exploration. Explicit taps close it.
+                case _Creating():
+                  break;
+                case _Viewing():
+                case _Editing():
+                  if (hasGesture) _closeForm();
               }
             },
           ),
@@ -352,6 +467,7 @@ class _TravelMapState extends State<TravelMap> {
           categories: widget.categories,
           onSave: _handleSave,
           onCancel: _closeForm,
+          onDraftChanged: (dirty) => _draftDirty = dirty,
         );
       case _Viewing(:final place):
         return PlaceDetails(

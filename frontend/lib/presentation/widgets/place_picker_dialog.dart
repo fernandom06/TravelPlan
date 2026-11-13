@@ -9,12 +9,19 @@ class PlacePickerDialog extends StatefulWidget {
     super.key,
     required this.places,
     required this.onPlaceSelected,
+    this.subtitle,
   });
 
   final List<Place> places;
 
+  /// Where the picked places will land, e.g. "Mañana · Día 2 · 05 Jun" when
+  /// the picker was opened from an empty slot. Null for the general picker.
+  final String? subtitle;
+
   /// Called on every tap: the same place may be added more than once —
-  /// visiting a spot twice on different days is a legitimate plan.
+  /// visiting a spot twice on different days is a legitimate plan. Rows
+  /// added during this dialog session show a "ya añadido" badge so the
+  /// count alone is not the only signal of what was picked.
   final void Function(int placeId) onPlaceSelected;
 
   @override
@@ -24,6 +31,10 @@ class PlacePickerDialog extends StatefulWidget {
 class _PlacePickerDialogState extends State<PlacePickerDialog> {
   int _addedCount = 0;
   String _query = '';
+
+  /// Places picked since the dialog opened, for the per-row badge. The
+  /// rows stay tappable: adding the same place again remains legal.
+  final Set<int> _addedIds = {};
 
   List<Place> get _filtered {
     final query = _query.trim().toLowerCase();
@@ -35,19 +46,35 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
 
   void _select(Place place) {
     widget.onPlaceSelected(place.id);
-    setState(() => _addedCount += 1);
+    setState(() {
+      _addedCount += 1;
+      _addedIds.add(place.id);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(
-        'Añadir lugares',
-        style: TextStyle(
-          fontFamily: 'Fraunces',
-          fontWeight: FontWeight.w700,
-          color: AppColors.text,
-        ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Añadir lugares',
+            style: TextStyle(
+              fontFamily: 'Fraunces',
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
+          ),
+          if (widget.subtitle != null)
+            Text(
+              widget.subtitle!,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+        ],
       ),
       content: SizedBox(
         width: 320,
@@ -86,23 +113,69 @@ class _PlacePickerDialogState extends State<PlacePickerDialog> {
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(color: AppColors.text),
                           ),
+                          // Marks which rows were picked during this dialog
+                          // session without blocking them: the badge speaks,
+                          // the row stays tappable for repeat visits.
+                          trailing: _addedIds.contains(place.id)
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accent.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    borderRadius: AppRadii.pill,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.check,
+                                        size: 14,
+                                        color: AppColors.text,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Añadido',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.text,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : null,
                           onTap: () => _select(place),
                         );
                       },
                     ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.2),
-                borderRadius: AppRadii.pill,
-              ),
-              child: Text(
-                _addedCountLabel(),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
+            // Live region: a screen reader announces the count as it grows,
+            // instead of leaving the feedback count-only and silent.
+            Semantics(
+              liveRegion: true,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.2),
+                  borderRadius: AppRadii.pill,
+                ),
+                child: Text(
+                  _addedCountLabel(),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ),

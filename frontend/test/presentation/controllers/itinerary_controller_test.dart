@@ -80,7 +80,17 @@ class _FakeItineraryApi extends ItineraryApi {
     if (moveError != null) throw moveError!;
     movedItemId = itemId;
     lastMove = move;
-    return items.firstWhere((i) => i.id == itemId);
+    final matches = items.where((i) => i.id == itemId).toList();
+    if (matches.isNotEmpty) return matches.first;
+    // Items created by addPlace are not in [items]: echo the move payload
+    // back, like a server that applies it would.
+    return ItineraryItem(
+      id: itemId,
+      dayDate: move.dayDate,
+      slot: move.slot,
+      position: move.position,
+      place: _place(itemId),
+    );
   }
 
   @override
@@ -233,6 +243,55 @@ void main() {
     });
   });
 
+  group('insertItem', () {
+    test('appends to the end of a container without shifting others', () {
+      final items = [
+        _item(1, position: 0, day: _day1, slot: ItinerarySlot.morning),
+        _item(2, position: 0),
+      ];
+
+      final result = insertItem(
+        items,
+        _item(9, position: 1, day: _day1, slot: ItinerarySlot.morning),
+      );
+
+      final morning = result
+          .where((i) => i.slot == ItinerarySlot.morning)
+          .map((i) => i.id)
+          .toList();
+      expect(morning, [1, 9]);
+    });
+
+    test('opens a gap at the insertion index', () {
+      final items = [
+        _item(1, position: 0, day: _day1, slot: ItinerarySlot.morning),
+        _item(2, position: 1, day: _day1, slot: ItinerarySlot.morning),
+      ];
+
+      final result = insertItem(
+        items,
+        _item(9, position: 1, day: _day1, slot: ItinerarySlot.morning),
+      );
+
+      expect(result.map((i) => i.id), [1, 9, 2]);
+      expect(result.map((i) => i.position), [0, 1, 2]);
+    });
+
+    test('does not touch other containers', () {
+      final items = [
+        _item(1, position: 0, day: _day1, slot: ItinerarySlot.morning),
+        _item(2, position: 0),
+      ];
+
+      final result = insertItem(items, _item(9, position: 0));
+
+      // The general list opens a gap (2 shifts to position 1); the morning
+      // container is untouched.
+      expect(result.map((i) => i.id), [9, 2, 1]);
+      expect(result.map((i) => i.position), [0, 1, 0]);
+    });
+  });
+
   group('ItineraryController', () {
     test('loadItinerary populates items and trip', () async {
       final api = _FakeItineraryApi(items: [_item(1, position: 0)]);
@@ -354,6 +413,147 @@ void main() {
       expect(api.removedItemId, 1);
     });
 
+    test('removeItem returns the removed instance for undo', () async {
+      final api = _FakeItineraryApi(
+        items: [
+          _item(1, position: 0, day: _day1, slot: ItinerarySlot.morning),
+          _item(2, position: 1),
+        ],
+      );
+      final controller = ItineraryController(api);
+      addTearDown(controller.dispose);
+      await controller.loadItinerary(_trip);
+
+      final removed = await controller.removeItem(1);
+
+      expect(removed, isNotNull);
+      expect(removed!.place.id, 1);
+      expect(removed.dayDate, _day1);
+      expect(removed.slot, ItinerarySlot.morning);
+      expect(removed.position, 0);
+    });
+
+    test(
+      'addPlace to a day slot POSTs and then PATCHes the placement',
+      () async {
+        final created = _item(7, position: 0);
+        final api = _FakeItineraryApi(addedItem: created);
+        final controller = ItineraryController(api);
+        addTearDown(controller.dispose);
+        await controller.loadItinerary(_trip);
+
+        await controller.addPlace(
+          _place(1),
+          day: _day1,
+          slot: ItinerarySlot.afternoon,
+        );
+
+        expect(api.addPlaceId, 1);
+        expect(api.movedItemId, 7);
+        expect(api.lastMove!.dayDate, _day1);
+        expect(api.lastMove!.slot, ItinerarySlot.afternoon);
+        expect(api.lastMove!.position, 0);
+        final placed = controller.value.items.single;
+        expect(placed.id, 7);
+        expect(placed.dayDate, _day1);
+        expect(placed.slot, ItinerarySlot.afternoon);
+      },
+    );
+
+    test(
+      'addPlace to a slot reflects the general list when the PATCH fails',
+      () async {
+        final created = _item(7, position: 0);
+        final api = _FakeItineraryApi(
+          addedItem: created,
+          moveError: Exception('boom'),
+        );
+        final controller = ItineraryController(api);
+        addTearDown(controller.dispose);
+        await controller.loadItinerary(_trip);
+
+        await expectLater(
+          controller.addPlace(
+            _place(1),
+            day: _day1,
+            slot: ItinerarySlot.afternoon,
+          ),
+          throwsA(isA<Exception>()),
+        );
+
+        // The POST succeeded, so the item exists on the server in the general
+        // bucket: the local state mirrors that instead of dropping the item.
+        final placed = controller.value.items.single;
+        expect(placed.id, 7);
+        expect(placed.isUnassigned, isTrue);
+      },
+    );
+
+    test(
+      'restoreItem re-creates the place in its original container',
+      () async {
+        final created = _item(7, position: 0);
+        final api = _FakeItineraryApi(
+          addedItem: created,
+          // The container already holds two items, so the restored instance
+          // takes position 2 (its original spot).
+          items: [
+            _item(1, position: 0, day: _day1, slot: ItinerarySlot.morning),
+            _item(2, position: 1, day: _day1, slot: ItinerarySlot.morning),
+          ],
+        );
+        final controller = ItineraryController(api);
+        addTearDown(controller.dispose);
+        await controller.loadItinerary(_trip);
+
+        await controller.restoreItem(
+          _item(9, position: 2, day: _day1, slot: ItinerarySlot.morning),
+        );
+
+        expect(api.addPlaceId, 9);
+        expect(api.movedItemId, 7);
+        expect(api.lastMove!.dayDate, _day1);
+        expect(api.lastMove!.slot, ItinerarySlot.morning);
+        expect(api.lastMove!.position, 2);
+        final placed = controller.value.items.firstWhere((i) => i.id == 7);
+        expect(placed.dayDate, _day1);
+        expect(placed.slot, ItinerarySlot.morning);
+        expect(placed.position, 2);
+      },
+    );
+
+    test(
+      'restoreItem clamps the original position into the container',
+      () async {
+        final created = _item(7, position: 0);
+        final api = _FakeItineraryApi(
+          addedItem: created,
+          items: [
+            _item(1, position: 0, day: _day1, slot: ItinerarySlot.morning),
+            _item(2, position: 1, day: _day1, slot: ItinerarySlot.morning),
+          ],
+        );
+        final controller = ItineraryController(api);
+        addTearDown(controller.dispose);
+        await controller.loadItinerary(_trip);
+
+        // The removed instance held position 99; restoring must not create a
+        // sparse position beyond the container's end.
+        await controller.restoreItem(
+          _item(9, position: 99, day: _day1, slot: ItinerarySlot.morning),
+        );
+
+        expect(api.lastMove!.position, 2);
+        final positions =
+            controller.value.items
+                .where((i) => i.slot == ItinerarySlot.morning)
+                .map((i) => i.position)
+                .toList()
+              ..sort();
+        expect(positions, [0, 1, 2]);
+      },
+    );
+
     test('removeItem rolls back when the DELETE fails', () async {
       final api = _FakeItineraryApi(
         items: [_item(1, position: 0), _item(2, position: 1)],
@@ -383,10 +583,7 @@ void main() {
     });
 
     test('a failed load records loadError and a retry clears it', () async {
-      final api = _FakeItineraryApi(
-        fetchError: Exception('boom'),
-        items: [],
-      );
+      final api = _FakeItineraryApi(fetchError: Exception('boom'), items: []);
       final controller = ItineraryController(api);
       addTearDown(controller.dispose);
 
@@ -421,21 +618,24 @@ void main() {
       expect(controller.value.isMutating, isFalse);
     });
 
-    test('a failed mutation clears isMutating along with the rollback', () async {
-      final api = _FakeItineraryApi(
-        items: [_item(1, position: 0)],
-        moveError: Exception('boom'),
-      );
-      final controller = ItineraryController(api);
-      addTearDown(controller.dispose);
-      await controller.loadItinerary(_trip);
+    test(
+      'a failed mutation clears isMutating along with the rollback',
+      () async {
+        final api = _FakeItineraryApi(
+          items: [_item(1, position: 0)],
+          moveError: Exception('boom'),
+        );
+        final controller = ItineraryController(api);
+        addTearDown(controller.dispose);
+        await controller.loadItinerary(_trip);
 
-      await expectLater(
-        controller.moveItem(1, _day1, ItinerarySlot.morning, 0),
-        throwsA(isA<Exception>()),
-      );
+        await expectLater(
+          controller.moveItem(1, _day1, ItinerarySlot.morning, 0),
+          throwsA(isA<Exception>()),
+        );
 
-      expect(controller.value.isMutating, isFalse);
-    });
+        expect(controller.value.isMutating, isFalse);
+      },
+    );
   });
 }

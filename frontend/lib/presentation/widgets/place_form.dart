@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/category.dart';
 import '../../data/models/place.dart';
 import 'category_chip_strip.dart';
+import 'sketchbook_name_field.dart';
 
 class _PlaceFields extends StatelessWidget {
   const _PlaceFields({
@@ -38,11 +39,12 @@ class _PlaceFields extends StatelessWidget {
       children: [
         FocusTraversalOrder(
           order: const NumericFocusOrder(0),
-          child: _WireframeNameField(
+          child: SketchbookNameField(
             controller: nameController,
             focusNode: nameFocus,
             autofocus: autofocus,
             enabled: enabled,
+            hint: 'Nombra este rincón...',
             onChanged: onNameChanged,
             textInputAction: onNameNext == null ? null : TextInputAction.next,
             onSubmitted: onNameNext == null ? null : (_) => onNameNext!(),
@@ -78,76 +80,6 @@ class _PlaceFields extends StatelessWidget {
   }
 }
 
-/// Sketchbook-style title input: Fraunces 600, no border by default, a sand
-/// underline on hover and a terracotta underline on focus.
-class _WireframeNameField extends StatefulWidget {
-  const _WireframeNameField({
-    required this.controller,
-    this.focusNode,
-    required this.enabled,
-    this.autofocus = false,
-    this.onChanged,
-    this.onSubmitted,
-    this.textInputAction,
-  });
-
-  final TextEditingController controller;
-  final FocusNode? focusNode;
-  final bool enabled;
-  final bool autofocus;
-  final ValueChanged<String>? onChanged;
-  final ValueChanged<String>? onSubmitted;
-  final TextInputAction? textInputAction;
-
-  @override
-  State<_WireframeNameField> createState() => _WireframeNameFieldState();
-}
-
-class _WireframeNameFieldState extends State<_WireframeNameField> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: TextField(
-        controller: widget.controller,
-        focusNode: widget.focusNode,
-        autofocus: widget.autofocus,
-        enabled: widget.enabled,
-        onChanged: widget.onChanged,
-        textInputAction: widget.textInputAction,
-        onSubmitted: widget.onSubmitted,
-        style: const TextStyle(
-          fontFamily: 'Fraunces',
-          fontWeight: FontWeight.w600,
-          fontSize: 24,
-          color: AppColors.text,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Nombra este rincón...',
-          hintStyle: const TextStyle(
-            fontFamily: 'Fraunces',
-            fontWeight: FontWeight.w600,
-            fontSize: 24,
-            color: AppColors.muted,
-          ),
-          enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(
-              color: _hovered ? AppColors.muted : Colors.transparent,
-              width: 1,
-            ),
-          ),
-          focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.primary, width: 2),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class PlaceForm extends StatefulWidget {
   const PlaceForm({
     super.key,
@@ -158,6 +90,7 @@ class PlaceForm extends StatefulWidget {
     this.initialDescription,
     this.initialCategory,
     this.onDelete,
+    this.onDraftChanged,
   });
 
   final List<Category> categories;
@@ -167,6 +100,10 @@ class PlaceForm extends StatefulWidget {
   final String? initialDescription;
   final Category? initialCategory;
   final VoidCallback? onDelete;
+
+  /// Reports whether the form holds typed content, so hosts can protect the
+  /// draft from being discarded by an accidental interaction.
+  final ValueChanged<bool>? onDraftChanged;
 
   @override
   State<PlaceForm> createState() => _PlaceFormState();
@@ -191,12 +128,26 @@ class _PlaceFormState extends State<PlaceForm> {
     _categoryFocus = FocusNode();
     _descriptionFocus = FocusNode();
     _selectedCategory = widget.initialCategory;
+    // Track typed content so hosts (e.g. the map) can protect the draft.
+    _nameController.addListener(_notifyDraft);
+    _descriptionController.addListener(_notifyDraft);
     // autofocus on the TextField is discarded when the surrounding scope
     // already holds focus (e.g. the map overlay), so also request focus after
     // the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _nameFocus.requestFocus();
+      if (mounted) {
+        _nameFocus.requestFocus();
+        _notifyDraft();
+      }
     });
+  }
+
+  void _notifyDraft() {
+    if (!mounted) return;
+    widget.onDraftChanged?.call(
+      _nameController.text.trim().isNotEmpty ||
+          _descriptionController.text.trim().isNotEmpty,
+    );
   }
 
   @override
@@ -216,6 +167,8 @@ class _PlaceFormState extends State<PlaceForm> {
 
   @override
   void dispose() {
+    _nameController.removeListener(_notifyDraft);
+    _descriptionController.removeListener(_notifyDraft);
     _nameController.dispose();
     _descriptionController.dispose();
     _nameFocus.dispose();

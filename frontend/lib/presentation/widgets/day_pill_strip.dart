@@ -6,7 +6,7 @@ import '../../data/models/itinerary_item.dart';
 
 /// Horizontally scrollable strip of day pills for the itinerary header.
 ///
-/// The active pill is highlighted in [AppColors.primary] and the strip
+/// The active pill is highlighted in [AppColors.primaryDeep] and the strip
 /// auto-scrolls via [Scrollable.ensureVisible] so the selected pill always
 /// stays in view. Each pill is a [DragTarget<ItineraryItem>] so hovering a
 /// pill while dragging can switch the visible day and dropping assigns the
@@ -112,11 +112,8 @@ class _DayPillStripState extends State<DayPillStrip> {
                       _DayPill(
                         key: _pillKeys[i],
                         index: i,
-                        label: _pillLabel(
-                          index: i,
-                          day: widget.days[i],
-                          count: widget.counts?[i],
-                        ),
+                        label: _pillLabel(index: i, day: widget.days[i]),
+                        count: widget.counts?[i] ?? 0,
                         active: i == widget.selectedIndex,
                         day: widget.days[i],
                         onSelect: () => widget.onSelect(i),
@@ -134,14 +131,8 @@ class _DayPillStripState extends State<DayPillStrip> {
     );
   }
 
-  static String _pillLabel({
-    required int index,
-    required DateTime day,
-    int? count,
-  }) {
-    final label = 'Día ${index + 1} · ${dayLabel(day)}';
-    return count == null || count == 0 ? label : '$label · $count';
-  }
+  static String _pillLabel({required int index, required DateTime day}) =>
+      'Día ${index + 1} · ${dayLabel(day)}';
 }
 
 class _DayPill extends StatelessWidget {
@@ -149,6 +140,7 @@ class _DayPill extends StatelessWidget {
     super.key,
     required this.index,
     required this.label,
+    required this.count,
     required this.active,
     required this.day,
     required this.onSelect,
@@ -159,6 +151,10 @@ class _DayPill extends StatelessWidget {
 
   final int index;
   final String label;
+
+  /// Items assigned to this day; rendered as a small badge instead of a
+  /// third "· N" text segment so the label keeps a single rhythm.
+  final int count;
   final bool active;
   final DateTime day;
   final VoidCallback onSelect;
@@ -166,8 +162,31 @@ class _DayPill extends StatelessWidget {
   final VoidCallback onHoverEnd;
   final void Function(ItineraryItem item, DateTime day) onDropOnDay;
 
+  /// The badge swaps colors on the active pill so it keeps its contrast
+  /// against the deep terracotta fill instead of melting into it.
+  Widget? get _badge {
+    if (count <= 0) return null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: active ? Colors.white : AppColors.primaryDeep,
+        borderRadius: AppRadii.pill,
+      ),
+      child: Text(
+        '$count',
+        style: TextStyle(
+          fontFamily: 'Lora',
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: active ? AppColors.primaryDeep : Colors.white,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final badge = _badge;
     return DragTarget<ItineraryItem>(
       onMove: (details) => onHoverStart(index),
       onLeave: (data) => onHoverEnd(),
@@ -177,28 +196,43 @@ class _DayPill extends StatelessWidget {
       },
       builder: (context, candidateData, rejectedData) {
         final highlighted = candidateData.isNotEmpty;
-        return GestureDetector(
-          onTap: onSelect,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            decoration: BoxDecoration(
-              color: active
-                  ? AppColors.primary
-                  : AppColors.muted.withValues(alpha: 0.6),
-              borderRadius: AppRadii.pill,
-              border: highlighted
-                  ? Border.all(color: AppColors.accent, width: 2)
-                  : null,
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Lora',
-                fontSize: 13,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-                color: active ? Colors.white : AppColors.text,
+        // Button + selected so a screen reader announces the pill as a
+        // selectable control ("Día 2 · 02 Jun, seleccionado, botón"); the
+        // label itself comes from the pill text.
+        return Semantics(
+          button: true,
+          selected: active,
+          child: GestureDetector(
+            onTap: onSelect,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                // Deep terracotta: white 13px text on [AppColors.primary] only
+                // reaches ~2.9:1, which fails AA for small text outdoors.
+                color: active
+                    ? AppColors.primaryDeep
+                    : AppColors.muted.withValues(alpha: 0.6),
+                borderRadius: AppRadii.pill,
+                border: highlighted
+                    ? Border.all(color: AppColors.accent, width: 2)
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontFamily: 'Lora',
+                      fontSize: 13,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                      color: active ? Colors.white : AppColors.text,
+                    ),
+                  ),
+                  if (badge != null) ...[const SizedBox(width: 6), badge],
+                ],
               ),
             ),
           ),

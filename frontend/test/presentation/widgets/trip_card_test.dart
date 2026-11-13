@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/data/models/trip.dart';
 import 'package:frontend/presentation/widgets/app_badge.dart';
 import 'package:frontend/presentation/widgets/trip_card.dart';
@@ -96,7 +97,7 @@ void main() {
     );
 
     expect(find.text('Viaje a Galicia'), findsOneWidget);
-    expect(find.text('01 Jun - 10 Jun, 2026'), findsOneWidget);
+    expect(find.text('01 Jun – 10 Jun 2026'), findsOneWidget);
   });
 
   testWidgets('does not show the description', (tester) async {
@@ -217,6 +218,11 @@ void main() {
 
     expect(find.byType(AppBadge), findsOneWidget);
     expect(find.text('PRÓXIMAMENTE'), findsOneWidget);
+    // White 10px text needs the deep fill to clear AA (~2.9:1 on plain
+    // terracotta).
+    final badge = tester.widget<AppBadge>(find.byType(AppBadge));
+    expect(badge.color, AppColors.primaryDeep);
+    expect(badge.textColor, Colors.white);
   });
 
   testWidgets('shows EN CURSO badge for an ongoing trip', (tester) async {
@@ -237,6 +243,10 @@ void main() {
     );
 
     expect(find.text('EN CURSO'), findsOneWidget);
+    // White on plain mint falls to ~2.4:1; the deep mint fill clears AA.
+    final badge = tester.widget<AppBadge>(find.byType(AppBadge));
+    expect(badge.color, AppColors.accentDeep);
+    expect(badge.textColor, Colors.white);
   });
 
   testWidgets('shows PASADO badge for a past trip', (tester) async {

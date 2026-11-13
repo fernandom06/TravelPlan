@@ -22,6 +22,9 @@ import 'package:frontend/presentation/screens/zone_map_screen.dart';
 import 'package:frontend/presentation/widgets/trip_card.dart';
 import 'package:frontend/presentation/widgets/trip_form.dart';
 
+/// The sketchbook name field has no visible label; tests find it by key.
+Finder get tripNameField => find.byKey(const Key('trip-name-field'));
+
 class _FakeTripApi extends TripApi {
   _FakeTripApi({this.trips = const [], this.error})
     : super(baseUrl: 'http://fake');
@@ -321,7 +324,9 @@ void main() {
     expect(find.byType(TripForm), findsOneWidget);
   });
 
-  testWidgets('shows a snackbar when loading fails', (tester) async {
+  testWidgets('shows a persistent snackbar with retry when loading fails', (
+    tester,
+  ) async {
     final controller = TripsController(_FakeTripApi(error: Exception('boom')));
     addTearDown(controller.dispose);
 
@@ -330,7 +335,11 @@ void main() {
     await tester.pump();
 
     expect(find.byType(SnackBar), findsOneWidget);
-    expect(find.textContaining('boom'), findsOneWidget);
+    expect(
+      find.textContaining('No se pudieron cargar los viajes'),
+      findsOneWidget,
+    );
+    expect(find.text('Reintentar'), findsOneWidget);
   });
 
   testWidgets('shows offline banner when offline', (tester) async {
@@ -347,10 +356,7 @@ void main() {
     Future<void> openForm(WidgetTester tester) async {
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nombre'),
-        'Viaje X',
-      );
+      await tester.enterText(tripNameField, 'Viaje X');
       await tester.pump();
       await tester.tap(find.text('Guardar'));
       await tester.pumpAndSettle();
@@ -362,13 +368,6 @@ void main() {
     }
 
     Future<void> confirmSkip(WidgetTester tester) async {
-      await tester.tap(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.text('Continuar'),
-        ),
-      );
-      await tester.pumpAndSettle();
       await tester.tap(
         find.descendant(
           of: find.byType(AlertDialog),
@@ -490,10 +489,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(TripForm), findsOneWidget);
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Nombre'),
-        'Viaje editado',
-      );
+      await tester.enterText(tripNameField, 'Viaje editado');
       await tester.pump();
       await tester.tap(find.text('Guardar'));
       await tester.pumpAndSettle();

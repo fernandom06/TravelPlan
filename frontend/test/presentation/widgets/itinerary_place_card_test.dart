@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend/core/theme/app_theme.dart';
@@ -340,5 +341,89 @@ void main() {
       TextOverflow.ellipsis,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a tappable card announces itself as one move button', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _wrap(ItineraryPlaceCard(item: _item(), onDelete: () {}, onTap: () {})),
+    );
+
+    final node = tester.getSemantics(find.text('Mirador de la Catedral'));
+    expect(node.flagsCollection.isButton, isTrue);
+    // The card's own text is the label; the delete button stays a separate
+    // control.
+    expect(node.label, contains('Mirador de la Catedral'));
+    semantics.dispose();
+  });
+
+  testWidgets('a non-tappable card is not announced as a button', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _wrap(ItineraryPlaceCard(item: _item(), onDelete: () {})),
+    );
+
+    final node = tester.getSemantics(find.text('Mirador de la Catedral'));
+    expect(node.flagsCollection.isButton, isFalse);
+    semantics.dispose();
+  });
+
+  testWidgets('keyboard users activate the tap surface with Space', (
+    tester,
+  ) async {
+    var moved = false;
+    await tester.pumpWidget(
+      _wrap(
+        ItineraryPlaceCard(
+          item: _item(),
+          onDelete: () {},
+          onTap: () => moved = true,
+        ),
+      ),
+    );
+
+    Focus.of(
+      tester.element(find.text('Mirador de la Catedral')),
+    ).requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+
+    expect(moved, isTrue);
+  });
+
+  testWidgets('keyboard focus draws a visible ring on the card', (
+    tester,
+  ) async {
+    // Tests default to the touch highlight mode; force the traditional
+    // (keyboard/mouse) mode so the focus ring applies.
+    FocusManager.instance.highlightStrategy =
+        FocusHighlightStrategy.alwaysTraditional;
+    await tester.pumpWidget(
+      _wrap(ItineraryPlaceCard(item: _item(), onDelete: () {}, onTap: () {})),
+    );
+
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Container && w.foregroundDecoration != null,
+      ),
+      findsNothing,
+    );
+
+    Focus.of(
+      tester.element(find.text('Mirador de la Catedral')),
+    ).requestFocus();
+    await tester.pump();
+
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Container && w.foregroundDecoration != null,
+      ),
+      findsOneWidget,
+    );
   });
 }

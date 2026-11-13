@@ -55,15 +55,22 @@ class TripCard extends StatelessWidget {
   );
 
   (String, Color, Color) get _badge {
+    // Same contrast rule the day pills and FAB already follow: white 10px
+    // text needs a deep fill — plain [primary] and [accent] fall to ~2.9:1
+    // and vanish in field sunlight.
     return switch (_status) {
-      TripStatus.upcoming => ('PRÓXIMAMENTE', AppColors.primary, Colors.white),
-      TripStatus.ongoing => ('EN CURSO', AppColors.accent, Colors.white),
+      TripStatus.upcoming => (
+        'PRÓXIMAMENTE',
+        AppColors.primaryDeep,
+        Colors.white,
+      ),
+      TripStatus.ongoing => ('EN CURSO', AppColors.accentDeep, Colors.white),
       TripStatus.past => ('PASADO', AppColors.muted, AppColors.text),
     };
   }
 
   String get _dates =>
-      '${_formatDayMonth(trip.startDate)} - ${_formatDayMonth(trip.endDate)}, '
+      '${_formatDayMonth(trip.startDate)} – ${_formatDayMonth(trip.endDate)} '
       '${trip.endDate.year}';
 
   static const _months = [
@@ -151,11 +158,13 @@ class TripCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       _dates,
+                      // Deep terracotta, not [primary]: 12px italic on white
+                      // must clear AA for field use.
                       style: const TextStyle(
                         fontFamily: 'Lora',
                         fontStyle: FontStyle.italic,
                         fontSize: 12,
-                        color: AppColors.primary,
+                        color: AppColors.primaryDeep,
                       ),
                     ),
                   ],

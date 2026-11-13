@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/data/models/category.dart';
 import 'package:frontend/data/models/itinerary_item.dart';
 import 'package:frontend/data/models/place.dart';
-import 'package:frontend/presentation/widgets/dashed_action_card.dart';
 import 'package:frontend/presentation/widgets/general_items_section.dart';
 import 'package:frontend/presentation/widgets/itinerary_place_card.dart';
 
@@ -110,7 +109,10 @@ void main() {
       ),
     );
 
-    expect(find.text('Añade lugares al viaje'), findsOneWidget);
+    expect(
+      find.text('Todavía no hay lugares por asignar. ¿Añadimos uno?'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('dropping a card on the empty section appends', (tester) async {
@@ -185,89 +187,6 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.delete_outline));
     expect(deletedId, 1);
-  });
-
-  testWidgets('renders the trailing card after the mini-cards', (tester) async {
-    await tester.pumpWidget(
-      wrap(
-        GeneralItemsSection(
-          items: [_item(1, position: 0), _item(2, position: 1)],
-          onAcceptItem: (_, _) {},
-          onDeleteItem: (_) {},
-          trailing: const DashedActionCard(
-            label: '¿Añadimos un lugar?',
-            onTap: _noop,
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byType(DashedActionCard), findsOneWidget);
-    final lastCardRight = tester.getTopRight(
-      find.byType(ItineraryPlaceCard).last,
-    );
-    final cardLeft = tester.getTopLeft(find.byType(DashedActionCard));
-    expect(cardLeft.dx, greaterThan(lastCardRight.dx));
-  });
-
-  testWidgets('empty state centers the trailing card without the hint', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      wrap(
-        GeneralItemsSection(
-          items: const [],
-          onAcceptItem: (_, _) {},
-          onDeleteItem: (_) {},
-          trailing: const DashedActionCard(
-            label: '¿Añadimos un lugar?',
-            onTap: _noop,
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('Añade lugares al viaje'), findsNothing);
-    expect(find.byType(DashedActionCard), findsOneWidget);
-    final sectionCenter = tester.getCenter(find.byType(GeneralItemsSection));
-    final cardCenter = tester.getCenter(find.byType(DashedActionCard));
-    expect((cardCenter.dx - sectionCenter.dx).abs(), lessThan(1));
-  });
-
-  testWidgets('does not render a trailing card without trailing', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      wrap(
-        GeneralItemsSection(
-          items: [_item(1, position: 0)],
-          onAcceptItem: (_, _) {},
-          onDeleteItem: (_) {},
-        ),
-      ),
-    );
-
-    expect(find.byType(DashedActionCard), findsNothing);
-  });
-
-  testWidgets('tapping the trailing card invokes its onTap', (tester) async {
-    var tapped = false;
-    await tester.pumpWidget(
-      wrap(
-        GeneralItemsSection(
-          items: const [],
-          onAcceptItem: (_, _) {},
-          onDeleteItem: (_) {},
-          trailing: DashedActionCard(
-            label: '¿Añadimos un lugar?',
-            onTap: () => tapped = true,
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('¿Añadimos un lugar?'));
-    expect(tapped, isTrue);
   });
 
   testWidgets('vertical layout renders no horizontal scrollable', (
@@ -364,85 +283,25 @@ void main() {
     expect((header.top + card.bottom) / 2, closeTo(panel.center.dy, 10));
   });
 
-  testWidgets('vertical list puts the trailing card below at full width', (
-    tester,
-  ) async {
+  testWidgets('vertical empty state shows the hint', (tester) async {
     await tester.pumpWidget(
       wrap(
         SizedBox(
           width: 340,
           child: GeneralItemsSection(
-            items: [_item(1, position: 0), _item(2, position: 1)],
+            items: const [],
             onAcceptItem: (_, _) {},
             onDeleteItem: (_) {},
             layout: GeneralItemsLayout.vertical,
-            trailing: const DashedActionCard(
-              label: '¿Añadimos un lugar?',
-              onTap: _noop,
-              compact: true,
-            ),
           ),
         ),
       ),
     );
 
-    expect(find.byType(DashedActionCard), findsOneWidget);
-    final lastCard = find.byType(ItineraryPlaceCard).last;
-    final trailingTop = tester.getTopLeft(find.byType(DashedActionCard));
-    expect(trailingTop.dy, greaterThan(tester.getBottomLeft(lastCard).dy));
-    final cardWidth = tester.getSize(lastCard).width;
-    expect(tester.getSize(find.byType(DashedActionCard)).width, cardWidth);
     expect(
-      tester.getSize(find.byType(DashedActionCard)).height,
-      closeTo(72, 1),
+      find.text('Todavía no hay lugares por asignar. ¿Añadimos uno?'),
+      findsOneWidget,
     );
-  });
-
-  testWidgets('vertical empty state shows only the add card with trailing', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      wrap(
-        SizedBox(
-          width: 340,
-          child: GeneralItemsSection(
-            items: const [],
-            onAcceptItem: (_, _) {},
-            onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.vertical,
-            trailing: const DashedActionCard(
-              label: '¿Añadimos un lugar?',
-              onTap: _noop,
-              compact: true,
-            ),
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('Añade lugares al viaje'), findsNothing);
-    expect(find.byType(DashedActionCard), findsOneWidget);
-  });
-
-  testWidgets('vertical empty state without trailing shows the hint', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      wrap(
-        SizedBox(
-          width: 340,
-          child: GeneralItemsSection(
-            items: const [],
-            onAcceptItem: (_, _) {},
-            onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.vertical,
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('Añade lugares al viaje'), findsOneWidget);
-    expect(find.byType(DashedActionCard), findsNothing);
   });
 
   testWidgets('dropping a vertical card on another vertical card inserts '
@@ -576,35 +435,6 @@ void main() {
     expect(nameText.overflow, TextOverflow.ellipsis);
   });
 
-  testWidgets('vertical empty state keeps the add card visible and tappable', (
-    tester,
-  ) async {
-    var tapped = false;
-    await tester.pumpWidget(
-      wrap(
-        SizedBox(
-          width: 340,
-          child: GeneralItemsSection(
-            items: const [],
-            onAcceptItem: (_, _) {},
-            onDeleteItem: (_) {},
-            layout: GeneralItemsLayout.vertical,
-            trailing: DashedActionCard(
-              label: '¿Añadimos un lugar?',
-              onTap: () => tapped = true,
-              compact: true,
-            ),
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byType(DashedActionCard), findsOneWidget);
-    expect(find.text('Añade lugares al viaje'), findsNothing);
-    await tester.tap(find.text('¿Añadimos un lugar?'));
-    expect(tapped, isTrue);
-  });
-
   testWidgets('vertical panel is unframed at rest and fills while dragging', (
     tester,
   ) async {
@@ -685,5 +515,3 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 }
-
-void _noop() {}

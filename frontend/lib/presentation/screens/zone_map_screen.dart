@@ -31,40 +31,21 @@ class _ZoneMapScreenState extends State<ZoneMapScreen> {
     );
   }
 
-  String get _skipMessage {
-    final count = _controller.value.points.length;
-    if (count >= 3) return 'Se descartarán los $count puntos dibujados.';
-    return 'Se descartará el polígono dibujado.';
-  }
-
+  /// One confirmation for skipping, not two: it names the cost (the drawn
+  /// points) and the outcome (a trip without a zone) in a single dialog.
   Future<void> _handleSkip() async {
-    final first = await showDialog<bool>(
+    final count = _controller.value.points.length;
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('¿Omitir la zona?'),
-          content: const Text('El viaje se creará sin zona.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Continuar'),
-            ),
-          ],
-        );
-      },
-    );
-    if (first != true || !mounted) return;
-
-    final second = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Omitir la zona'),
-          content: Text(_skipMessage),
+          content: Text(
+            count > 0
+                ? 'Se descartarán los puntos dibujados. '
+                      'El viaje se creará sin zona.'
+                : 'El viaje se creará sin zona.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -78,7 +59,7 @@ class _ZoneMapScreenState extends State<ZoneMapScreen> {
         );
       },
     );
-    if (second != true || !mounted) return;
+    if (confirmed != true || !mounted) return;
     Navigator.pop(context, widget.draft);
   }
 
@@ -92,11 +73,25 @@ class _ZoneMapScreenState extends State<ZoneMapScreen> {
             child: Stack(
               children: [
                 Positioned.fill(child: ZoneMap(controller: _controller)),
-                const Positioned(
+                Positioned(
                   top: 16,
                   left: 0,
                   right: 0,
-                  child: IgnorePointer(child: Center(child: _ZonePill())),
+                  child: IgnorePointer(
+                    child: Center(
+                      child: ValueListenableBuilder<ZoneState>(
+                        valueListenable: _controller,
+                        builder: (context, state, _) => Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const _ZonePill(),
+                            const SizedBox(height: AppSpacing.sm),
+                            _ZoneHint(count: state.points.length),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -158,6 +153,40 @@ class _ZonePill extends StatelessWidget {
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Contextual instruction under the pill: how to draw (a first-time user
+/// must not have to guess the tap gesture or the 3-point minimum) and, once
+/// drawing, a running counter that explains why "Crear viaje" is disabled.
+class _ZoneHint extends StatelessWidget {
+  const _ZoneHint({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = switch (count) {
+      0 => 'Toca el mapa para delimitar la zona · mínimo 3 puntos',
+      < 3 => '$count/3 · Toca el mapa para añadir más puntos',
+      _ => '$count puntos · Zona lista para crear el viaje',
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.92),
+        borderRadius: AppRadii.pill,
+        border: Border.all(color: AppColors.muted.withValues(alpha: 0.6)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontFamily: 'Lora',
+          fontSize: 12,
+          color: AppColors.textSecondary,
         ),
       ),
     );

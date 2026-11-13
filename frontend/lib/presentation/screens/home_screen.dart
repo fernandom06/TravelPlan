@@ -5,6 +5,7 @@ import '../../data/models/category_draft.dart';
 import '../controllers/places_controller.dart';
 import '../controllers/trips_controller.dart';
 import '../widgets/app_shell.dart';
+import '../widgets/error_notice.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/travel_map.dart';
 import 'settings_screen.dart';
@@ -37,9 +38,11 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.placesController.loadAll().catchError((Object error) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
+        showErrorNotice(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error al cargar: $error')));
+          'No se pudieron cargar los lugares. Revisa tu conexión.',
+          () => widget.placesController.loadAll(),
+        );
       });
     });
   }

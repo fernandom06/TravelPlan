@@ -9,8 +9,9 @@ import 'itinerary_place_card.dart';
 /// Timeline-style slot section: a terracotta rail with a circular marker per
 /// slot, a Fraunces header with a per-slot icon, and either a dashed drop zone
 /// ("Arrastra lugares aquí", highlighted while dragging) or the assigned
-/// [ItineraryPlaceCard]s. Drag semantics (append + insert-before) are
-/// unchanged.
+/// [ItineraryPlaceCard]s. The empty drop zone is also tappable via
+/// [onAddPlace], which opens the picker pre-targeted to this day+slot.
+/// Drag semantics (append + insert-before) are unchanged.
 class ItinerarySlotSection extends StatelessWidget {
   const ItinerarySlotSection({
     super.key,
@@ -20,6 +21,8 @@ class ItinerarySlotSection extends StatelessWidget {
     required this.onAcceptItem,
     required this.onDeleteItem,
     this.onOpenItem,
+    this.onAddPlace,
+    this.dayLabel,
     this.isLast = false,
   });
 
@@ -39,6 +42,16 @@ class ItinerarySlotSection extends StatelessWidget {
 
   /// Invoked when a card is plain-tapped (non-drag move alternative).
   final void Function(ItineraryItem item)? onOpenItem;
+
+  /// Invoked when the empty drop zone is tapped: opens the place picker
+  /// pre-targeted to this day+slot, so adding somewhere specific does not
+  /// require a drag. Null keeps the zone drag-only.
+  final VoidCallback? onAddPlace;
+
+  /// Day context (e.g. "Día 2 · 02 Jun") spoken in the empty-zone Semantics
+  /// label, so a screen reader knows which day the zone targets. The slot
+  /// title alone ("Mañana") is ambiguous across days.
+  final String? dayLabel;
 
   /// Icons picked so the three slots read apart at a glance: dawn light for
   /// morning, a full sun for afternoon and the moon for night. Public so the
@@ -128,7 +141,7 @@ class ItinerarySlotSection extends StatelessWidget {
                       highlighted,
                       items.isEmpty,
                       items.isEmpty
-                          ? _emptyHint(context, highlighted)
+                          ? _emptyHint(context)
                           : Column(
                               children: [
                                 for (var i = 0; i < items.length; i++)
@@ -176,7 +189,7 @@ class ItinerarySlotSection extends StatelessWidget {
   }
 
   Widget _dropZone(BuildContext context, bool highlighted, Widget child) {
-    return DashedBorderContainer(
+    final zone = DashedBorderContainer(
       color: highlighted ? AppColors.accent : AppColors.muted,
       backgroundColor: highlighted
           ? AppColors.background
@@ -185,27 +198,37 @@ class ItinerarySlotSection extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: child,
     );
+    final onTap = highlighted ? null : onAddPlace;
+    if (onTap == null) return zone;
+    final label = dayLabel == null
+        ? 'Añadir lugar en $title'
+        : 'Añadir lugar en $title · $dayLabel';
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(onTap: onTap, child: zone),
+    );
   }
 
-  Widget _emptyHint(BuildContext context, bool highlighted) {
+  Widget _emptyHint(BuildContext context) {
+    // The hint holds textSecondary even while dragging: mint accent text on
+    // the paper background only reaches ~2.1:1. The highlighted accent
+    // border on the drop zone already carries the "drop here" signal.
+    const hintColor = AppColors.textSecondary;
     return SizedBox(
       height: 100,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.add_circle_outline,
-            size: 16,
-            color: highlighted ? AppColors.accent : AppColors.textSecondary,
-          ),
+          const Icon(Icons.add_circle_outline, size: 16, color: hintColor),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               dragHint(context),
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: highlighted ? AppColors.accent : AppColors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: hintColor),
             ),
           ),
         ],

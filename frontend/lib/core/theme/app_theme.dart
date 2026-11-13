@@ -9,6 +9,11 @@ abstract final class AppColors {
   /// Terracotta — primary actions, active states, key accents.
   static const Color primary = Color(0xFFE07A5F);
 
+  /// Deep terracotta — fill under small white text (day pills, badges).
+  /// Plain [primary] only reaches ~2.9:1 against white; this darker shade
+  /// clears 4.5:1 so 13px labels stay AA-readable in field sunlight.
+  static const Color primaryDeep = Color(0xFFB9563D);
+
   /// Paper — main page background.
   static const Color background = Color(0xFFF4F1DE);
 
@@ -29,6 +34,11 @@ abstract final class AppColors {
 
   /// Mint — success states, nature categories, fresh highlights.
   static const Color accent = Color(0xFF81B29A);
+
+  /// Deep mint — fill under small white text in the mint family (EN CURSO
+  /// badges). [accent] with white text only reaches ~2.4:1; this darker shade
+  /// clears 4.5:1 so the 10px badge label stays AA-readable in field sunlight.
+  static const Color accentDeep = Color(0xFF4F7A62);
 }
 
 abstract final class AppShadows {
@@ -132,7 +142,10 @@ abstract final class AppTheme {
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
+        // Deep terracotta: white labels on [primary] only reach ~2.9:1,
+        // which fails AA for the small Fraunces label — same fix as the
+        // day pills.
+        backgroundColor: AppColors.primaryDeep,
         foregroundColor: Colors.white,
         elevation: 4,
       ),

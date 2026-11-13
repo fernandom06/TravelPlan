@@ -21,16 +21,14 @@ enum GeneralItemsLayout {
 /// full-width vertical list ([GeneralItemsLayout.vertical]). When it fills a
 /// bounded height, the vertical list centers the header together with its
 /// cards and scrolls once they overflow. Dropping anywhere on the container
-/// appends; dropping on a card inserts before that card's index. An optional
-/// [trailing] widget is shown after the last card (or centered when there are
-/// no items).
+/// appends; dropping on a card inserts before that card's index. Adding new
+/// places lives on the screen's FAB, not here.
 class GeneralItemsSection extends StatelessWidget {
   const GeneralItemsSection({
     super.key,
     required this.items,
     required this.onAcceptItem,
     required this.onDeleteItem,
-    this.trailing,
     this.onOpenItem,
     this.layout = GeneralItemsLayout.carousel,
   });
@@ -42,11 +40,6 @@ class GeneralItemsSection extends StatelessWidget {
   final void Function(ItineraryItem item, int index) onAcceptItem;
   final void Function(int itemId) onDeleteItem;
 
-  /// Optional widget (e.g. a [DashedActionCard]) rendered at the end of the
-  /// carousel, or centered in the empty state. When null the section keeps its
-  /// current layout.
-  final Widget? trailing;
-
   /// Invoked when a card is plain-tapped (non-drag move alternative).
   final void Function(ItineraryItem item)? onOpenItem;
 
@@ -54,7 +47,6 @@ class GeneralItemsSection extends StatelessWidget {
   final GeneralItemsLayout layout;
 
   static const _carouselHeight = 200.0;
-  static const _trailingHeight = 72.0;
 
   @override
   Widget build(BuildContext context) {
@@ -108,9 +100,11 @@ class GeneralItemsSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Text(
         'Lugares por asignar',
+        // titleMedium: this is a section label, not a page title — the trip
+        // name and day context outrank it in the visual hierarchy.
         style: Theme.of(
           context,
-        ).textTheme.titleLarge?.copyWith(color: AppColors.text),
+        ).textTheme.titleMedium?.copyWith(color: AppColors.text),
       ),
     );
   }
@@ -164,19 +158,12 @@ class GeneralItemsSection extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context) {
-    final trailing = this.trailing;
-    if (items.isEmpty) {
-      if (trailing == null) return _emptyState(context);
-      return Center(child: SizedBox(width: 104, child: trailing));
-    }
+    if (items.isEmpty) return _emptyState(context);
     return ListView.separated(
       scrollDirection: Axis.horizontal,
-      itemCount: items.length + (trailing == null ? 0 : 1),
+      itemCount: items.length,
       separatorBuilder: (_, _) => const SizedBox(width: 8),
       itemBuilder: (_, i) {
-        if (trailing != null && i == items.length) {
-          return SizedBox(width: 104, child: trailing);
-        }
         final item = items[i];
         return DragTarget<ItineraryItem>(
           onAcceptWithDetails: (details) {
@@ -211,11 +198,13 @@ class GeneralItemsSection extends StatelessWidget {
   }
 
   Widget _verticalContent(BuildContext context, {Widget? header}) {
-    final trailing = this.trailing;
     if (items.isEmpty) {
-      final body = trailing == null
-          ? SizedBox(height: _trailingHeight, child: _emptyState(context))
-          : SizedBox(height: _trailingHeight, child: trailing);
+      // The hint text is two lines at panel width: it must size itself, not
+      // fit a fixed trailing slot.
+      final body = Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: _emptyState(context),
+      );
       if (header == null) return body;
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -241,8 +230,6 @@ class GeneralItemsSection extends StatelessWidget {
               ),
             ),
           ),
-        if (trailing != null)
-          SizedBox(height: _trailingHeight, child: trailing),
       ],
     );
   }
@@ -256,10 +243,10 @@ class GeneralItemsSection extends StatelessWidget {
           const Icon(Icons.travel_explore, size: 24, color: AppColors.muted),
           const SizedBox(height: 6),
           Text(
-            'Añade lugares al viaje',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            'Todavía no hay lugares por asignar. ¿Añadimos uno?',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),

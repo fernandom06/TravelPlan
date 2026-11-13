@@ -188,7 +188,9 @@ void main() {
     expect(find.text('Sin conexión con el servidor'), findsNothing);
   });
 
-  testWidgets('shows a snackbar when loading fails', (tester) async {
+  testWidgets('shows a persistent snackbar with retry when loading fails', (
+    tester,
+  ) async {
     final online = ValueNotifier<bool>(true);
     addTearDown(online.dispose);
     final controller = PlacesController(
@@ -200,7 +202,11 @@ void main() {
     await tester.pump();
 
     expect(find.byType(SnackBar), findsOneWidget);
-    expect(find.textContaining('boom'), findsOneWidget);
+    expect(
+      find.textContaining('No se pudieron cargar los lugares'),
+      findsOneWidget,
+    );
+    expect(find.text('Reintentar'), findsOneWidget);
   });
 
   testWidgets('shows Mapa and Viajes navigation destinations with icons', (
@@ -416,7 +422,7 @@ void main() {
       expect(tester.takeException(), isNull);
 
       await tester.enterText(
-        find.widgetWithText(TextField, 'Nombre'),
+        find.byKey(const Key('trip-name-field')),
         'Viaje X',
       );
       await tester.pump();

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/day_label.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_draft.dart';
+import 'sketchbook_name_field.dart';
 
 class TripForm extends StatefulWidget {
   const TripForm({
@@ -65,8 +68,9 @@ class _TripFormState extends State<TripForm> {
     super.dispose();
   }
 
-  bool get _canSave =>
-      _nameController.text.trim().isNotEmpty && !_endDate.isBefore(_startDate);
+  bool get _datesValid => !_endDate.isBefore(_startDate);
+
+  bool get _canSave => _nameController.text.trim().isNotEmpty && _datesValid;
 
   Future<void> _pickDate({required bool isStart}) async {
     final current = isStart ? _startDate : _endDate;
@@ -147,117 +151,146 @@ class _TripFormState extends State<TripForm> {
     onDelete();
   }
 
-  String _formatDate(DateTime d) {
-    final day = d.day.toString().padLeft(2, '0');
-    final month = d.month.toString().padLeft(2, '0');
-    return '$day/$month/${d.year}';
+  /// Start/end as two pill chips in a [Wrap]: they reflow on narrow screens
+  /// instead of squeezing into one row, and speak the itinerary's "05 Jun"
+  /// day vocabulary.
+  Widget _dateChip({required bool isStart}) {
+    final date = isStart ? _startDate : _endDate;
+    final sameYear = _startDate.year == _endDate.year;
+    final label = isStart
+        ? 'Del ${dayLabel(date)}${sameYear ? '' : ' ${date.year}'}'
+        : 'Al ${dayLabel(date)} ${date.year}';
+    return OutlinedButton.icon(
+      key: Key(isStart ? 'trip-start-date' : 'trip-end-date'),
+      onPressed: () => _pickDate(isStart: isStart),
+      icon: const Icon(Icons.event, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.text,
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.pill),
+        textStyle: const TextStyle(fontFamily: 'Lora', fontSize: 13),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _nameController,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(labelText: 'Nombre'),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton.icon(
-                    onPressed: () => _pickDate(isStart: true),
-                    icon: const Icon(Icons.event),
-                    label: Text('Fecha inicio: ${_formatDate(_startDate)}'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextButton.icon(
-                    onPressed: () => _pickDate(isStart: false),
-                    icon: const Icon(Icons.event),
-                    label: Text('Fecha fin: ${_formatDate(_endDate)}'),
-                  ),
-                ),
-              ],
-            ),
-            if (_endDate.isBefore(_startDate))
-              Text(
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SketchbookNameField(
+            key: const Key('trip-name-field'),
+            controller: _nameController,
+            autofocus: true,
+            hint: 'Nombra el viaje...',
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [_dateChip(isStart: true), _dateChip(isStart: false)],
+          ),
+          if (!_datesValid)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Text(
                 'La fecha de fin debe ser posterior a la de inicio',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                style: TextStyle(
+                  fontFamily: 'Lora',
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Descripción'),
             ),
-            const SizedBox(height: 8),
-            if (_imageUrl != null) ...[
-              Image.network(
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: _descriptionController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Descripción',
+              labelStyle: TextStyle(fontFamily: 'Lora', color: AppColors.text),
+              filled: true,
+              fillColor: Color(0x80F4F1DE), // paper tone
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (_imageUrl != null) ...[
+            ClipRRect(
+              borderRadius: AppRadii.organic,
+              child: Image.network(
                 _imageUrl!,
                 height: 120,
+                width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
                     const SizedBox.shrink(),
               ),
-              const SizedBox(height: 8),
-            ],
-            Row(
-              children: [
-                if (widget.onPickImage != null)
-                  OutlinedButton.icon(
-                    onPressed: _handlePickImage,
-                    icon: const Icon(Icons.upload),
-                    label: const Text('Subir imagen'),
-                  ),
-                const SizedBox(width: 8),
-                if (_imageUrl != null)
-                  OutlinedButton.icon(
-                    onPressed: _handleRemoveImage,
-                    icon: const Icon(Icons.close),
-                    label: const Text('Quitar imagen'),
-                  ),
-              ],
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _urlController,
-              onChanged: _handleUrlChanged,
-              decoration: const InputDecoration(labelText: 'URL de imagen'),
-            ),
-            const SizedBox(height: 16),
-            OverflowBar(
-              alignment: MainAxisAlignment.end,
-              spacing: 8,
-              children: [
-                if (widget.onDelete != null)
-                  TextButton(
-                    onPressed: _handleDeleteTap,
-                    style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).colorScheme.error,
-                    ),
-                    child: const Text('Eliminar'),
-                  ),
-                TextButton(
-                  onPressed: widget.onCancel,
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: _canSave ? _handleSave : null,
-                  child: const Text('Guardar'),
-                ),
-              ],
-            ),
+            const SizedBox(height: AppSpacing.sm),
           ],
-        ),
+          OverflowBar(
+            alignment: MainAxisAlignment.start,
+            spacing: AppSpacing.sm,
+            overflowSpacing: AppSpacing.sm,
+            children: [
+              if (widget.onPickImage != null)
+                OutlinedButton.icon(
+                  onPressed: _handlePickImage,
+                  icon: const Icon(Icons.upload),
+                  label: const Text('Subir imagen'),
+                ),
+              if (_imageUrl != null)
+                OutlinedButton.icon(
+                  onPressed: _handleRemoveImage,
+                  icon: const Icon(Icons.close),
+                  label: const Text('Quitar imagen'),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _urlController,
+            onChanged: _handleUrlChanged,
+            decoration: const InputDecoration(
+              labelText: 'URL de imagen',
+              labelStyle: TextStyle(fontFamily: 'Lora', color: AppColors.text),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          OverflowBar(
+            alignment: MainAxisAlignment.end,
+            spacing: 8,
+            children: [
+              if (widget.onDelete != null)
+                TextButton(
+                  onPressed: _handleDeleteTap,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  child: const Text('Eliminar'),
+                ),
+              TextButton(
+                onPressed: widget.onCancel,
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: _canSave ? _handleSave : null,
+                // Deep terracotta: white on [primary] only reaches ~2.9:1 —
+                // same AA fix as the day pills, FAB and place footer.
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryDeep,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(96, 48),
+                ),
+                child: const Text('Guardar'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
