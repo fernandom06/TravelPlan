@@ -6,43 +6,49 @@
 
 adaptive
 
-Phone-first on Android and iOS; desktop and web builds exist but are not where design effort goes. The app uses one shared Material design language across all platforms (single `core/theme/app_theme.dart`), not per-OS theming.
+> ASSUMPTION: inferred from the Flutter codebase targeting Android, iOS, desktop, and web with a single Material theme; not confirmed with the user.
 
 ## Users
 
-The developer as a personal traveler: a single user planning their own trips with it. It is a personal tool, not a published product for others. In practice it is used while preparing an upcoming trip (organizing places into geographic zones, building the day-by-day itinerary) and consulted while out in the field.
+- ASSUMPTION (inferred from repository and code, not confirmed): An individual traveler planning their own trips — building a personal catalog of places they might visit, organized into categories, and composing day-by-day itineraries for each trip. The user runs the app themselves against their own backend instance (personal/hobby context; no accounts, no multi-tenant server evidence).
+- Open decision: whether a second audience (e.g., shared/family planning) is intended — unconfirmed.
 
 ## Product Purpose
 
-TravelPlan organizes a trip: create trips with dates and a cover image, collect places with coordinates and categories, link places to trips, group places into geographic zones, and build the day-by-day itinerary as ordered slots. Success means the plan on screen can be trusted in the field — you know where you go, in what order, on which day.
+TravelPlan lets a person collect and organize places (name, description, coordinates, category), group them into trips (with dates and an optional cover image), plan the trip as an itinerary by day and time slots, and see everything on a map. Success means the user can go from "places I want to visit" to a concrete day-by-day plan without leaving the app.
 
 ## Positioning
 
-The structured zone/day flow: places are not loose notes — they are grouped into geographic zones and placed into day-by-day itinerary slots. Booking and notes apps keep a list; TravelPlan keeps the ordered, zone-aware sequence of a trip.
+- ASSUMPTION (not confirmed): The differentiator is map- and geography-first planning: places are created directly on the map (long-press), itineraries are planned per day/slot around those places, and the same personal catalog of places and categories is reused across multiple trips — in contrast to generic list tools (Google Maps saved lists) or document-style itinerary managers (TripIt).
 
 ## Operating Context
 
-- Used in two situations: trip preparation (with the backend running locally) and field use on a phone, where connectivity may be unreliable.
-- A connectivity stream (`connectivity_plus`) drives an offline banner; it is informational only — there is no offline persistence.
-- Backed by a local FastAPI + SQLite service (`backend/`); the frontend needs it reachable (`API_BASE_URL`, defaulting to the Android emulator host loopback).
+- ASSUMPTION (from code): Used across phone and desktop during planning sessions; runs against a local FastAPI backend (`just dev` starts API + app together). Offline state matters: the app shows a connectivity banner and must behave sensibly without the API.
 
 ## Capabilities and Constraints
 
-- Trips: CRUD with date validation (start <= end), cover image upload, status tracking; many-to-many link to places.
-- Places & categories: CRUD for name, description, lat/lng, category; category rename/delete-with-reassignment semantics.
-- Zone map: interactive map (`flutter_map` + OpenStreetMap tiles); places are created by long-press, zones rendered as points.
-- Itinerary: day-by-day slots with reorder/move operations.
-- Settings screen.
-- Constraints that carry forward: the API contract is hand-written (`lib/data/*_api.dart` + `lib/data/models/`); backend status codes (409 duplicate, 422 invalid reassign) map to named frontend exceptions that must stay in sync. No migrations exist — schema changes mean editing `init_db()` DDL.
-- Explicitly undecided: nothing recorded; no publishing, monetization, or multi-user plans are confirmed.
+- Places: CRUD with name, description, lat/lng, category; categories support rename and delete-with-reassignment (409 on conflict, 422 on invalid target — frontend exceptions must stay in sync).
+- Trips: CRUD with date validation (start <= end), optional cover image upload; many-to-many link to places (`trip_places`).
+- Itinerary: day/slot-based planning per trip (itinerary API + two-column layout screen); URL import of places (`import_url_dialog.dart`).
+- Map: interactive `flutter_map` + OpenStreetMap tiles; places created by long-press, edited/deleted in place; zone-map screen for spatial planning.
+- Connectivity: offline banner driven by `connectivity_plus`.
+- Technical constraints: SQLite backend (no migrations — schema changes edit `init_db()` DDL); uploads limited to 5 MB images; hand-written frontend API contract that must mirror backend endpoint shapes.
+- Open decision: primary UI language (developer docs are Spanish; app copy language unconfirmed).
+
+## Brand Commitments
+
+- Name: TravelPlan (as used in `MaterialApp.title`).
+- An existing design system document (DESIGN.md, "Artisanal Wanderer" world) is present in the repo; init does not modify or validate it — treat it as incumbent visual context for later design work, not as a confirmed binding commitment.
 
 ## Evidence on Hand
 
-No real content, data, demonstrations, testimonials, case studies, press, or brand assets exist in the repository. Future work must not fabricate any of these; screenshots or sample data would have to be generated honestly from the app itself.
+- Complete runnable codebase: `backend/` (FastAPI + SQLite, 71 tests) and `frontend/` (Flutter, ~200 tests), with `AGENTS.md` documenting setup, testing, and conventions.
+- No real user research, testimonials, usage data, press, or marketing assets — future work must not fabricate any of these.
 
 ## Product Principles
 
-1. The plan is the artifact: every screen serves the ordered, zone-aware trip sequence, not collection for its own sake.
-2. Field-truthful: the app must behave honestly about connectivity and never pretend data is safe when it is not saved.
-3. Structure over freeform: places, zones, and days are first-class structure; free text is the fallback, not the mechanism.
-4. Small is deliberate: a single-user tool — precision and craft outrank feature breadth.
+- ASSUMPTION (derived from repository evidence and code, not confirmed): 
+  1. Geography first — places and plans live on the map, not just in lists.
+  2. Reuse over re-entry — one catalog of places and categories serves many trips.
+  3. Honest state — the app always shows what is offline/unsynced rather than pretending connectivity.
+  4. Simple and personal — no accounts or cloud assumptions; the user owns their data.
